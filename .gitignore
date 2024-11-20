@@ -1,0 +1,30 @@
+# Игнорирование node_modules
+node_modules/
+# Firebase Admin serviceAccountKey 
+rzk-warsaw-ru-firebase-adminsdk-nzfp6-4cfb76187f.json
+rzk-warsaw-dev-firebase-adminsdk-27ucx-06b7770842.json
+rzk-warsaw-ru-7e70642e408f.js
+
+# Игнорирование временных файлов и логов
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Игнорирование .env файла с конфиденциальными данными
+.env
+
+# Игнорирование кэш-файлов
+*.cache
+
+# Игнорирование выходных данных сборщика
+dist/
+build/
+
+# Игнорирование настроек IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Игнорирование файлов операционной системы
+Thumbs.db

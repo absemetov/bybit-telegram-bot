@@ -1,0 +1,43 @@
+{
+  "name": "bybit-telegram-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "status": "pm2 list",
+    "start": "pm2 start ecosystem.config.cjs",
+    "stop": "pm2 stop ecosystem.config.cjs",
+    "logs": "pm2 logs",
+    "deploy": "firebase deploy --only functions"
+  },
+  "keywords": [],
+  "author": "Nadir Absemetov",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bybit-api": "^3.10.11",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-handlebars": "^8.0.1",
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.1.0",
+    "google-auth-library": "^9.14.1",
+    "google-spreadsheet": "^4.1.4",
+    "joi": "^17.13.3",
+    "moment": "^2.30.1",
+    "node-cron": "^3.0.3",
+    "path-to-regexp": "^8.2.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.7.0",
+    "eslint": "9.x",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "globals": "^15.8.0",
+    "prettier": "^3.3.2"
+  }
+}

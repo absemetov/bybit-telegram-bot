@@ -1,0 +1,37 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item"><a href="/"></a><a href="/{{interval}}">Interval scan {{interval}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ticker.symbol}}</li>
+  </ol>
+</nav>
+<h4>
+  {{ticker.symbol}} lastPrice: {{ticker.lastPrice}}$
+  {{#if (more ticker.volumeUp)}}📈 x {{ticker.volumeUp}}{{else}}📉 x {{ticker.volumeUp}}{{/if}}
+  in {{interval}}
+  ({{moment ticker.updatedAt}})
+  <a class="btn btn-primary" href="https://www.tradingview.com/symbols/{{ticker.symbol}}/ideas/" target="_blank">TV ideas</a>
+  <a class="btn btn-primary" href="https://www.tradingview.com/chart/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">TV superchart</a>
+  <a class="btn btn-primary" href="https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/{{ticker.symbol}}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol={{ticker.symbol}}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true" target="_blank">Bybit chart</a>
+</h4>
+<!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container">
+  <div class="tradingview-widget-container__widget"></div>
+  <div class="tradingview-widget-copyright"><a href="https://ru.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Все рынки на TradingView</span></a></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+  {
+  "height": "800",
+  "symbol": "BYBIT:{{ticker.symbol}}.P",
+  "interval": "D",
+  "timezone": "Europe/Moscow",
+  "theme": "light",
+  "style": "1",
+  "locale": "en",
+  "hide_side_toolbar": false,
+  "allow_symbol_change": true,
+  "calendar": false,
+  "support_host": "https://www.tradingview.com"
+}
+  </script>
+</div>
+<!-- TradingView Widget END -->

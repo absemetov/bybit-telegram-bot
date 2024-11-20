@@ -1,0 +1,35 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item active" aria-current="page"><a href="/{{interval}}">Interval scan {{interval}}</a></li>
+  </ol>
+</nav>
+<div class="table-responsive">
+  <table class="table table-hover table-bordered border-primary">
+    <thead>
+    <tr>
+      <th scope="col">Symbol</th>
+      <th scope="col">Last Price</th>
+      <th scope="col">Last Update</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each paginate.tickers as |ticker|}}
+      <tr>
+        <th scope="row">
+          <a href="/{{../interval}}/{{ticker.symbol}}">{{ticker.symbol}}</a>
+          {{#if (more ticker.volumeUp)}}📈x{{ticker.volumeUp}}{{else}}📉x{{ticker.volumeUp}}{{/if}}
+        </th>
+        <td>{{ticker.lastPrice}}</td>
+        <td>{{moment ticker.updatedAt}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+  </table>
+  {{#if paginate.hasPrev}}
+    <a href="/{{interval}}?endBefore={{paginate.firstVisibleId}}" class="btn btn-primary">Prev Page</a>
+  {{/if}}
+  {{#if paginate.hasNext}}
+    <a href="/{{interval}}?startAfter={{paginate.lastVisibleId}}" class="btn btn-primary">Next Page</a>
+  {{/if}}
+</div>
