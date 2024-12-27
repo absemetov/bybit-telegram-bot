@@ -13,11 +13,12 @@ class Alert {
   static validate(alert) {
     const schema = Joi.object({
       id: Joi.string(),
-      userId: Joi.string().required(),
       symbol: Joi.string().required(),
-      price: Joi.number().min(0).required(),
-      message: Joi.string().allow(null),
-      lastNotified: Joi.alternatives([
+      interval: Joi.string().required(),
+      lastPrice: Joi.number().required(),
+      volumeUp: Joi.number().required(),
+      volumeCandleStartTime: Joi.number().required(),
+      createdAt: Joi.alternatives([
         Joi.object().keys({
           _seconds: Joi.number(),
           _nanoseconds: Joi.number(),
@@ -27,6 +28,101 @@ class Alert {
       ]),
     });
     return schema.validate(alert);
+  }
+  //new alert location
+  static async setBatch(pumpAlert) {
+    const batch = db.batch();
+    for (const alert of pumpAlert) {
+      const { error } = Alert.validate(alert.alertData);
+      if (error) {
+        throw new Error(
+          `Invalid Alert #${alert.alertData.symbol} ${alert.alertData.lastPrice}$ data: ${error.message}`,
+        );
+      }
+      batch.set(alert.alertRef, alert.alertData);
+    }
+    await batch.commit();
+  }
+  //new pump alerts paginate
+  static async find(symbol, alertId, getDoc = false) {
+    if (symbol && alertId) {
+      const alertDoc = await db
+        .doc(`crypto/${symbol}/pump-alerts/${alertId}`)
+        .get();
+      if (alertDoc.exists) {
+        if (getDoc) {
+          return alertDoc;
+        } else {
+          return { ...alertDoc.data() };
+        }
+      }
+    }
+    return null;
+  }
+  //get all alert tickers
+  static async all(symbol) {
+    const snapshot = await db
+      .collection(`crypto/${symbol}/pump-alerts`)
+      .orderBy("createdAt")
+      .get();
+    if (!snapshot.empty) {
+      const alerts = snapshot.docs.map((doc) => {
+        return { id: doc.id, ...doc.data() };
+      });
+      return alerts;
+    }
+    return [];
+  }
+  static async paginate(limit, direction = null, lastVisibleId, symbol) {
+    const mainQuery = db
+      .collectionGroup("pump-alerts")
+      .orderBy("createdAt", "desc");
+    let query = mainQuery;
+    const lastVisibleDoc = await Alert.find(symbol, lastVisibleId, true);
+    if (direction && !lastVisibleDoc) {
+      throw new Error("lastVisibleDoc alert is empty!");
+    }
+    if (direction === "next") {
+      query = query.startAfter(lastVisibleDoc);
+    } else if (direction === "prev") {
+      query = query.endBefore(lastVisibleDoc);
+    }
+    // set limit
+    if (direction === "prev") {
+      query = query.limitToLast(limit);
+    } else {
+      query = query.limit(limit);
+    }
+    const snapshot = await query.get();
+    // for doc use exists for qyery empty opt
+    if (!snapshot.empty) {
+      const alerts = snapshot.docs.map((doc) => {
+        return { id: doc.id, ...doc.data() };
+      });
+      const firstVisible = snapshot.docs[0];
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+      // Check for previous and next tickers
+      const hasPrevSnap = await mainQuery
+        .endBefore(firstVisible)
+        .limitToLast(1)
+        .get();
+      const hasNextSnap = await mainQuery
+        .startAfter(lastVisible)
+        .limit(1)
+        .get();
+      const hasPrev = !hasPrevSnap.empty;
+      const hasNext = !hasNextSnap.empty;
+      const firstVisibleDoc = {
+        id: firstVisible.id,
+        symbol: firstVisible.data().symbol,
+      };
+      const lastVisibleDoc = {
+        id: lastVisible.id,
+        symbol: lastVisible.data().symbol,
+      };
+      return { alerts, firstVisibleDoc, lastVisibleDoc, hasPrev, hasNext };
+    }
+    return {};
   }
   static validatePrice(price) {
     return Joi.number().min(0).validate(price);

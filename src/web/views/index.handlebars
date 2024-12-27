@@ -1,10 +1,24 @@
-<ul>
-  <li><a href="/1w">Scan 1w</a></li>
-  <li><a href="/1d">Scan 1d</a></li>
-  <li><a href="/12h">Scan 12h</a></li>
-  <li><a href="/6h">Scan 6h</a></li>
-  <li><a href="/4h">Scan 4h</a></li>
-  <li><a href="/1h">Scan 1h</a></li>
-  <li><a href="/30min">Scan 30min</a></li>
-  <li><a href="/15min">Scan 15min</a></li>
-</ul>
+<div class="row pb-2">
+  <div class="col-md-3">
+    <div class="list-group">
+      {{#each paginate.alerts as |alert|}}
+        <a href="/tickers/{{alert.symbol}}/tv" class="list-group-item list-group-item-action" aria-current="true">
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{alert.symbol}} - {{alert.interval}} ({{moment alert.createdAt._seconds}})</h5>
+          </div>
+          <p class="mb-1 h5">
+            📈 <span class="badge text-bg-success">{{alert.volumeUp}}%</span>
+            <span class="badge text-bg-warning">{{formatNumber alert.lastPrice}}$</span>
+          </p>
+          <small>candleTime: {{formatDate alert.volumeCandleStartTime}}</small>
+        </a>
+      {{/each}}
+    </div>
+  </div>
+</div>
+{{#if paginate.hasPrev}}
+  <a href="/?direction=prev&symbol={{paginate.firstVisibleDoc.symbol}}&lastVisibleId={{paginate.firstVisibleDoc.id}}" class="btn btn-primary">Prev Page</a>
+{{/if}}
+{{#if paginate.hasNext}}
+  <a href="/?direction=next&symbol={{paginate.lastVisibleDoc.symbol}}&lastVisibleId={{paginate.lastVisibleDoc.id}}" class="btn btn-primary">Next Page</a>
+{{/if}}

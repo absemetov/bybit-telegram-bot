@@ -10,6 +10,7 @@ import {
 } from "../handlers/setSubscription.js";
 
 import { viewSubscriptions } from "../actions/subscriptionActions.js";
+import { viewTickers } from "../actions/tickerActions.js";
 import { handlePriceInput as handlePriceInputEditAlert } from "../handlers/editAlert.js";
 import { handleEditSubs } from "../handlers/editSubscription.js";
 import {
@@ -17,6 +18,8 @@ import {
   handleEditScanField,
   scanTickers,
 } from "../handlers/editScan.js";
+import { createTicker, handleTickerInput } from "../handlers/setTicker.js";
+import { handleEditTickerField } from "../handlers/editTicker.js";
 import { message } from "telegraf/filters";
 
 const textMessageRouter = (bot) => {
@@ -36,6 +39,15 @@ const textMessageRouter = (bot) => {
     //await analyticCoinCandles(bot, "1d", 3, volumeChange, limit);
     // await analyticCoinCandles(bot, "1d", 5);
   });
+  //upload and show tickers NEW
+  //create New ticker upload deprecated!!!
+  bot.command("addticker", async (ctx) => {
+    await createTicker(ctx);
+  });
+  //show tickers
+  bot.command("tickers", async (ctx) => {
+    await viewTickers(ctx, false);
+  });
   // create Subs
   bot.command("create", async (ctx) => {
     // console.log(ctx.from);
@@ -43,8 +55,8 @@ const textMessageRouter = (bot) => {
     // await checkAlertsAndSubscriptions(ctx)
   });
   // show all coins in new message
-  bot.command("list", (ctx) => {
-    viewSubscriptions(ctx, false);
+  bot.command("list", async (ctx) => {
+    await viewSubscriptions(ctx, false);
   });
 
   bot.on(message("text"), async (ctx) => {
@@ -80,6 +92,13 @@ const textMessageRouter = (bot) => {
     // get scan chunk
     if (session.sessionData.scene === "getChunkNumber") {
       await scanTickers(ctx, session);
+    }
+    //New Ticker
+    if (session.sessionData.scene === "createTicker") {
+      await handleTickerInput(ctx, session);
+    }
+    if (session.sessionData.scene === "editTicker") {
+      await handleEditTickerField(ctx, session);
     }
   });
 };

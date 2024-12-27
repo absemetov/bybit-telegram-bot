@@ -1,0 +1,19 @@
+<div class="row pb-2">
+  <div class="col-md-3">
+    <ul class="list-group">
+      {{#each paginate.tickers as |ticker|}}
+        <li class="list-group-item">
+          <a href="/tickers/{{ticker.symbol}}/tv">#{{ticker.orderNumber}} {{ticker.symbol}}</a>
+          {{ticker.lastPrice}}$ ({{#if (greater ticker.price24hPcnt)}}+{{/if}}{{formatNumber ticker.price24hPcnt}}%)
+          <a class="btn btn-primary" href="https://www.tradingview.com/chart/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">TV</a>
+        </li>
+      {{/each}}
+    </ul>
+  </div>
+</div>
+{{#if paginate.hasPrev}}
+  <a href="/tickers?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="btn btn-primary">Prev Page</a>
+{{/if}}
+{{#if paginate.hasNext}}
+  <a href="/tickers?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="btn btn-primary">Next Page</a>
+{{/if}}

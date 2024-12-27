@@ -2,24 +2,24 @@ import { db } from "../firebase.js";
 import Joi from "joi";
 
 class Scan {
-  constructor(id, volumePcnt = 0, chunkNumber = 0) {
-    this.id = id;
-    this.volumePcnt = volumePcnt;
-    this.chunkNumber = chunkNumber;
+  constructor(numberPaginate = 1, direction = null, lastVisibleId = null) {
+    this.numberPaginate = numberPaginate;
+    this.direction = direction;
+    this.lastVisibleId = lastVisibleId;
   }
   static validate(scan) {
     const schema = Joi.object({
-      id: Joi.string().required(),
-      volumePcnt: Joi.number().integer().min(0).required(),
-      chunkNumber: Joi.number().integer().min(0).required(),
+      numberPaginate: Joi.number().integer().min(0).required(),
+      direction: Joi.string().allow(null).required(),
+      lastVisibleId: Joi.string().allow(null).required(),
     });
     return schema.validate(scan);
   }
   static validateInterval(interval) {
     return Joi.number().integer().min(0).validate(interval);
   }
-  static intervalRef(interval) {
-    return db.collection("tickers-scan").doc(interval);
+  static scanCronPaginateRef() {
+    return db.collection("settings").doc("scanCronPaginate");
   }
   static scanPath() {
     return db.collection("tickers-scan");
@@ -30,13 +30,29 @@ class Scan {
   static scanFields() {
     return [{ name: "volumePcnt", unit: "x" }];
   }
-  static async find(interval) {
-    const intervalDoc = await Scan.intervalRef(interval).get();
-    if (intervalDoc.exists) {
-      const data = intervalDoc.data();
-      return new Scan(interval, data.volumePcnt, data.chunkNumber);
+  static async paginateData(numberPaginate) {
+    const settingsDoc = await Scan.scanCronPaginateRef().get();
+    if (settingsDoc.exists) {
+      const settings = settingsDoc.data()[`paginate${numberPaginate}`];
+      return new Scan(
+        numberPaginate,
+        settings?.direction,
+        settings?.lastVisibleId,
+      );
     }
     return null;
+  }
+  async update() {
+    const { error } = Scan.validate(this);
+    if (error) {
+      throw new Error(`Invalid Scan settings data: ${error.message}`);
+    }
+    await Scan.scanCronPaginateRef().update({
+      [`paginate${this.numberPaginate}`]: {
+        direction: this.direction,
+        lastVisibleId: this.lastVisibleId,
+      },
+    });
   }
   async create() {
     // validate
@@ -49,18 +65,6 @@ class Scan {
       volumePcnt: this.volumePcnt,
     };
     await Scan.intervalRef(this.id).set(newScan);
-  }
-
-  async update() {
-    const { error } = Scan.validate(this);
-    if (error) {
-      throw new Error(`Invalid Scan data: ${error.message}`);
-    }
-    const editScan = {
-      volumePcnt: +this.volumePcnt,
-      chunkNumber: this.chunkNumber,
-    };
-    await Scan.intervalRef(this.id).update(editScan);
   }
   static async all() {
     const snapshot = await Scan.scanPath().orderBy("orderNumber").get();

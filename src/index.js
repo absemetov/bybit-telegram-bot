@@ -32,9 +32,9 @@ app.use(bot.webhookCallback(SECRET_PATH));
 
 // set webhook to bot
 // bot.telegram.setWebhook(`https://dev.rzk.com.ru${SECRET_PATH}`);
-
-app.listen(PORT, () => console.log(`Bot is running on port ${PORT}`));
+// Cron tasks
 tasks(bot);
+app.listen(PORT, () => console.log(`Bot is running on port ${PORT}`));
 // Enable graceful stop
 // const gracefulStop = (signal) => {
 //   console.log(`Bot and server stopped gracefully (${signal})`);

@@ -68,6 +68,10 @@ export const showSubscriptionsPage = async (
 ) => {
   let message = "Your <b>Subscriptions</b> coins:\n\n";
   const keyboardArray = [];
+  // upload btn
+  keyboardArray.push([
+    Markup.button.callback("Upload Tickers", "upload-tickers"),
+  ]);
   subscriptions.forEach((subscription) => {
     keyboardArray.push([
       Markup.button.callback(

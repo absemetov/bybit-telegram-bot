@@ -23,6 +23,14 @@ import {
   showScanEditForm,
   editScanField,
 } from "../actions/scanActions.js";
+import {
+  uploadTickersAction,
+  viewTickers,
+  viewTickersPaginate,
+  showTicker,
+  editTicker,
+  deleteTicker,
+} from "../actions/tickerActions.js";
 const inlineButtonRouter = (ctx) => {
   // const actionData = parseActionData(ctx.callbackQuery.data);
   // Symbols ==========
@@ -106,6 +114,33 @@ const inlineButtonRouter = (ctx) => {
   // edit scan interval settings fields
   routes.action("scan/:interval/edit/:field", async (ctx, params) => {
     await editScanField(ctx, params);
+  });
+  //New Tickers
+  routes.action("upload-tickers", async (ctx) => {
+    await uploadTickersAction(ctx);
+  });
+  // show coins
+  routes.action("show-tickers", async (ctx) => {
+    await viewTickers(ctx);
+  });
+  // paginate coins
+  routes.action(
+    "show-tickers/:direction/:lastVisibleId",
+    async (ctx, params) => {
+      await viewTickersPaginate(ctx, params);
+    },
+  );
+  // show coin page
+  routes.action("show-ticker/:symbol{/:clear}", async (ctx, params) => {
+    await showTicker(ctx, params);
+  });
+  // edit ticker
+  routes.action("edit-ticker/:symbol/:field", async (ctx, params) => {
+    await editTicker(ctx, params);
+  });
+  // delete ticker
+  routes.action("delete-ticker/:symbol", async (ctx, params) => {
+    await deleteTicker(ctx, params);
   });
 };
 

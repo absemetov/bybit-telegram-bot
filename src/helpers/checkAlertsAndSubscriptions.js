@@ -4,7 +4,7 @@ import { bybitKline } from "../helpers/bybitV5.js";
 import { Markup } from "telegraf";
 
 export const checkAlertsAndSubscriptions = async (bot) => {
-  // alert notify for 1859859047 account
+  // alert Price depricated !!! notify for 1859859047 account
   const subscriptions = await Subscription.findAll();
   // Check subscriptions
   for (const subscription of subscriptions) {

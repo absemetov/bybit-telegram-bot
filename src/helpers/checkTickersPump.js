@@ -1,109 +1,144 @@
 //import { Markup } from "telegraf";
-import { bybitKline, bybitTickersChunks } from "../helpers/bybitV5.js";
+import { bybitKline } from "../helpers/bybitV5.js";
 import { volumePattern } from "../helpers/candlesPatterns.js";
 import Scan from "../models/Scan.js";
+import Ticker from "../models/Ticker.js";
+import Alert from "../models/Alert.js";
 import { db } from "../firebase.js";
 
-export const analyticCoinCandles = async (bot, interval, limit = 10) => {
+export const analyticCoinCandles = async (bot, interval) => {
   try {
     // TODO write batch!!!
-    const batch = db.batch();
+    const pumpAlerts = [];
     // load config
-    const scanInterval = await Scan.find(interval);
-    const volumePcnt = scanInterval.volumePcnt;
+    const scanPaginateSettings = await Scan.paginateData(1);
+    const { direction, lastVisibleId } = scanPaginateSettings;
+    console.log(direction, lastVisibleId);
+    // get new tickers use paginate!!!
+    const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+    // const scanInterval = await Scan.find(interval);
+    // const { chunkNumber, maxChunks } = scanInterval;
     const candlesCount = 5;
-    // load coins data 425 tickers 30.10.2024
-    const { chunksArray, tickersLength } = await bybitTickersChunks();
-    const { chunkNumber } = scanInterval;
-    const tickers = chunksArray[chunkNumber];
-    // analytics check coins
-    let limitCoins = limit;
+    // get new tickers
+    // const tickers = await Ticker.chunk(chunkNumber);
     let countPumpTickers = 0;
-    for (const ticker of tickers) {
-      const { symbol, lastPrice } = ticker;
-      if (limitCoins === 0) {
-        break;
-        //return `Limit coins is ${limit}!`;
-      }
+    for (const ticker of paginate.tickers) {
+      const { symbol, volumePcnt } = ticker;
       // get kline data
-      const kline = await bybitKline(symbol, interval, candlesCount);
+      const candlesArray = await bybitKline(symbol, interval, candlesCount);
       // Analyse candles data!!! Main pattern
       const patternArray = [];
-      const candlesArray = [];
-      // 0 candle not use it not close
-      let breakCoin = false;
-      for (let i = 0; i < candlesCount; i += 1) {
-        const candle = kline[i];
-        if (candle) {
-          candlesArray.push({
-            openPrice: +candle[1],
-            highPrice: +candle[2],
-            lowPrice: +candle[3],
-            closePrice: +candle[4],
-            volume: +candle[5],
-            color: candle[1] < candle[4] ? "green" : "red",
-            barChange: ((candle[4] - candle[1]) / candle[1]) * 100,
-          });
-        } else {
-          breakCoin = true;
-          // throw new Error(
-          //   `Some candle from 5 not found! ${symbol} interval ${interval}`,
-          // );
-        }
+      const volumeUpresult = volumePattern(candlesArray, volumePcnt);
+      if (volumeUpresult.length > 0) {
+        patternArray.push({
+          id: 1,
+          volumeUp: volumeUpresult[0],
+          volumeCandleStartTime: volumeUpresult[1],
+        });
       }
-      if (breakCoin) {
-        break;
-      }
-      // check patterns
-      //================================
-      const volumeUp = volumePattern(candlesArray, volumePcnt);
-      if (volumeUp) patternArray.push({ id: 1, volumeUp });
       if (patternArray.length) {
         ++countPumpTickers;
-        // write to Firestore
-        const objTicker = {
-          updatedAt: new Date(),
-          lastPrice: +lastPrice,
+        const alertData = {
+          symbol,
+          interval,
+          createdAt: new Date(),
+          lastPrice: +candlesArray[0]?.closePrice,
         };
-        // set paatern data
+        // set patern data
         for (const pattern of patternArray) {
-          if (pattern.id === 1) objTicker.volumeUp = pattern.volumeUp;
+          if (pattern.id === 1) {
+            alertData.volumeUp = pattern.volumeUp;
+            alertData.volumeCandleStartTime = pattern.volumeCandleStartTime;
+          }
         }
-        const tickerRef = db.doc(`tickers-scan/${interval}/tickers/${symbol}`);
-        batch.set(tickerRef, objTicker);
-        --limitCoins;
+        const alertRef = db.doc(
+          `crypto/${symbol}/pump-alerts/${symbol}-${interval}`,
+        );
+        pumpAlerts.push({ alertRef, alertData });
       }
     }
-    // Commit the batch
-    await batch.commit();
-    // update chunkNumber
-    if (scanInterval.chunkNumber === 8) {
-      scanInterval.chunkNumber = 0;
+    //save Alert batch
+    await Alert.setBatch(pumpAlerts);
+    //update paginate settings
+    if (paginate.hasNext) {
+      scanPaginateSettings.direction = "next";
+      scanPaginateSettings.lastVisibleId = paginate.lastVisibleId;
     } else {
-      ++scanInterval.chunkNumber;
+      scanPaginateSettings.direction = null;
+      scanPaginateSettings.lastVisibleId = null;
     }
-    await scanInterval.update();
+    await scanPaginateSettings.update();
+    return { countPumpTickers };
+  } catch (error) {
+    await bot.telegram.sendMessage(
+      94899148,
+      `Error fetching coins ${error.message}`,
+      {
+        parse_mode: "HTML",
+      },
+    );
+    console.log(error);
+    throw new Error(`Error fetching coins ${error.message}`);
+  }
+};
+
+export const checkAlerts = async (bot, interval) => {
+  try {
+    // TODO write batch!!!
+    const updateTickerNotify = [];
+    // load config
+    const scanPaginateSettings = await Scan.paginateData(2);
+    const { direction, lastVisibleId } = scanPaginateSettings;
+    // get new tickers use paginate!!!
+    const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+    for (const ticker of paginate.tickers) {
+      const { symbol, alert1, alert2, lastNotified, price24h } = ticker;
+      // get kline data
+      const candlesArray = await bybitKline(symbol, interval, 2);
+      //check pre last candle
+      if (candlesArray.length > 1) {
+        const { closePrice, openPrice, barChange, highPrice, lowPrice } =
+          candlesArray[0];
+        const updateTickerData = {
+          symbol,
+          data: {
+            lastPrice: closePrice,
+            price24hPcnt: ((closePrice - price24h) / price24h) * 100,
+          },
+        };
+        if (interval === "1d") {
+          updateTickerData.data.price24h = openPrice;
+          updateTickerData.data.price24hPcnt = barChange;
+        } else {
+          if (
+            !lastNotified ||
+            Date.now() - lastNotified.toMillis() >= 10 * 60000
+          ) {
+            if (lowPrice <= alert1 && alert1 <= highPrice) {
+              updateTickerData.data.alertMessage = `Price cross Top ${alert1}$`;
+              updateTickerData.data.lastNotified = new Date();
+            }
+            if (lowPrice <= alert2 && alert2 <= highPrice) {
+              updateTickerData.data.alertMessage = `Price cross Bottom ${alert2}$`;
+              updateTickerData.data.lastNotified = new Date();
+            }
+          }
+        }
+        updateTickerNotify.push(updateTickerData);
+      }
+    }
     //notify user
-    // && interval !== "15min"
-    // if (chunkNumber === 8 && interval !== "15min") {
-    //   const inlineKeyboard = Markup.inlineKeyboard([
-    //     [
-    //       Markup.button.url(
-    //         `Bybit.rzk.com.ru: ${interval}`,
-    //         `https://bybit.rzk.com.ru/${interval}`,
-    //       ),
-    //     ],
-    //   ]);
-    //   await bot.telegram.sendMessage(
-    //     94899148,
-    //     `Scan 9 chunks from ${tickersLength} tickers. Interval ${interval}. Lets be billionare!!!`,
-    //     {
-    //       parse_mode: "HTML",
-    //       ...inlineKeyboard,
-    //     },
-    //   );
-    // }
-    return { tickersLength, countPumpTickers, chunkNumber };
+    await Ticker.sendNotify(updateTickerNotify);
+    // update chunkNumber
+    //TODO use paginate params
+    if (paginate.hasNext) {
+      scanPaginateSettings.direction = "next";
+      scanPaginateSettings.lastVisibleId = paginate.lastVisibleId;
+    } else {
+      scanPaginateSettings.direction = null;
+      scanPaginateSettings.lastVisibleId = null;
+    }
+    await scanPaginateSettings.update();
   } catch (error) {
     await bot.telegram.sendMessage(
       94899148,

@@ -1,8 +1,8 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
-import { creds } from "../../rzk-warsaw-ru-7e70642e408f.js";
+import { creds } from "../../config/rzk-warsaw-ru-7e70642e408f.js";
 // add data to google sheet
-export const googleSheet = async (title) => {
+export const googleSheet = async (id, title) => {
   // use subject opt for my email
   const serviceAccountAuth = new JWT({
     email: creds.client_email,
@@ -10,11 +10,7 @@ export const googleSheet = async (title) => {
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     subject: "nadir@absemetov.org.ua",
   });
-
-  const doc = new GoogleSpreadsheet(
-    "18nQkKStuFuo-_XJcQstYd95O3Ck2ITr0xZ04zBQKHVw",
-    serviceAccountAuth,
-  );
+  const doc = new GoogleSpreadsheet(id, serviceAccountAuth);
   await doc.loadInfo();
   return doc.sheetsByTitle[title];
   // await sheet.addRows(tickers);

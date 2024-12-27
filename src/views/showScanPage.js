@@ -7,7 +7,7 @@ export const viewScanForm = async (ctx, intervals, edit = true) => {
   for (const interval of intervals) {
     buttons.push([
       Markup.button.callback(
-        `${interval.id} (${interval.volumePcnt}, ${interval.dojiPcnt})`,
+        `${interval.id} (${interval.volumePcnt})`,
         `scan/${interval.id}`,
       ),
       Markup.button.callback(`Edit`, `scanform/${interval.id}`),

@@ -43,7 +43,25 @@ export const bybitKline = async (symbol, textInterval, candlesCount) => {
     start: timeStartMs,
     end: timeEndMs,
   });
-  return kline.result.list;
+  const candlesArray = [];
+  for (let i = 0; i < candlesCount; i += 1) {
+    if (kline.result.list) {
+      const candle = kline.result.list[i];
+      if (candle) {
+        candlesArray.push({
+          startTime: +candle[0],
+          openPrice: +candle[1],
+          highPrice: +candle[2],
+          lowPrice: +candle[3],
+          closePrice: +candle[4],
+          volume: +candle[5],
+          color: candle[1] < candle[4] ? "green" : "red",
+          barChange: ((candle[4] - candle[1]) / candle[1]) * 100,
+        });
+      }
+    }
+  }
+  return candlesArray;
 };
 
 export const bybitTickers = async () => {

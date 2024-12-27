@@ -1,9 +1,7 @@
 # Игнорирование node_modules
 node_modules/
 # Firebase Admin serviceAccountKey 
-rzk-warsaw-ru-firebase-adminsdk-nzfp6-4cfb76187f.json
-rzk-warsaw-dev-firebase-adminsdk-27ucx-06b7770842.json
-rzk-warsaw-ru-7e70642e408f.js
+config/
 
 # Игнорирование временных файлов и логов
 *.log
