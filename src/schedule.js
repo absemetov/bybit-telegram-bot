@@ -7,17 +7,28 @@ import {
 
 export const tasks = (bot) => {
   //1min alert notify
-  //numberPaginate = 1
-  cron.schedule("0 * * * * *", async () => {
+  //numberPaginate = 1, limit 50 tickers per pages x 2 pages total 100 tickers scan
+  cron.schedule("0 * 6-23 * * *", async () => {
     await checkAlerts(bot, "5min");
   });
+  // // 1d frame set 24h price
+  //set price24h and price24hPcnt
+  cron.schedule(
+    "45 1-2 3 * * *",
+    async () => {
+      //await analyticCoinCandles(bot, "1d");
+      await checkAlerts(bot, "1d");
+    },
+    {
+      timezone: "Europe/Moscow",
+    },
+  );
   // 15min frame 1-9 chunk 6-23h
   // "15 1-9,16-25,31-40,46-55 6-23 * * *"
   //TODO paginate tickers!!!!
-  //limit paginate 10 tickers
-  //numberPaginate = 2, limit paginate 20 tickers per page
+  //numberPaginate = 2, limit paginate 40 tickers per page
   cron.schedule(
-    "15 1-2,16-17,31-32,46-47 6-23 * * *",
+    "15 1-2,16-18,31-33,46-48 6-23 * * *",
     async () => {
       await analyticCoinCandles(bot, "15min");
     },
@@ -77,19 +88,6 @@ export const tasks = (bot) => {
   //     timezone: "Europe/Moscow",
   //   },
   // );
-  // // 1d frame
-  //paginate 2 pages!!!
-  cron.schedule(
-    "45 1-2 3 * * *",
-    async () => {
-      //await analyticCoinCandles(bot, "1d", 50);
-      //set price24h and price24hPcnt
-      await checkAlerts(bot, "1d");
-    },
-    {
-      timezone: "Europe/Moscow",
-    },
-  );
   // // 1w timeframe on Monday
   // cron.schedule(
   //   "0 1-9 3 * * 1",

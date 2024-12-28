@@ -51,13 +51,13 @@ export const showTickerPage = async (
     [
       Markup.button.url(
         `🔭 TV ideas: ${symbol}`,
-        `https://www.tradingview.com/symbols/${ticker.symbol}/ideas`,
+        `https://www.tradingview.com/symbols/${symbol}/ideas`,
       ),
     ],
     [
       Markup.button.url(
         `📈 TV chart: ${symbol}`,
-        `https://www.tradingview.com/chart/?symbol=BYBIT:${ticker.symbol}.P&interval=D`,
+        `https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P&interval=D`,
       ),
     ],
   ];

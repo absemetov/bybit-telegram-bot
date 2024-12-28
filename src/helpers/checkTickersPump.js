@@ -15,7 +15,7 @@ export const analyticCoinCandles = async (bot, interval) => {
     const { direction, lastVisibleId } = scanPaginateSettings;
     console.log(direction, lastVisibleId);
     // get new tickers use paginate!!!
-    const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+    const paginate = await Ticker.paginate(50, direction, lastVisibleId);
     // const scanInterval = await Scan.find(interval);
     // const { chunkNumber, maxChunks } = scanInterval;
     const candlesCount = 5;
@@ -90,7 +90,7 @@ export const checkAlerts = async (bot, interval) => {
     const scanPaginateSettings = await Scan.paginateData(2);
     const { direction, lastVisibleId } = scanPaginateSettings;
     // get new tickers use paginate!!!
-    const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+    const paginate = await Ticker.paginate(50, direction, lastVisibleId);
     for (const ticker of paginate.tickers) {
       const { symbol, alert1, alert2, lastNotified, price24h } = ticker;
       // get kline data

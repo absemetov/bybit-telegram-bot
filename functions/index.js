@@ -57,16 +57,22 @@ exports.tickerVolumeUp = onDocumentWritten(
       {
         parse_mode: "HTML",
         ...Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              `Show ticker ${symbol}`,
-              `show-ticker/${symbol}/clear`,
-            ),
-          ],
+          // [
+          //   Markup.button.callback(
+          //     `Show ticker ${symbol}`,
+          //     `show-ticker/${symbol}/clear`,
+          //   ),
+          // ],
           [
             Markup.button.url(
               `Rzk: ${symbol} TV`,
               `https://bybit.rzk.com.ru/tickers/${symbol}/tv`,
+            ),
+          ],
+          [
+            Markup.button.url(
+              `📈 TV chart: ${symbol}`,
+              `https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P&interval=D`,
             ),
           ],
           [
@@ -98,8 +104,8 @@ exports.tickerAlerts = onDocumentWritten(
       //   structuredData: true,
       // });
       if (
-        ticker.lastNotified._seconds !==
-        previousTickerData.lastNotified._seconds
+        ticker.lastNotified?._seconds !==
+        previousTickerData.lastNotified?._seconds
       ) {
         await bot.telegram.sendMessage(
           94899148,
@@ -107,16 +113,22 @@ exports.tickerAlerts = onDocumentWritten(
           {
             parse_mode: "HTML",
             ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  `Show ticker ${symbol}`,
-                  `show-ticker/${symbol}/clear`,
-                ),
-              ],
+              // [
+              //   Markup.button.callback(
+              //     `Show ticker ${symbol}`,
+              //     `show-ticker/${symbol}/clear`,
+              //   ),
+              // ],
               [
                 Markup.button.url(
                   `Rzk: ${symbol} TV`,
                   `https://bybit.rzk.com.ru/tickers/${symbol}/tv`,
+                ),
+              ],
+              [
+                Markup.button.url(
+                  `📈 TV chart: ${symbol}`,
+                  `https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P&interval=D`,
                 ),
               ],
               [
