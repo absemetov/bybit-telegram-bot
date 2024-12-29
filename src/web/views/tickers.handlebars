@@ -5,7 +5,7 @@
         <li class="list-group-item">
           <a href="/tickers/{{ticker.symbol}}/tv">#{{ticker.orderNumber}} {{ticker.symbol}}</a>
           {{ticker.lastPrice}}$ ({{#if (greater ticker.price24hPcnt)}}+{{/if}}{{formatNumber ticker.price24hPcnt}}%)
-          <a class="btn btn-primary" href="https://www.tradingview.com/chart/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">TV</a>
+          <a class="btn btn-primary" href="https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">TV</a>
         </li>
       {{/each}}
     </ul>

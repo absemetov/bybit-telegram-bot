@@ -13,7 +13,6 @@ export const analyticCoinCandles = async (bot, interval) => {
     // load config
     const scanPaginateSettings = await Scan.paginateData(1);
     const { direction, lastVisibleId } = scanPaginateSettings;
-    console.log(direction, lastVisibleId);
     // get new tickers use paginate!!!
     const paginate = await Ticker.paginate(50, direction, lastVisibleId);
     // const scanInterval = await Scan.find(interval);
@@ -89,6 +88,7 @@ export const checkAlerts = async (bot, interval) => {
     // load config
     const scanPaginateSettings = await Scan.paginateData(2);
     const { direction, lastVisibleId } = scanPaginateSettings;
+    console.log(direction, lastVisibleId);
     // get new tickers use paginate!!!
     const paginate = await Ticker.paginate(50, direction, lastVisibleId);
     for (const ticker of paginate.tickers) {

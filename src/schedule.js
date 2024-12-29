@@ -28,7 +28,7 @@ export const tasks = (bot) => {
   //TODO paginate tickers!!!!
   //numberPaginate = 2, limit paginate 40 tickers per page
   cron.schedule(
-    "15 1-2,16-18,31-33,46-48 6-23 * * *",
+    "15 1-2,16-17,31-32,46-47 6-23 * * *",
     async () => {
       await analyticCoinCandles(bot, "15min");
     },

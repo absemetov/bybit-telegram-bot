@@ -72,7 +72,7 @@ exports.tickerVolumeUp = onDocumentWritten(
           [
             Markup.button.url(
               `📈 TV chart: ${symbol}`,
-              `https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P&interval=D`,
+              `https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P&interval=D`,
             ),
           ],
           [
@@ -128,7 +128,7 @@ exports.tickerAlerts = onDocumentWritten(
               [
                 Markup.button.url(
                   `📈 TV chart: ${symbol}`,
-                  `https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P&interval=D`,
+                  `https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P&interval=D`,
                 ),
               ],
               [
