@@ -86,13 +86,17 @@ export const viewTickersPaginate = async (ctx, params) => {
 };
 // show ticker info
 export const showTicker = async (ctx, params) => {
-  const { symbol, clear } = params;
+  const { symbol, clear, editMessageText } = params;
   const session = await Session.findById(ctx.from.id);
   const prevPage = clear
     ? "show-tickers"
     : session.sessionData.TickersPreviousPage;
   const ticker = await Ticker.find(symbol);
-  showTickerPage(ctx, symbol, ticker, prevPage);
+  if (ticker) {
+    showTickerPage(ctx, symbol, ticker, prevPage, editMessageText);
+  } else {
+    ctx.replyWithHTML(`${symbol} not found. /tickers`);
+  }
 };
 // show ticker info
 export const editTicker = async (ctx, params) => {

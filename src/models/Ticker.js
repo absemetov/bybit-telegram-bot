@@ -33,6 +33,12 @@ class Ticker {
   }
   //create New ticker
   static async create(symbol) {
+    //check limit max 100 tickers
+    const snapshotCount = await db.collection("crypto").count().get();
+    const tickersCount = snapshotCount.data().count;
+    if (tickersCount > 100) {
+      throw new Error("Tickers limit 100!");
+    }
     const kline = await bybitKline(symbol, "1d", 1);
     if (kline.length == 0) {
       throw new Error(`Ticker ${symbol} not found in Bybit`);
@@ -51,6 +57,7 @@ class Ticker {
     // lastPrice: Joi.number().min(0).allow(null),
     // price24hPcnt
     await db.doc(`crypto/${symbol}`).set(newTickerData);
+    return tickersCount + 1;
   }
   static async find(ticker, getDoc = false) {
     if (ticker) {
@@ -87,7 +94,11 @@ class Ticker {
     await db.doc(`crypto/${symbol}`).delete();
   }
   static async paginate(limit, direction = null, lastVisibleId = null) {
-    const mainQuery = db.collection("crypto").orderBy("price24hPcnt", "desc");
+    //if scan 50 ticker dont order!!!
+    const mainQuery =
+      limit === 50
+        ? db.collection("crypto")
+        : db.collection("crypto").orderBy("price24hPcnt", "desc");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {

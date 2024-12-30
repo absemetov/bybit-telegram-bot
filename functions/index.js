@@ -53,7 +53,7 @@ exports.tickerVolumeUp = onDocumentWritten(
     await bot.telegram.sendMessage(
       94899148,
       `<code>${symbol}</code> <b>${lastPrice}$</b> VolumeUp 📈${volumeUp}% in ${interval}\n` +
-        `volumeCandleStartTime: ${formatDate(volumeCandleStartTime)}`,
+        `volumeCandleStartTime: ${formatDate(volumeCandleStartTime)}\n/tickers_${symbol}`,
       {
         parse_mode: "HTML",
         ...Markup.inlineKeyboard([
@@ -109,7 +109,7 @@ exports.tickerAlerts = onDocumentWritten(
       ) {
         await bot.telegram.sendMessage(
           94899148,
-          `<b>${symbol}</b> alert ${ticker.alertMessage}`,
+          `<b>${symbol}</b> Alert ${ticker.alertMessage}\n/tickers_${symbol}`,
           {
             parse_mode: "HTML",
             ...Markup.inlineKeyboard([

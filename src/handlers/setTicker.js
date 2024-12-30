@@ -23,11 +23,11 @@ export const handleTickerInput = async (ctx, session) => {
       //return;
     } else {
       try {
-        await Ticker.create(symbolUsdt);
+        const numberTicker = await Ticker.create(symbolUsdt);
         // clear session
         await session.delete("bybit-scene");
         await ctx.reply(
-          `Ticker ${symbolUsdt} created. Check in /tickers`,
+          `Ticker ${symbolUsdt} created. Total Tickers Number ${numberTicker} Check in /tickers`,
           Markup.inlineKeyboard([
             [
               Markup.button.callback(

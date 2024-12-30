@@ -10,7 +10,7 @@ import {
 } from "../handlers/setSubscription.js";
 
 import { viewSubscriptions } from "../actions/subscriptionActions.js";
-import { viewTickers } from "../actions/tickerActions.js";
+import { viewTickers, showTicker } from "../actions/tickerActions.js";
 import { handlePriceInput as handlePriceInputEditAlert } from "../handlers/editAlert.js";
 import { handleEditSubs } from "../handlers/editSubscription.js";
 import {
@@ -47,6 +47,11 @@ const textMessageRouter = (bot) => {
   //show tickers
   bot.command("tickers", async (ctx) => {
     await viewTickers(ctx, false);
+  });
+  //show ticker
+  bot.hears(/^\/tickers_(\w+)$/, async (ctx) => {
+    const symbol = ctx.match[1];
+    await showTicker(ctx, { symbol, clear: true, editMessageText: false });
   });
   // create Subs
   bot.command("create", async (ctx) => {

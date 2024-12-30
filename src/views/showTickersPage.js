@@ -5,6 +5,7 @@ export const showTickerPage = async (
   symbol,
   ticker,
   TickersPreviousPage,
+  editMessageText = true,
 ) => {
   let message =
     `<b>${symbol} <code>${ticker.lastPrice}</code>$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)</b>\n` +
@@ -61,11 +62,15 @@ export const showTickerPage = async (
       ),
     ],
   ];
-
-  await ctx.editMessageText(message, {
-    parse_mode: "HTML",
-    ...Markup.inlineKeyboard(buttons),
-  });
+  //render
+  if (editMessageText) {
+    await ctx.editMessageText(message, {
+      parse_mode: "HTML",
+      ...Markup.inlineKeyboard(buttons),
+    });
+  } else {
+    await ctx.replyWithHTML(message, Markup.inlineKeyboard(buttons));
+  }
 };
 // paginate
 export const showTickersPage = async (
