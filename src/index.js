@@ -12,8 +12,12 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const app = express();
 const PORT = process.env.PORT || 3000;
 // mutators
-bot.use((ctx, next) => {
-  ctx.state.isAdmin = ctx.from.id === 94899148;
+bot.use(async (ctx, next) => {
+  //admin absemetov
+  if (ctx.from.id != 94899148) {
+    await ctx.reply("Access Denied!");
+    return;
+  }
   // userId must be string for firestore database
   ctx.from.id = ctx.from.id.toString();
   return next();
@@ -24,6 +28,16 @@ bot.on("callback_query", (ctx) => {
   inlineButtonRouter(ctx);
 });
 textMessageRouter(bot);
+bot.catch(async (error) => {
+  console.log(error);
+  await bot.telegram.sendMessage(
+    94899148,
+    `Error in Dev bot ${error.message}`,
+    {
+      parse_mode: "HTML",
+    },
+  );
+});
 // cron 1 min update
 // Express routes
 // app.get("/", (req, res) => res.send("Crypto Price Alert Bot is running."));

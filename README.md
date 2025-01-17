@@ -21,9 +21,7 @@ sudo systemctl reload nginx
 pm2 start ecosystem.config.js
 
 #certbot
-sudo  certbot certonly --standalone --preferred-challenges http -d rzk.com.ru
-(sudo certbot renew --dry-run)
-sudo certbot certonly --manual --preferred-challenges=dns --server https://acme-v02.api.letsencrypt.org/directory --agree-tos -d *.rzk.com.ru
+sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/.secrets/cloudflare.ini -d rzk.com.ru,*.rzk.com.ru --preferred-challenges dns-01
 TODO 29.10
 1. Alert by candle, set notyfi
 2. Batch pump coins. Think how to save data by interval  15min, 1h, etc...

@@ -1,29 +1,9 @@
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="/">Home</a></li>
-    <li class="breadcrumb-item"><a href="/tickers">Tickers</a></li>
     <li class="breadcrumb-item active" aria-current="page">{{ticker.symbol}}</li>
   </ol>
 </nav>
-<h4>
-  #{{ticker.orderNumber}} {{ticker.symbol}} lastPrice: <span class="badge text-bg-warning">{{ticker.lastPrice}}$</span>
-  <a class="btn btn-primary" href="/tickers/{{ticker.symbol}}/tv">Chart {{ticker.symbol}}</a>
-  <a class="btn btn-primary" href="https://www.tradingview.com/symbols/{{ticker.symbol}}/ideas/" target="_blank">TV ideas</a>
-  <a class="btn btn-primary" href="https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">TV superchart</a>
-  <a class="btn btn-primary" href="https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/{{ticker.symbol}}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol={{ticker.symbol}}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true" target="_blank">Bybit chart</a>
-</h4>
-<h4>Alerts</h4>
-<div class="list-group">
-  {{#each alerts as |alert|}}
-    <a href="/tickers/{{alert.symbol}}/tv" class="list-group-item list-group-item-action" aria-current="true">
-      <div class="d-flex w-100 justify-content-between">
-        <h5 class="mb-1">{{alert.symbol}} - {{alert.interval}} ({{moment alert.createdAt._seconds}})</h5>
-      </div>
-      <p class="mb-1 h5">
-        📈 <span class="badge text-bg-success">{{alert.volumeUp}}%</span>
-        <span class="badge text-bg-warning">{{formatNumber alert.lastPrice}}$</span>
-      </p>
-      <small>candleTime: {{formatDate alert.volumeCandleStartTime}}</small>
-    </a>
-  {{/each}}
+<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-2 my-2">
+  {{> ticker ticker=ticker}}
 </div>

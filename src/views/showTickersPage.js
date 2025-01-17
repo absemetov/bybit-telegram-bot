@@ -8,45 +8,34 @@ export const showTickerPage = async (
   editMessageText = true,
 ) => {
   let message =
-    `<b>${symbol} <code>${ticker.lastPrice}</code>$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)</b>\n` +
+    `${ticker.favorites ? "❤️" : ""} <b>${symbol} <code>${ticker.lastPrice}</code>$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)</b>\n` +
     `<b>Message:</b> ${ticker.message}`;
   const buttons = [
     [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
+    [
+      Markup.button.callback(
+        `${ticker.favorites ? "❤️ Favorites" : "Add to favorites"}`,
+        `edit-ticker/${symbol}/favorites/${!ticker.favorites}`,
+      ),
+    ],
     [
       Markup.button.callback(
         `📃 Edit message`,
         `edit-ticker/${symbol}/message`,
       ),
     ],
-    [
-      Markup.button.callback(
-        `💵 Edit volumePcnt: ${ticker.volumePcnt || null}%`,
-        `edit-ticker/${symbol}/volumePcnt`,
-      ),
-    ],
-    [
-      Markup.button.callback(
-        `🛎 Edit price Alert Top: ${ticker.alert1 || null}$`,
-        `edit-ticker/${symbol}/alert1`,
-      ),
-    ],
-    [
-      Markup.button.callback(
-        `🛎 Edit price Alert Bottom: ${ticker.alert2 || null}$`,
-        `edit-ticker/${symbol}/alert2`,
-      ),
-    ],
     [Markup.button.callback(`🗑 Delete ${symbol}$`, `delete-ticker/${symbol}`)],
+    [Markup.button.url(`${symbol}`, `https://bybit.rzk.com.ru/t/${symbol}`)],
     [
       Markup.button.url(
-        `📈 Rzk: ${symbol} TV`,
-        `https://bybit.rzk.com.ru/tickers/${symbol}/tv`,
+        `📈 Tradingview chart: ${symbol}`,
+        `https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P&interval=D`,
       ),
     ],
     [
       Markup.button.url(
-        `📈 Bybit: ${symbol}`,
-        `https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true`,
+        `📈 Coinglass chart: ${symbol}`,
+        `https://www.coinglass.com/tv/ru/Bybit_${symbol}`,
       ),
     ],
     [
@@ -57,8 +46,8 @@ export const showTickerPage = async (
     ],
     [
       Markup.button.url(
-        `📈 TV chart: ${symbol}`,
-        `https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P&interval=D`,
+        `📟 Bybit: ${symbol}`,
+        `https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true`,
       ),
     ],
   ];
@@ -81,8 +70,9 @@ export const showTickersPage = async (
   hasPrev,
   hasNext,
   edit = true,
+  favorites = false,
 ) => {
-  let message = `Your <b>tickers</b> ${new Date().toLocaleString("ru-RU")}\n`;
+  let message = `${favorites ? "Your ❤️ favorites tickers" : "Your tickers"} ${new Date().toLocaleString("ru-RU")}\n`;
   const keyboardArray = [];
   // upload btn deprecated!!!
   // keyboardArray.push([
@@ -91,7 +81,7 @@ export const showTickersPage = async (
   tickers?.forEach((ticker) => {
     keyboardArray.push([
       Markup.button.callback(
-        `${ticker.symbol} ${ticker.lastPrice}$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)`,
+        `${ticker.favorites ? "❤️" : ""} ${ticker.symbol} ${ticker.lastPrice}$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)`,
         `show-ticker/${ticker.symbol}`,
       ),
     ]);
@@ -102,14 +92,17 @@ export const showTickersPage = async (
     keyboardPrevNext.push(
       Markup.button.callback(
         "⬅️ Previous",
-        `show-tickers/prev/${firstVisibleId}`,
+        `show-tickers/prev/${firstVisibleId}/${favorites}`,
       ),
     );
   }
 
   if (hasNext) {
     keyboardPrevNext.push(
-      Markup.button.callback("Next ➡️", `show-tickers/next/${lastVisibleId}`),
+      Markup.button.callback(
+        "Next ➡️",
+        `show-tickers/next/${lastVisibleId}/${favorites}`,
+      ),
     );
   }
   if (keyboardPrevNext.length) {

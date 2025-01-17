@@ -1,3 +1,4 @@
+<h3>Favorites</h3>
 <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-2 my-2">
   {{#each paginate.tickers as |ticker|}}
     {{> ticker ticker=ticker}}
@@ -7,12 +8,12 @@
   <ul class="pagination mt-4">
     {{#if paginate.hasPrev}}
       <li class="page-item">
-        <a href="/?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="page-link">⏪ Prev Page</a>
+        <a href="/favorites?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="page-link">⏪ Prev Page</a>
       </li>
     {{/if}}
     {{#if paginate.hasNext}}
       <li class="page-item">
-        <a href="/?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="page-link">Next Page ⏩</a>
+        <a href="/favorites?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="page-link">Next Page ⏩</a>
       </li>
     {{/if}}
   </ul>

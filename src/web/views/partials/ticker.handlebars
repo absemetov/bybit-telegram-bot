@@ -1,0 +1,35 @@
+<div class="col">
+  <div class="card text-center h-100">
+    <div class="card-body">
+        <h5 class="card-title">
+          <button type="button" class="btn btn-outline-light" onclick="likeTicker(event, '{{ticker.symbol}}')" data-favorites="{{ticker.favorites}}">
+            {{#if ticker.favorites}}❤️{{else}}🖤{{/if}}
+          </button>
+        <a href="/t/{{ticker.symbol}}">{{ticker.symbol}}</a>
+        </h5>
+        <p class="card-text">
+            <h5>{{ticker.lastPrice}}$ (
+                {{#if (greater ticker.price24hPcnt)}}
+                <span class="text-success">+
+                {{else}}
+                <span class="text-danger">
+                {{/if}}
+            {{formatNumber ticker.price24hPcnt}}%)
+            </span></h5>
+            {{ticker.message}}
+        </p>
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chartModal" data-symbol="{{ticker.symbol}}">
+          📈 {{ticker.symbol}} 
+        </button>
+      </li>
+      <li class="list-group-item"><a href="https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:{{ticker.symbol}}.P" target="_blank">📈 Tradingview</a></li>
+      <li class="list-group-item"><a href="https://www.coinglass.com/tv/ru/Bybit_{{ticker.symbol}}" target="_blank">📈 Coinglass</a></li>
+      <li class="list-group-item"><a href="https://www.tradingview.com/symbols/{{ticker.symbol}}/ideas/" target="_blank">🧐 Tradingview ideas</a></li>
+      <li class="list-group-item"><a href="https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/{{ticker.symbol}}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol={{ticker.symbol}}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true" target="_blank">📟 Bybit App</a></li>
+      <li class="list-group-item"><a href="https://t.me/WarsawDevBot?start={{ticker.symbol}}" target="_blank">@WarsawDevBot</a></li>
+    </ul>
+  </div>
+</div>
