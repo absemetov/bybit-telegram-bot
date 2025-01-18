@@ -19,17 +19,12 @@
 // });
 const { Telegraf, Markup } = require("telegraf");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-// const { initializeApp } = require("firebase-admin/app");
-// const { getFirestore } = require("firebase-admin/firestore");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 const { algoliasearch } = require("algoliasearch");
 
-// initializeApp();
-// const db = getFirestore();
-
-// format price
-const formatNumber = (price) => {
-  return price.toLocaleString("ru-RU");
-};
+initializeApp();
+const db = getFirestore();
 
 //Alerts
 exports.tickerAlerts = onDocumentWritten(
@@ -58,7 +53,7 @@ exports.tickerAlerts = onDocumentWritten(
         await bot.telegram.sendMessage(
           94899148,
           `<b>${symbol}</b> ${ticker.alertMessage}\n` +
-            `Price change ${ticker.price24hPcnt > 0 ? "↗️ +" : "🔻 "}${formatNumber(ticker.price24hPcnt)}%\n` +
+            `Price change ${ticker.price24hPcnt > 0 ? "↗️ +" : "🔻 "}${ticker.price24hPcnt.toFixed(2)}%\n` +
             `/s${symbol}`,
           {
             parse_mode: "HTML",
@@ -108,17 +103,15 @@ exports.tickerAlerts = onDocumentWritten(
         indexName: "crypto",
         objectID: symbol,
       });
-      //delete pump alerts
-      // const snapshot = await db
-      //   .collection(`crypto/${symbol}/pump-alerts`)
-      //   .get();
-      // if (!snapshot.empty) {
-      //   const batch = db.batch();
-      //   snapshot.docs.forEach((doc) => {
-      //     batch.delete(doc.ref);
-      //   });
-      //   await batch.commit();
-      // }
+      //delete pump crypto-alerts
+      const snapshot = await db.collection("crypto-alerts").get();
+      if (!snapshot.empty) {
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+      }
     }
     return null;
   },

@@ -11,6 +11,9 @@ autocomplete({
   placeholder: "Search for tickers",
   detachedMediaQuery: "(max-width: 991.98px)",
   openOnFocus: true,
+  onSubmit({ state }) {
+    window.location.href = `https://bybit.rzk.com.ru/t/${state.query}`;
+  },
   getSources() {
     return [
       {
@@ -38,7 +41,7 @@ autocomplete({
                   <div class="aa-ItemContentTitle text-wrap">
                     ${components.Highlight({ hit: item, attribute: "symbol" })}
                   </div>
-                  <b>${item.lastPrice}$ (${item.price24h}%)</b>
+                  <b>${item.lastPrice}$ (${item.price24hPcnt.toFixed(2)}%)</b>
                 </div>
               </div>
             </div>`;
@@ -127,6 +130,7 @@ tickerForm.addEventListener("submit", async (event) => {
 let alerts = [];
 //let alertUpLine;
 //let alertDownLine;
+let chartInterval = "1h";
 let hoveredAlert = null;
 let selectedAlert = null;
 let currentPriceMove = null;
@@ -159,6 +163,7 @@ if (buttonsContainer.innerHTML === "") {
 }
 //render timeframes
 async function setChartInterval(interval) {
+  chartInterval = interval;
   //set active btn
   intervals.forEach((intervalId) => {
     document.getElementById(intervalId).classList.remove("btn-primary");
@@ -383,7 +388,7 @@ chartModalEl.addEventListener("show.bs.modal", async (event) => {
     return false;
   }
   alerts = [];
-  for (const value of Object.values(resJson.alerts)) {
+  for (const value of resJson.alerts) {
     alerts.push(
       candlestickSeries.createPriceLine({
         price: value,
@@ -396,7 +401,7 @@ chartModalEl.addEventListener("show.bs.modal", async (event) => {
   }
   chart.subscribeClick(handleClick);
   chart.subscribeCrosshairMove(handleCrosshairMove);
-  await setChartInterval("1h");
+  await setChartInterval(chartInterval);
 });
 
 //hide chart

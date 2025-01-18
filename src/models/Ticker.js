@@ -57,13 +57,6 @@ class Ticker {
       price24h: open,
       price24hPcnt: ((close - open) / open) * 100,
       lastPrice: close,
-      alerts: {
-        alert1: close * 0.98,
-        alert2: close * 0.99,
-        alert3: close * 1.01,
-        alert4: close * 1.02,
-        alert5: close * 1.03,
-      },
     };
     const { error } = Ticker.validate(newTickerData);
     if (error) {
@@ -72,6 +65,8 @@ class Ticker {
     // lastPrice: Joi.number().min(0).allow(null),
     // price24hPcnt
     await db.doc(`crypto/${symbol}`).set(newTickerData);
+    //create alerts
+    await Ticker.createAlerts(symbol, close);
     return tickersCount + 1;
   }
   static async find(ticker, getDoc = false) {
@@ -87,11 +82,30 @@ class Ticker {
     }
     return null;
   }
+  //create default Alerts
+  static async createAlerts(symbol, price) {
+    const alerts = {
+      alert1: price * 0.98,
+      alert2: price * 0.99,
+      alert3: price * 1.01,
+      alert4: price * 1.02,
+      alert5: price * 1.03,
+    };
+    await db.doc(`crypto-alerts/${symbol}`).set(alerts);
+  }
   // get all alerts
   static async getAlerts(symbol) {
-    const ticker = await Ticker.find(symbol);
-    const { alerts } = ticker;
-    return { ...alerts };
+    const alertsDoc = await db.doc(`crypto-alerts/${symbol}`).get();
+    if (alertsDoc.exists) {
+      return [
+        alertsDoc.data().alert1,
+        alertsDoc.data().alert2,
+        alertsDoc.data().alert3,
+        alertsDoc.data().alert4,
+        alertsDoc.data().alert5,
+      ];
+    }
+    return [];
   }
   //update alert
   static async updateAlert(symbol, alertName, value) {
@@ -100,9 +114,9 @@ class Ticker {
       throw new Error(`Invalid ticker data ${alertName} must be numeric!`);
     }
     const editTickerField = {
-      [`alerts.${alertName}`]: value,
+      [alertName]: value,
     };
-    await db.doc(`crypto/${symbol}`).update(editTickerField);
+    await db.doc(`crypto-alerts/${symbol}`).update(editTickerField);
   }
   //new update
   static async updateField(symbol, fieldName, fieldData) {
@@ -126,15 +140,12 @@ class Ticker {
     favorites = false,
   ) {
     //if scan 50 ticker dont order!!!
-    const mainQuery =
-      limit === 50
-        ? db.collection("crypto")
-        : favorites
-          ? db
-              .collection("crypto")
-              .where("favorites", "==", true)
-              .orderBy("price24hPcnt", "desc")
-          : db.collection("crypto").orderBy("price24hPcnt", "desc");
+    const mainQuery = favorites
+      ? db
+          .collection("crypto")
+          .where("favorites", "==", true)
+          .orderBy("price24hPcnt", "desc")
+      : db.collection("crypto").orderBy("price24hPcnt", "desc");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {
@@ -157,6 +168,65 @@ class Ticker {
     if (!snapshot.empty) {
       const tickers = snapshot.docs.map((doc) => {
         return { symbol: doc.id, ...doc.data() };
+      });
+      const firstVisible = snapshot.docs[0];
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+      // Check for previous and next tickers
+      const hasPrevSnap = await mainQuery
+        .endBefore(firstVisible)
+        .limitToLast(1)
+        .get();
+      const hasNextSnap = await mainQuery
+        .startAfter(lastVisible)
+        .limit(1)
+        .get();
+      const hasPrev = !hasPrevSnap.empty;
+      const hasNext = !hasNextSnap.empty;
+      const firstVisibleId = firstVisible.id;
+      const lastVisibleId = lastVisible.id;
+      return { tickers, firstVisibleId, lastVisibleId, hasPrev, hasNext };
+    }
+    return { tickers: [] };
+  }
+  //paginate alerts
+  static async paginateAlerts(limit, direction = null, lastVisibleId = null) {
+    try {
+      db.collection("crypto-alerts");
+    } catch (error) {
+      console.log(error);
+    }
+    const mainQuery = db.collection("crypto-alerts");
+    let query = mainQuery;
+    const lastVisibleDoc = await db.doc(`crypto-alerts/${lastVisibleId}`).get();
+    if (direction && !lastVisibleDoc) {
+      direction = null;
+      //throw new Error("lastVisibleDoc is empty!");
+    }
+    if (direction === "next") {
+      query = query.startAfter(lastVisibleDoc);
+    } else if (direction === "prev") {
+      query = query.endBefore(lastVisibleDoc);
+    }
+    // set limit
+    if (direction === "prev") {
+      query = query.limitToLast(limit);
+    } else {
+      query = query.limit(limit);
+    }
+    const snapshot = await query.get();
+    // for doc use exists for qyery empty opt
+    if (!snapshot.empty) {
+      const tickers = snapshot.docs.map((doc) => {
+        return {
+          symbol: doc.id,
+          alerts: [
+            doc.data().alert1,
+            doc.data().alert2,
+            doc.data().alert3,
+            doc.data().alert4,
+            doc.data().alert5,
+          ],
+        };
       });
       const firstVisible = snapshot.docs[0];
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];

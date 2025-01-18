@@ -12,9 +12,11 @@ export const checkAlerts = async (bot, interval) => {
   const scanPaginateSettings = await Scan.paginateData(2);
   const { direction, lastVisibleId } = scanPaginateSettings;
   // get new tickers use paginate!!!
-  const paginate = await Ticker.paginate(50, direction, lastVisibleId);
-  for (const ticker of paginate.tickers) {
-    const { symbol, alerts, lastNotified, price24h } = ticker;
+  const paginate = await Ticker.paginateAlerts(50, direction, lastVisibleId);
+  for (const tickerAlerts of paginate.tickers) {
+    const { symbol, alerts } = tickerAlerts;
+    const ticker = await Ticker.find(symbol);
+    const { lastNotified, price24h } = ticker;
     // get kline data
     const candlesArray = await bybitKline(symbol, interval, 2);
     //check pre last candle
@@ -37,7 +39,7 @@ export const checkAlerts = async (bot, interval) => {
           !lastNotified ||
           Date.now() - lastNotified.toMillis() >= 10 * 60000
         ) {
-          for (const value of Object.values(alerts)) {
+          for (const value of alerts) {
             if (low <= value && value <= high) {
               updateTickerData.data.alertMessage = `${formatNumber(value)}$ cross price`;
               updateTickerData.data.lastNotified = new Date();

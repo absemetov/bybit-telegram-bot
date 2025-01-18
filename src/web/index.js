@@ -54,7 +54,6 @@ const protectPage = (req, res, next) => {
   return next();
 };
 app.use(auth);
-//new alerts
 app.get("/", protectPage, async (req, res) => {
   const title = "Dev Bot Web";
   const { direction, lastVisibleId } = req.query;
@@ -107,6 +106,19 @@ app.post("/login", async (req, res) => {
   const errorLogin = "Wrong password or email";
   res.render("login", { title, errorLogin });
 });
+app.get("/logout", protectPage, (req, res) => {
+  return res.clearCookie("__session").redirect("/login");
+});
+//get alerts
+app.post("/alerts/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const alerts = await Ticker.getAlerts(symbol);
+    return res.json({ alerts });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 // edit alert
 app.post("/edit-alert/:symbol", async (req, res) => {
   try {
@@ -139,20 +151,6 @@ app.post("/candles/:symbol", async (req, res) => {
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
-});
-//get alerts
-app.post("/alerts/:symbol", async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const alerts = await Ticker.getAlerts(symbol);
-    return res.json({ alerts });
-  } catch (error) {
-    return res.status(422).json({ message: error.message });
-  }
-});
-
-app.get("/logout", protectPage, (req, res) => {
-  return res.clearCookie("__session").redirect("/login");
 });
 
 app.listen(PORT, () => {

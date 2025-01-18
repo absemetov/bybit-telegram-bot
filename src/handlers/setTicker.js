@@ -21,20 +21,24 @@ export const handleTickerInput = async (ctx, session) => {
         `Symbol ${symbolUsdt} is exist, use /s${symbolUsdt} to find it`,
       );
     } else {
-      const numberTicker = await Ticker.create(symbolUsdt);
-      // clear session
-      await session.delete("bybit-scene");
-      await ctx.reply(
-        `Ticker ${symbolUsdt} created. Total Tickers Number ${numberTicker} Check in /tickers`,
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              `Show ticker ${symbolUsdt}`,
-              `show-ticker/${symbolUsdt}/clear`,
-            ),
-          ],
-        ]),
-      );
+      try {
+        const numberTicker = await Ticker.create(symbolUsdt);
+        await ctx.reply(
+          `Ticker ${symbolUsdt} created. Total Tickers Number ${numberTicker} Check in /tickers`,
+          Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                `Show ticker ${symbolUsdt}`,
+                `show-ticker/${symbolUsdt}/clear`,
+              ),
+            ],
+          ]),
+        );
+      } catch (error) {
+        await ctx.reply(error);
+      }
     }
   }
+  // clear session
+  await session.delete("bybit-scene");
 };
