@@ -82,6 +82,7 @@ exports.tickerAlerts = onDocumentWritten(
                   `https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true`,
                 ),
               ],
+              [Markup.button.callback(`🗑 Delete message`, "delete/msg")],
             ]),
           },
         );
@@ -104,14 +105,15 @@ exports.tickerAlerts = onDocumentWritten(
         objectID: symbol,
       });
       //delete pump crypto-alerts
-      const snapshot = await db.collection("crypto-alerts").get();
-      if (!snapshot.empty) {
-        const batch = db.batch();
-        snapshot.docs.forEach((doc) => {
-          batch.delete(doc.ref);
-        });
-        await batch.commit();
-      }
+      await db.doc(`crypto-alerts/${symbol}`).delete();
+      // const snapshot = await db.collection(`crypto-alerts/${symbol}`).get();
+      // if (!snapshot.empty) {
+      //   const batch = db.batch();
+      //   snapshot.docs.forEach((doc) => {
+      //     batch.delete(doc.ref);
+      //   });
+      //   await batch.commit();
+      // }
     }
     return null;
   },

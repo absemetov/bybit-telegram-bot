@@ -31,6 +31,10 @@ const inlineButtonRouter = (ctx) => {
   routes.action("delete-ticker/:symbol", async (ctx, params) => {
     await deleteTicker(ctx, params);
   });
+  // delete ticker
+  routes.action("delete/msg", async (ctx) => {
+    await ctx.deleteMessage();
+  });
 };
 
 export default inlineButtonRouter;

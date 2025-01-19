@@ -58,6 +58,10 @@ app.get("/", protectPage, async (req, res) => {
   const title = "Dev Bot Web";
   const { direction, lastVisibleId } = req.query;
   const paginate = await Ticker.paginate(25, direction, lastVisibleId);
+  //modify tickers set default alerts
+  // for (const ticker of paginate.tickers) {
+  //   await Ticker.createAlerts(ticker.symbol, ticker.lastPrice);
+  // }
   res.render("index", { title, paginate, user: req.user });
 });
 //ticker page

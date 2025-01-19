@@ -24,7 +24,7 @@ export const showTickerPage = async (
         `edit-ticker/${symbol}/message`,
       ),
     ],
-    [Markup.button.callback(`🗑 Delete ${symbol}$`, `delete-ticker/${symbol}`)],
+    [Markup.button.callback(`🗑 Delete ${symbol}`, `delete-ticker/${symbol}`)],
     [Markup.button.url(`${symbol}`, `https://bybit.rzk.com.ru/t/${symbol}`)],
     [
       Markup.button.url(
