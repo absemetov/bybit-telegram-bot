@@ -54,6 +54,7 @@ export const viewTickers = async (ctx, params = {}) => {
     10,
     null,
     null,
+    "desc",
     favorites === "true" || favorites === true,
   );
   await showTickersPage(
@@ -78,6 +79,7 @@ export const viewTickersPaginate = async (ctx, params) => {
     10,
     direction,
     lastVisibleId,
+    "desc",
     favorites === "true",
   );
   await showTickersPage(

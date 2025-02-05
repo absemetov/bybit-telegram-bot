@@ -31,7 +31,7 @@ const textMessageRouter = (bot) => {
     await viewTickers(ctx, { edit: false, favorites: true });
   });
   //show ticker
-  bot.hears(/^\/s(\w+)$/, async (ctx) => {
+  bot.hears(/^\/(\w+)$/, async (ctx) => {
     const symbolTxt = ctx.match[1].toUpperCase();
     const symbol = /^(\w+)USDT/.test(symbolTxt)
       ? symbolTxt

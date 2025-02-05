@@ -1,19 +1,19 @@
-<h3>Favorites</h3>
-<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-2 my-2">
+<h3>Tickers</h3>
+<ul class="list-group">
   {{#each paginate.tickers as |ticker|}}
     {{> ticker ticker=ticker}}
   {{/each}}
-</div>
+</ul>
 <nav aria-label="Page navigation example">
   <ul class="pagination mt-4">
     {{#if paginate.hasPrev}}
       <li class="page-item">
-        <a href="/favorites?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="page-link">⏪ Prev Page</a>
+        <a href="/tickers?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="page-link">⏪ Prev Page</a>
       </li>
     {{/if}}
     {{#if paginate.hasNext}}
       <li class="page-item">
-        <a href="/favorites?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="page-link">Next Page ⏩</a>
+        <a href="/tickers?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="page-link">Next Page ⏩</a>
       </li>
     {{/if}}
   </ul>

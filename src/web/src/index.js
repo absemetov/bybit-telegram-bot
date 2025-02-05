@@ -1,18 +1,32 @@
 //algolia search
 const { autocomplete, getAlgoliaResults } = window["@algolia/autocomplete-js"];
 const { liteClient } = window["algoliasearch/lite"];
+const { createLocalStorageRecentSearchesPlugin } =
+  window["@algolia/autocomplete-plugin-recent-searches"];
 const searchClient = liteClient(
   "YSHMAC99ZS",
   "c9f2ff23faccc8a423feb221fdbfdb53",
 );
+const recentSearchesPlugin = createLocalStorageRecentSearchesPlugin({
+  key: "navbar",
+  transformSource({ source }) {
+    return {
+      ...source,
+      onSelect({ item }) {
+        window.location.href = `https://bybit.rzk.com.ru/#${item.label}`;
+      },
+    };
+  },
+});
 autocomplete({
   debug: true,
   container: "#autocomplete",
   placeholder: "Search for tickers",
   detachedMediaQuery: "(max-width: 991.98px)",
   openOnFocus: true,
+  plugins: [recentSearchesPlugin],
   onSubmit({ state }) {
-    window.location.href = `https://bybit.rzk.com.ru/t/${state.query}`;
+    window.location.href = `https://bybit.rzk.com.ru/#${state.query}`;
   },
   getSources() {
     return [
@@ -48,13 +62,18 @@ autocomplete({
           },
         },
         onSelect({ item }) {
-          window.location.href = `https://bybit.rzk.com.ru/t/${item.symbol}`;
+          recentSearchesPlugin.data.addItem({
+            id: item.symbol,
+            label: item.symbol,
+          });
+          window.location.href = `https://bybit.rzk.com.ru/#${item.symbol}`;
         },
       },
     ];
   },
 });
 //add to favorites
+// eslint-disable-next-line no-unused-vars
 async function likeTicker(event, symbol) {
   const likeButton = event.target;
   const { favorites } = likeButton.dataset;
@@ -74,13 +93,15 @@ async function likeTicker(event, symbol) {
     return;
   }
   likeButton.setAttribute("data-favorites", fieldData);
-  likeButton.innerText = fieldData ? "❤️" : "🖤";
+  likeButton.innerText = fieldData ? "🔔" : "🔕";
 }
 const tickerForm = document.getElementById("tickerFormEdit");
 const tickerEditModalEl = document.getElementById("tickerEditModal");
 const tickerEditModal = new window.bootstrap.Modal(tickerEditModalEl);
+const bsOffcanvas = new window.bootstrap.Offcanvas("#offcanvasResponsive");
 
 const chartModalEl = document.getElementById("chartModal");
+//const chartModal = new window.bootstrap.Modal(chartModalEl);
 let editButton;
 // set form data deprecated!!!
 tickerEditModalEl.addEventListener("shown.bs.modal", (event) => {
@@ -137,17 +158,17 @@ let currentPriceMove = null;
 let isDroped = true;
 let openButton;
 let symbol;
-let candlestickSeries;
+let candlestickSeries = null;
 let volumeSeries;
 //let idInterval;
 const chartContainer = document.getElementById("simpleChart");
 //add legend
-const legend = document.createElement("div");
-legend.style = `position: absolute; left: 25px; top: 80px; z-index: 100; font-size: 20px; font-family: sans-serif; line-height: 18px; font-weight: 300;`;
-chartContainer.appendChild(legend);
-const firstRow = document.createElement("div");
-firstRow.innerHTML = "Volume:";
-legend.appendChild(firstRow);
+// const legend = document.createElement("div");
+// legend.style = `position: absolute; left: 25px; top: 80px; z-index: 100; font-size: 20px; font-family: sans-serif; line-height: 18px; font-weight: 300;`;
+// chartContainer.appendChild(legend);
+const volumeEl = document.getElementById("volumeEl");
+const symbolEl = document.getElementById("symbolEl");
+//legend.appendChild(firstRow);
 //timeframes btns
 const buttonsContainer = document.getElementById("chartButtons");
 const intervals = ["15min", "1h", "4h", "1d", "1w"];
@@ -160,36 +181,13 @@ if (buttonsContainer.innerHTML === "") {
     button.addEventListener("click", () => setChartInterval(interval));
     buttonsContainer.appendChild(button);
   });
+  const updateButton = document.createElement("button");
+  updateButton.classList.add("btn");
+  updateButton.innerText = "🔃";
+  updateButton.addEventListener("click", () => showChart(symbol));
+  buttonsContainer.appendChild(updateButton);
 }
-//render timeframes
-async function setChartInterval(interval) {
-  chartInterval = interval;
-  //set active btn
-  intervals.forEach((intervalId) => {
-    document.getElementById(intervalId).classList.remove("btn-primary");
-  });
-  document.getElementById(interval).classList.add("btn-primary");
-  //get ticker data
-  const response = await fetch(`/candles/${symbol}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json;charset=utf-8",
-    },
-    body: JSON.stringify({
-      interval,
-    }),
-  });
-  const resJson = await response.json();
-  if (!response.ok) {
-    alert(resJson.message);
-    return false;
-  }
-  //order by time use reverse!
-  candlestickSeries.setData(resJson.candlesArray.reverse());
-  volumeSeries.setData(resJson.candlesArray);
-  //chart.timeScale().fitContent();
-  chart.timeScale().scrollToPosition(9);
-}
+
 //default colors
 function defaultAlerts() {
   for (const alert of alerts) {
@@ -203,20 +201,22 @@ function defaultAlerts() {
 }
 //hover alerts
 function checkHover(checkPrice) {
-  for (const [index, alert] of alerts.entries()) {
-    const isAlertHover =
-      alert?.options().price &&
-      Math.abs(checkPrice - alert?.options().price) / checkPrice < 0.01;
-    if (isAlertHover) {
-      hoveredAlert = `alert${index + 1}`;
-      alert.applyOptions({
-        color: "orange",
-      });
-      chartContainer.style.cursor = "pointer";
-      return;
+  if (isDroped) {
+    for (const [index, alert] of alerts.entries()) {
+      const isAlertHover =
+        alert?.options().price &&
+        Math.abs(checkPrice - alert?.options().price) / checkPrice < 0.005;
+      if (isAlertHover) {
+        hoveredAlert = `alert${index + 1}`;
+        alert.applyOptions({
+          color: "orange",
+        });
+        chartContainer.style.cursor = "pointer";
+        return;
+      }
     }
+    defaultAlerts();
   }
-  defaultAlerts();
 }
 //save alerts
 async function saveAlert(symbol, alertName, alertValue) {
@@ -245,7 +245,7 @@ function handleCrosshairMove(param) {
   if (param.time) {
     const datapoints = param.seriesData.get(volumeSeries);
     if (datapoints) {
-      firstRow.innerHTML = `Volume: ${volumeSeries.priceFormatter().format(datapoints.value)}`;
+      volumeEl.innerHTML = `Volume: ${volumeSeries.priceFormatter().format(datapoints.value)}`;
     }
   }
   currentPriceMove = candlestickSeries.coordinateToPrice(param.point.y);
@@ -338,20 +338,70 @@ const chart = window.LightweightCharts.createChart(chartContainer, {
     // Vertical crosshair line (showing Date in Label)
   },
 });
-chart.resize(window.innerWidth - 15, window.innerHeight - 95);
+//chart.resize(window.innerWidth - 15, window.innerHeight - 200);
+chart.applyOptions({ height: window.innerHeight - 100 });
+chart.subscribeClick(handleClick);
+chart.subscribeCrosshairMove(handleCrosshairMove);
 //show modal fullscreen
+async function showChart(ticker) {
+  symbol = ticker;
+  await setChartInterval(chartInterval);
+}
+//deprecated
 chartModalEl.addEventListener("show.bs.modal", async (event) => {
   openButton = event.relatedTarget;
-  symbol = openButton.dataset.symbol;
-  //set title
-  const modalTitle = chartModalEl.querySelector(".modal-title");
-  modalTitle.textContent = `Chart ${symbol}`;
+  if (openButton) {
+    symbol = openButton.dataset.symbol;
+    //set title
+    const modalTitle = chartModalEl.querySelector(".modal-title");
+    const modalBody = chartModalEl.querySelector(".modal-body");
+    modalTitle.innerHTML = `Ticker ${symbol}`;
+    modalBody.innerHTML = `
+    <div class="list-group">
+      <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P" target="_blank">📈 Tradingview chart</a>
+      <a class="list-group-item list-group-item-action" href="https://www.coinglass.com/tv/ru/Bybit_${symbol}" target="_blank">📈 Coinglass chart</a>
+      <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/symbols/${symbol}/ideas/" target="_blank">🔭 TV Idea</a>
+      <a class="list-group-item list-group-item-action" href="https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true" target="_blank">📟 Bybit</a>
+      <a class="list-group-item list-group-item-action" href="https://t.me/WarsawDevBot?start=${symbol}" target="_blank">@Bot</a>
+    </div>`;
+  }
+});
+//render timeframes
+async function setChartInterval(interval) {
+  chartInterval = interval;
+  //set active btn
+  intervals.forEach((intervalId) => {
+    document.getElementById(intervalId).classList.remove("btn-primary");
+  });
+  document.getElementById(interval).classList.add("btn-primary");
+  //get ticker data
+  const response = await fetch(`/candles/${symbol}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=utf-8",
+    },
+    body: JSON.stringify({
+      interval,
+    }),
+  });
+  const resJson = await response.json();
+  if (!response.ok) {
+    alert(resJson.message);
+    return false;
+  }
+  //order by time use reverse!
+  if (candlestickSeries) {
+    chart.removeSeries(candlestickSeries);
+    chart.removeSeries(volumeSeries);
+    candlestickSeries = null;
+  }
   candlestickSeries = chart.addCandlestickSeries({
     priceFormat: {
       type: "price",
       //precision: 5,
       minMove: 0.00001,
     },
+    //borderVisible: false,
   });
   //volume
   volumeSeries = chart.addHistogramSeries({
@@ -375,20 +425,29 @@ chartModalEl.addEventListener("show.bs.modal", async (event) => {
       bottom: 0,
     },
   });
+  candlestickSeries.setData(resJson.candlesArray.reverse());
+  volumeSeries.setData(resJson.candlesArray);
   //set alerts
-  const response = await fetch(`/alerts/${symbol}`, {
+  //set alerts
+  const alertsData = await fetch(`/alerts/${symbol}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json;charset=utf-8",
     },
   });
-  const resJson = await response.json();
-  if (!response.ok) {
-    alert(resJson.message);
+  const alertsDataJson = await alertsData.json();
+  if (!alertsData.ok) {
+    alert(alertsDataJson.message);
     return false;
   }
+  //clear alerts
+  if (alerts.length) {
+    for (const alert of alerts) {
+      candlestickSeries.removePriceLine(alert);
+    }
+  }
   alerts = [];
-  for (const value of resJson.alerts) {
+  for (const value of alertsDataJson.alerts) {
     alerts.push(
       candlestickSeries.createPriceLine({
         price: value,
@@ -399,17 +458,49 @@ chartModalEl.addEventListener("show.bs.modal", async (event) => {
       }),
     );
   }
-  chart.subscribeClick(handleClick);
-  chart.subscribeCrosshairMove(handleCrosshairMove);
-  await setChartInterval(chartInterval);
+  //hide lines in 1d 1w interval
+  for (const alert of alerts) {
+    alert.applyOptions({
+      lineVisible:
+        interval === "15min" || interval === "1h" || interval === "4h",
+    });
+  }
+  //chart.timeScale().fitContent();
+  chart.timeScale().scrollToPosition(3);
+  symbolEl.innerHTML = `<button type="button" class="btn btn-outline-light" onclick="likeTicker(event, '${symbol}')" data-favorites="${resJson.ticker.favorites}">
+    ${resJson.ticker.favorites ? "🔔" : "🔕"}
+  </button>
+  <a class="d-lg-none" data-bs-toggle="offcanvas" href="#offcanvasResponsive" role="button" aria-controls="offcanvasExample">
+    ${symbol}
+  </a> <span class="d-none d-lg-inline">${symbol}</span>
+  <button type="button" data-symbol="${symbol}" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chartModal">Info</button>`;
+}
+//hide chart
+// chartModalEl.addEventListener("hide.bs.modal", () => {
+//   if (candlestickSeries) {
+//     chart.removeSeries(candlestickSeries);
+//     chart.removeSeries(volumeSeries);
+//     //chart.remove();
+//     //chart = null;
+//   }
+// });
+//open chart by hash
+const loadFunction = async () => {
+  if (window.location.hash) {
+    symbol = window.location.hash.substring(1);
+  }
+  await showChart(symbol || "BTCUSDT");
+  bsOffcanvas.hide();
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadFunction();
 });
 
-//hide chart
-chartModalEl.addEventListener("hide.bs.modal", () => {
-  if (candlestickSeries) {
-    chart.removeSeries(candlestickSeries);
-    chart.removeSeries(volumeSeries);
-    //chart.remove();
-    //chart = null;
-  }
-});
+window.addEventListener(
+  "hashchange",
+  async () => {
+    await loadFunction();
+  },
+  false,
+);

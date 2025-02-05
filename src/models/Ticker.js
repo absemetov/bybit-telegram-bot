@@ -119,15 +119,22 @@ class Ticker {
     await db.doc(`crypto-alerts/${symbol}`).update(editTickerField);
   }
   //new update
+  static async update(symbol, data) {
+    await db.doc(`crypto/${symbol}`).update(data);
+  }
   static async updateField(symbol, fieldName, fieldData) {
     //for bot
-    if (typeof fieldData !== "boolean") {
+    if (fieldName === "favorites" && typeof fieldData !== "boolean") {
       fieldData = fieldData === "true";
     }
     const editTickerField = {
       [fieldName]: fieldData,
     };
     await db.doc(`crypto/${symbol}`).update(editTickerField);
+    //todo sync favorites to crypto alerts
+    if (fieldName === "favorites") {
+      await db.doc(`crypto-alerts/${symbol}`).update(editTickerField);
+    }
   }
   //delete Ticker
   static async delete(symbol) {
@@ -137,6 +144,7 @@ class Ticker {
     limit,
     direction = null,
     lastVisibleId = null,
+    order = "desc",
     favorites = false,
   ) {
     //if scan 50 ticker dont order!!!
@@ -144,8 +152,8 @@ class Ticker {
       ? db
           .collection("crypto")
           .where("favorites", "==", true)
-          .orderBy("price24hPcnt", "desc")
-      : db.collection("crypto").orderBy("price24hPcnt", "desc");
+          .orderBy("price24hPcnt", order)
+      : db.collection("crypto");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {
@@ -190,12 +198,9 @@ class Ticker {
   }
   //paginate alerts
   static async paginateAlerts(limit, direction = null, lastVisibleId = null) {
-    try {
-      db.collection("crypto-alerts");
-    } catch (error) {
-      console.log(error);
-    }
-    const mainQuery = db.collection("crypto-alerts");
+    const mainQuery = db
+      .collection("crypto-alerts")
+      .where("favorites", "==", true);
     let query = mainQuery;
     const lastVisibleDoc = await db.doc(`crypto-alerts/${lastVisibleId}`).get();
     if (direction && !lastVisibleDoc) {
@@ -219,6 +224,7 @@ class Ticker {
       const tickers = snapshot.docs.map((doc) => {
         return {
           symbol: doc.id,
+          favorites: doc.data().favorites,
           alerts: [
             doc.data().alert1,
             doc.data().alert2,

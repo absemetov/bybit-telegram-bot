@@ -18,7 +18,7 @@ export const handleTickerInput = async (ctx, session) => {
     const tickerIsExists = await Ticker.find(symbolUsdt);
     if (tickerIsExists) {
       await ctx.reply(
-        `Symbol ${symbolUsdt} is exist, use /s${symbolUsdt} to find it`,
+        `Symbol ${symbolUsdt} is exist, use /${symbolUsdt} to find it`,
       );
     } else {
       try {

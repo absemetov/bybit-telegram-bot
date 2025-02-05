@@ -1,7 +1,7 @@
 import { RestClientV5 } from "bybit-api";
 const client = new RestClientV5();
 
-export const bybitKline = async (symbol, textInterval, candlesCount) => {
+export const bybitKline = async (symbol, textInterval, limit) => {
   const textToMinutes = {
     "1min": 1,
     "5min": 5,
@@ -21,7 +21,7 @@ export const bybitKline = async (symbol, textInterval, candlesCount) => {
     );
   const date = new Date();
   const timeEndMs = date.getTime();
-  date.setMinutes(date.getMinutes() - interval * candlesCount);
+  date.setMinutes(date.getMinutes() - interval * limit);
   const timeStartMs = date.getTime();
   // get kline data
   const textToMinutesK = {
@@ -42,9 +42,10 @@ export const bybitKline = async (symbol, textInterval, candlesCount) => {
     interval: textToMinutesK[textInterval],
     start: timeStartMs,
     end: timeEndMs,
+    limit,
   });
   const candlesArray = [];
-  for (let i = 0; i < candlesCount; i += 1) {
+  for (let i = 0; i < limit; i += 1) {
     if (kline.result.list) {
       const candle = kline.result.list[i];
       if (candle) {
@@ -55,7 +56,7 @@ export const bybitKline = async (symbol, textInterval, candlesCount) => {
           low: +candle[3],
           close: +candle[4],
           value: +candle[5],
-          color: candle[4] > candle[1] ? "green" : "red",
+          //color: candle[4] > candle[1] ? "green" : "red",
         });
       }
     }

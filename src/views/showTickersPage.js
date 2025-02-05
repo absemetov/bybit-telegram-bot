@@ -25,7 +25,7 @@ export const showTickerPage = async (
       ),
     ],
     [Markup.button.callback(`🗑 Delete ${symbol}`, `delete-ticker/${symbol}`)],
-    [Markup.button.url(`${symbol}`, `https://bybit.rzk.com.ru/t/${symbol}`)],
+    [Markup.button.url(`${symbol}`, `https://bybit.rzk.com.ru/#${symbol}`)],
     [
       Markup.button.url(
         `📈 Tradingview chart: ${symbol}`,

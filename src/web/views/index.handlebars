@@ -1,19 +1,48 @@
-<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-2 my-2">
-  {{#each paginate.tickers as |ticker|}}
-    {{> ticker ticker=ticker}}
-  {{/each}}
+<div class="row">
+  <div class="col-lg-3">
+    <div class="offcanvas-lg offcanvas-start" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Responsive offcanvas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasResponsive" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body flex-column">
+        <ul class="list-group">
+          <li class="list-group-item">
+            <a href="/" class="btn">Alerts</a>
+            <a href="/?tickers=all" class="btn">Tickers</a>
+            {{#if order}}
+              <a href="/" class="btn">Order desc</a>
+            {{else}}
+              <a href="/?order=asc" class="btn">Order asc</a>
+            {{/if}}
+          </li>
+          {{#each paginate.tickers as |ticker|}}
+            {{> ticker ticker=ticker}}
+          {{/each}}
+        </ul>
+        <nav aria-label="Page navigation example">
+          <ul class="pagination mt-4">
+            {{#if paginate.hasPrev}}
+              <li class="page-item">
+                <a href="/?direction=prev&lastVisibleId={{paginate.firstVisibleId}}{{#if order}}&order=asc{{/if}}{{#if tickers}}&tickers=all{{/if}}" class="page-link">⏪ Prev Page</a>
+              </li>
+            {{/if}}
+            {{#if paginate.hasNext}}
+              <li class="page-item">
+                <a href="/?direction=next&lastVisibleId={{paginate.lastVisibleId}}{{#if order}}&order=asc{{/if}}{{#if tickers}}&tickers=all{{/if}}" class="page-link">Next Page ⏩</a>
+              </li>
+            {{/if}}
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-12 col-lg-9">
+    <div class="position-absolute z-3">
+      <div class="btn-group" role="group" aria-label="Basic example" id="chartButtons"></div>
+      <p class="ps-2 m-1 fw-bold" id="symbolEl">Symbol</p>
+      <p class="ps-4 fw-bold" id="volumeEl">Volume</p>
+    </div>
+    <div id="simpleChart"></div>
+  </div>
 </div>
-<nav aria-label="Page navigation example">
-  <ul class="pagination mt-4">
-    {{#if paginate.hasPrev}}
-      <li class="page-item">
-        <a href="/?direction=prev&lastVisibleId={{paginate.firstVisibleId}}" class="page-link">⏪ Prev Page</a>
-      </li>
-    {{/if}}
-    {{#if paginate.hasNext}}
-      <li class="page-item">
-        <a href="/?direction=next&lastVisibleId={{paginate.lastVisibleId}}" class="page-link">Next Page ⏩</a>
-      </li>
-    {{/if}}
-  </ul>
-</nav>

@@ -52,16 +52,15 @@ exports.tickerAlerts = onDocumentWritten(
       ) {
         await bot.telegram.sendMessage(
           94899148,
-          `<b>${symbol}</b> ${ticker.alertMessage}\n` +
-            `Price change ${ticker.price24hPcnt > 0 ? "↗️ +" : "🔻 "}${ticker.price24hPcnt.toFixed(2)}%\n` +
-            `/s${symbol}`,
+          `${ticker.favorites ? "❤️" : ""} <b>${symbol}</b> ${ticker.price24hPcnt > 0 ? "↗️ +" : "🔻 "}${ticker.price24hPcnt.toFixed(2)}% <b>${ticker.alertMessage}</b>\n` +
+            `/${symbol}`,
           {
             parse_mode: "HTML",
             ...Markup.inlineKeyboard([
               [
                 Markup.button.url(
                   `${symbol}`,
-                  `https://bybit.rzk.com.ru/t/${symbol}`,
+                  `https://bybit.rzk.com.ru/#${symbol}`,
                 ),
               ],
               [

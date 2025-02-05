@@ -34,10 +34,10 @@ export const checkAlerts = async (bot, interval) => {
         updateTickerData.data.price24h = open;
         updateTickerData.data.price24hPcnt = ((close - open) / open) * 100;
       } else {
-        //silent 10min
+        //silent 25min
         if (
           !lastNotified ||
-          Date.now() - lastNotified.toMillis() >= 10 * 60000
+          Date.now() - lastNotified.toMillis() >= 25 * 60000
         ) {
           for (const value of alerts) {
             if (low <= value && value <= high) {

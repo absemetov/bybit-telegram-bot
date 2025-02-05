@@ -10,11 +10,9 @@
   <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid d-flex justify-content-start">
-        <a class="navbar-brand" href="/">Bot</a>
+        <a class="navbar-brand" href="/">💰 Bot</a>
+        <div id="autocomplete" class="overflow-hidden"></div>
         <ul class="nav">
-          <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="/favorites">❤️</a>
-          </li>
           {{#if user.auth}}
             <li class="nav-item">
               <a class="nav-link" aria-current="page" href="/logout">Logout</a>
@@ -25,10 +23,9 @@
             </li>
           {{/if}}
         </ul>
-        <div id="autocomplete" class="overflow-hidden"></div>
       </div>
     </nav>
-    <div class="container-fluid my-3">
+    <div class="container-fluid">
       {{{body}}}
     </div>
     <!-- tickerEditModal -->
@@ -59,15 +56,14 @@
     </div>
     <!-- Modal -->
     <div class="modal fade" id="chartModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-fullscreen">
+      <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div class="btn-group position-absolute p-1 z-3" role="group" aria-label="Basic example" id="chartButtons"></div>
-            <div id="simpleChart"></div>
+            
           </div>
         </div>
       </div>
@@ -75,6 +71,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@algolia/autocomplete-js@1.17.9/dist/umd/index.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@algolia/autocomplete-plugin-recent-searches@1.18.0/dist/umd/index.production.js" integrity="sha256-wuHAV2PFleGxZJP0z7SBR37XYeLwiNPkGXAW3WFf9YM=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/algoliasearch@5.19.0/dist/lite/builds/browser.umd.js"></script>
     <script src="/index.js"></script>
   </body>

@@ -56,28 +56,35 @@ const protectPage = (req, res, next) => {
 app.use(auth);
 app.get("/", protectPage, async (req, res) => {
   const title = "Dev Bot Web";
-  const { direction, lastVisibleId } = req.query;
-  const paginate = await Ticker.paginate(25, direction, lastVisibleId);
+  const { direction, lastVisibleId, order, tickers } = req.query;
+  // const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+  const paginate = await Ticker.paginate(
+    10,
+    direction,
+    lastVisibleId,
+    order,
+    tickers ? false : true,
+  );
   //modify tickers set default alerts
   // for (const ticker of paginate.tickers) {
   //   await Ticker.createAlerts(ticker.symbol, ticker.lastPrice);
   // }
-  res.render("index", { title, paginate, user: req.user });
+  res.render("index", { title, paginate, user: req.user, order, tickers });
 });
-//ticker page
-app.get("/t/:symbol", protectPage, async (req, res) => {
-  const { symbol } = req.params;
-  const title = `${symbol} - Dev Bot Web`;
-  const ticker = await Ticker.find(symbol);
-  res.render("ticker", { title, ticker, user: req.user });
-});
-//favorites
-app.get("/favorites", protectPage, async (req, res) => {
-  const title = "Favorites - Dev Bot Web";
-  const { direction, lastVisibleId } = req.query;
-  const paginate = await Ticker.paginate(15, direction, lastVisibleId, true);
-  res.render("favorites", { title, paginate, user: req.user });
-});
+//ticker page deprecated use modal in chart!
+// app.get("/t/:symbol", protectPage, async (req, res) => {
+//   const { symbol } = req.params;
+//   const title = `${symbol} - Dev Bot Web`;
+//   const ticker = await Ticker.find(symbol);
+//   res.render("ticker", { title, ticker, user: req.user });
+// });
+//favorites deprecated show in index page
+// app.get("/tickers", protectPage, async (req, res) => {
+//   const title = "Alerts - Dev Bot Web";
+//   const { direction, lastVisibleId } = req.query;
+//   const paginate = await Ticker.paginate(20, direction, lastVisibleId);
+//   res.render("favorites", { title, paginate, user: req.user });
+// });
 //simple auth
 app.get("/login", (req, res) => {
   const title = "Login";
@@ -139,6 +146,12 @@ app.post("/favorites/:symbol", async (req, res) => {
   try {
     const { symbol } = req.params;
     const { favorites } = req.body;
+    const candlesArray = await bybitKline(symbol, "1d", 1);
+    const { open, close } = candlesArray[0];
+    await Ticker.update(symbol, {
+      price24h: open,
+      price24hPcnt: ((close - open) / open) * 100,
+    });
     await Ticker.updateField(symbol, "favorites", favorites);
     return res.json({ ok: "ok" });
   } catch (error) {
@@ -150,8 +163,9 @@ app.post("/candles/:symbol", async (req, res) => {
   const { interval } = req.body;
   try {
     const { symbol } = req.params;
-    const candlesArray = await bybitKline(symbol, interval, 300);
-    return res.json({ candlesArray });
+    const ticker = await Ticker.find(symbol);
+    const candlesArray = await bybitKline(symbol, interval, 350);
+    return res.json({ candlesArray, ticker });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
