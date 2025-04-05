@@ -18,6 +18,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "algoliasearch": "^5.23.0",
     "bybit-api": "^3.10.11",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",

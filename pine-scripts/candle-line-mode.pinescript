@@ -1,0 +1,46 @@
+//modified by erd
+//@version=6
+indicator('Heikin-Ashi Normal mode correction, 15m, x1', overlay = false)
+
+//Komut
+md = input(true, title = 'Trend/Normal mode?')
+ha = input(true, title = 'Heikin-Ashi mode? (Run with normal mode)')
+len = input(20)
+users = input(true, title = 'Use Current Chart Resolution?')
+tf = input.timeframe(title = 'Use Different Timeframe?', defval = '')
+res = users ? timeframe.period : tf
+sym = syminfo.tickerid
+symo = request.security(sym, res, open)
+symh = request.security(sym, res, high)
+syml = request.security(sym, res, low)
+symc = request.security(sym, res, close)
+line = symc
+ol = ha ? (symo[1] + symc[1]) / 2 : symo
+hl = ha ? math.max(symh, symo, symc) : symh
+ll = ha ? math.min(syml, symo, symc) : syml
+cl = ha ? (symo + symc + symh + syml) / 4 : symc
+
+o = md ? ta.linreg(symo, len, 0) : ol
+h = md ? ta.linreg(symh, len, 0) : hl
+l = md ? ta.linreg(syml, len, 0) : ll
+c = md ? ta.linreg(symc, len, 0) : cl
+
+op = request.security(sym, res, o)
+hp = request.security(sym, res, h)
+lp = request.security(sym, res, l)
+cp = request.security(sym, res, c)
+col = 0.0
+col := cp > op and cp > cp[1] ? 1 : cp < op and cp < cp[1] ? -1 : col[1]
+clr = col == 1 ? color.teal : col == -1 ? color.red : color.yellow
+
+buy = md ? ta.crossover(symc, cp) : false
+sell = md ? ta.crossunder(symc, cp) : false
+alrt = md ? true : sell ? true : false
+
+alertcondition(alrt, title = 'Buy-Sell', message = 'BUY-SELL')
+
+// Plots
+plotcandle(op, hp, lp, cp, color = clr, wickcolor = clr, bordercolor = clr, title = 'Candle') //c>o and c>c[1]?lime:c<o and c<c[1]?red:blue)
+plot(line, title = 'Line', color = clr, linewidth = 2, style = plot.style_line)
+//plotshape(buy, title = 'BUY', style = shape.labelup, location = location.bottom, color = color.green, text = "BUY", textcolor = color.white)
+//plotshape(sell, title = 'SELL', style = shape.labeldown, location = location.top, color = color.red, text = "SELL", textcolor = color.white)

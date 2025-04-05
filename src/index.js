@@ -11,6 +11,8 @@ dotenv.config();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Cron tasks
+tasks(bot);
 // mutators
 bot.use(async (ctx, next) => {
   //admin absemetov
@@ -29,7 +31,7 @@ bot.on("callback_query", (ctx) => {
 });
 textMessageRouter(bot);
 bot.catch(async (error) => {
-  console.log(error);
+  console.log("Catch error:" + error);
   await bot.telegram.sendMessage(
     94899148,
     `Error in Dev bot ${error.message}`,
@@ -46,8 +48,6 @@ app.use(bot.webhookCallback(SECRET_PATH));
 
 // set webhook to bot
 // bot.telegram.setWebhook(`https://dev.rzk.com.ru${SECRET_PATH}`);
-// Cron tasks
-tasks(bot);
 app.listen(PORT, () => console.log(`Bot is running on port ${PORT}`));
 // Enable graceful stop
 // const gracefulStop = (signal) => {
@@ -56,5 +56,5 @@ app.listen(PORT, () => console.log(`Bot is running on port ${PORT}`));
 //   server.close(() => console.log("HTTP server closed"));
 // };
 
-// process.once("SIGINT", () => gracefulStop("SIGINT"));
-// process.once("SIGTERM", () => gracefulStop("SIGTERM"));
+//process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));

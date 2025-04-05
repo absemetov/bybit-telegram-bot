@@ -1,97 +1,92 @@
 import cron from "node-cron";
+import { runTimeframeScan } from "./helpers/checkPumpTickers.js";
+import { db } from "./firebase.js";
 import { checkAlerts } from "./helpers/checkAlerts.js";
 
 export const tasks = (bot) => {
-  //1min alert notify per 30sec
-  cron.schedule("*/30 * 6-23 * * *", async () => {
-    await checkAlerts(bot, "1min");
-  });
-  // // 1d frame set 24h price
-  //set price24h and price24hPcnt
-  //numberPaginate = 1, limit 50 tickers per pages x 2 pages total 100 tickers scan
-  cron.schedule(
-    "0 1-2 3 * * *",
-    async () => {
-      //await analyticCoinCandles(bot, "1d");
-      await checkAlerts(bot, "1d");
-    },
-    {
-      timezone: "Europe/Moscow",
-    },
-  );
-  // 15min frame 1-9 chunk 6-23h
-  // "15 1-9,16-25,31-40,46-55 6-23 * * *"
-  //TODO paginate tickers!!!!
-  //numberPaginate = 2, limit paginate 40 tickers per page
-  // cron.schedule(
-  //   "15 1-2,16-17,31-32,46-47 6-23 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "15min");
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // // 30min frame 1-9 chunk
-  //  "30 1-9,31-40 6-23 * * *",
-  // cron.schedule(
-  //   "30 2,32 6-23 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "30min");
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // 1h frame
-  //"45 1-9 6-23 * * *",
-  // cron.schedule(
-  //   "45 3 6-23 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "1h");
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // 4h frame
-  // cron.schedule(
-  //   "0 1-9 3,7,11,15,19,23 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "4h", 50);
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // 6h frame
-  // cron.schedule(
-  //   "15 1-9 3,9,15,21 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "6h", 50);
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // 12h frame
-  // cron.schedule(
-  //   "30 1-9 3,15 * * *",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "12h", 50);
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
-  // // 1w timeframe on Monday
-  // cron.schedule(
-  //   "0 1-9 3 * * 1",
-  //   async () => {
-  //     await analyticCoinCandles(bot, "1w", 50);
-  //   },
-  //   {
-  //     timezone: "Europe/Moscow",
-  //   },
-  // );
+  const jobs = new Map();
+  const queue = [];
+  let isProcessing = false;
+  let isProcessing1min = false;
+  // Слушатель изменений в Firestore
+  db.collection("settings")
+    .doc("scanCronPaginate")
+    .collection("scanner")
+    .onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const timeframe = change.doc.id;
+        const config = change.doc.data();
+        timeframe === "1min"
+          ? update1minJob(config)
+          : updateQueuedJob(timeframe, config);
+      });
+    });
+  function update1minJob(config) {
+    removeJob("1min");
+    if (config.active && config.schedule) {
+      const job = cron.schedule(
+        config.schedule,
+        async () => {
+          if (!isProcessing1min) {
+            isProcessing1min = true;
+            console.log(`[1min] Экстренное сканирование запущено`);
+            await checkAlerts(bot);
+            isProcessing1min = false;
+          }
+        },
+        {
+          scheduled: true,
+          timezone: "Europe/Moscow",
+        },
+      );
+      jobs.set("1min", job);
+      console.log(`[1min] Задача обновлена: ${config.schedule}`);
+    }
+  }
+  // Обновление cron-заданий
+  function updateQueuedJob(timeframe, config) {
+    removeJob(timeframe);
+    if (config.active && config.schedule) {
+      const job = cron.schedule(
+        config.schedule,
+        () => {
+          if (!queue.includes(timeframe)) {
+            queue.push(timeframe);
+            console.log(`[Queue] Добавлен ${timeframe}`);
+            processQueue();
+          }
+        },
+        {
+          scheduled: true,
+          timezone: "Europe/Moscow",
+        },
+      );
+      jobs.set(timeframe, job);
+      console.log(
+        `[${timeframe}] Задача добавлена в очередь: ${config.schedule}`,
+      );
+    }
+  }
+  function removeJob(timeframe) {
+    if (jobs.has(timeframe)) {
+      jobs.get(timeframe).stop();
+      jobs.delete(timeframe);
+      console.log(`[${timeframe}] Задача удалена`);
+    }
+  }
+  async function processQueue() {
+    if (isProcessing || queue.length === 0) return;
+    isProcessing = true;
+    const timeframe = queue.shift();
+    try {
+      console.log(`[Start] Обработка ${timeframe}`);
+      await runTimeframeScan(timeframe, bot);
+      console.log(`[End] Завершено ${timeframe}`);
+    } catch (error) {
+      console.error(`[Error] ${timeframe}:`, error);
+    }
+    isProcessing = false;
+    // 1000 = 1second
+    setTimeout(processQueue, 1000);
+  }
 };

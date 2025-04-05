@@ -1,5 +1,26 @@
 import { Markup } from "telegraf";
-import { formatNumber } from "../helpers/functions.js";
+//show indicators
+export const showTickerIndicators = async (
+  ctx,
+  symbol,
+  interval,
+  indicators,
+) => {
+  const buttons = [
+    [Markup.button.callback("⤴️ <Back", `show-ticker/${symbol}`)],
+  ];
+  //render
+  await ctx.editMessageText(
+    `Symbol: ${symbol}, Interval: ${interval}\n` +
+      `${JSON.stringify(indicators.analyzeIndicators)}\n` +
+      `First candle ${JSON.stringify(indicators.candles[0])}` +
+      `Last candle ${JSON.stringify(indicators.candles[indicators.candles.length - 1])}`,
+    {
+      parse_mode: "HTML",
+      ...Markup.inlineKeyboard(buttons),
+    },
+  );
+};
 export const showTickerPage = async (
   ctx,
   symbol,
@@ -7,15 +28,20 @@ export const showTickerPage = async (
   TickersPreviousPage,
   editMessageText = true,
 ) => {
-  let message =
-    `${ticker.favorites ? "❤️" : ""} <b>${symbol} <code>${ticker.lastPrice}</code>$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)</b>\n` +
-    `<b>Message:</b> ${ticker.message}`;
+  const message = `${ticker.star ? "❤️" : ""} ${ticker.alert ? "🔔" : "🔕"} <b>${symbol}</b>\n${ticker.message || ""}`;
   const buttons = [
+    [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
+    [Markup.button.callback("Indicators 1w", `indicators/${symbol}/1w`)],
+    [Markup.button.callback("Indicators 1d", `indicators/${symbol}/1d`)],
+    [Markup.button.callback("Indicators 4h", `indicators/${symbol}/4h`)],
+    [Markup.button.callback("Indicators 1h", `indicators/${symbol}/1h`)],
+    [Markup.button.callback("Indicators 30min", `indicators/${symbol}/30min`)],
+    [Markup.button.callback("Indicators 15min", `indicators/${symbol}/15min`)],
     [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
     [
       Markup.button.callback(
-        `${ticker.favorites ? "❤️ Favorites" : "Add to favorites"}`,
-        `edit-ticker/${symbol}/favorites/${!ticker.favorites}`,
+        `${ticker.star ? "❤️ Favorites" : "Add to favorites"}`,
+        `edit-ticker/${symbol}/star/${!ticker.star}`,
       ),
     ],
     [
@@ -25,7 +51,12 @@ export const showTickerPage = async (
       ),
     ],
     [Markup.button.callback(`🗑 Delete ${symbol}`, `delete-ticker/${symbol}`)],
-    [Markup.button.url(`${symbol}`, `https://bybit.rzk.com.ru/#${symbol}`)],
+    [
+      Markup.button.url(
+        `${symbol}`,
+        `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
+      ),
+    ],
     [
       Markup.button.url(
         `📈 Tradingview chart: ${symbol}`,
@@ -70,9 +101,9 @@ export const showTickersPage = async (
   hasPrev,
   hasNext,
   edit = true,
-  favorites = false,
+  tab,
 ) => {
-  let message = `${favorites ? "Your ❤️ favorites tickers" : "Your tickers"} ${new Date().toLocaleString("ru-RU")}\n`;
+  let message = `${tab ? `${tab} tickers` : "All tickers"} ${new Date().toLocaleString("ru-RU")}\n`;
   const keyboardArray = [];
   // upload btn deprecated!!!
   // keyboardArray.push([
@@ -81,7 +112,7 @@ export const showTickersPage = async (
   tickers?.forEach((ticker) => {
     keyboardArray.push([
       Markup.button.callback(
-        `${ticker.favorites ? "❤️" : ""} ${ticker.symbol} ${ticker.lastPrice}$ (${ticker.price24hPcnt > 0 ? "↗️" : "🔻"}${formatNumber(ticker.price24hPcnt)}%)`,
+        `${ticker.star ? "❤️" : ""} ${ticker.alert ? "🔔" : "🔕"} ${ticker.symbol}`,
         `show-ticker/${ticker.symbol}`,
       ),
     ]);
@@ -92,7 +123,7 @@ export const showTickersPage = async (
     keyboardPrevNext.push(
       Markup.button.callback(
         "⬅️ Previous",
-        `show-tickers/prev/${firstVisibleId}/${favorites}`,
+        `show-tickers/prev/${firstVisibleId}/${tab}`,
       ),
     );
   }
@@ -101,7 +132,7 @@ export const showTickersPage = async (
     keyboardPrevNext.push(
       Markup.button.callback(
         "Next ➡️",
-        `show-tickers/next/${lastVisibleId}/${favorites}`,
+        `show-tickers/next/${lastVisibleId}/${tab}`,
       ),
     );
   }

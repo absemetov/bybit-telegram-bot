@@ -160,6 +160,7 @@ let openButton;
 let symbol;
 let candlestickSeries = null;
 let volumeSeries;
+let ws = null;
 //let idInterval;
 const chartContainer = document.getElementById("simpleChart");
 //add legend
@@ -171,7 +172,19 @@ const symbolEl = document.getElementById("symbolEl");
 //legend.appendChild(firstRow);
 //timeframes btns
 const buttonsContainer = document.getElementById("chartButtons");
-const intervals = ["15min", "1h", "4h", "1d", "1w"];
+
+const intervals = [
+  "1min",
+  "5min",
+  "15min",
+  "30min",
+  "1h",
+  "4h",
+  "6h",
+  "12h",
+  "1d",
+  "1w",
+];
 if (buttonsContainer.innerHTML === "") {
   intervals.forEach((interval) => {
     const button = document.createElement("button");
@@ -186,13 +199,19 @@ if (buttonsContainer.innerHTML === "") {
   updateButton.innerText = "🔃";
   updateButton.addEventListener("click", () => showChart(symbol));
   buttonsContainer.appendChild(updateButton);
+  //TODO new btn set default Alerts
+  const defaultAlertsBtton = document.createElement("button");
+  defaultAlertsBtton.classList.add("btn");
+  defaultAlertsBtton.innerText = "Default Alers";
+  defaultAlertsBtton.addEventListener("click", () => showChart(symbol, true));
+  buttonsContainer.appendChild(defaultAlertsBtton);
 }
 
 //default colors
 function defaultAlerts() {
-  for (const alert of alerts) {
+  for (const [index, alert] of alerts.entries()) {
     alert.applyOptions({
-      color: "blue",
+      color: index === 0 || index === 4 ? "red" : "blue",
     });
   }
   chartContainer.style.cursor = "default";
@@ -205,7 +224,7 @@ function checkHover(checkPrice) {
     for (const [index, alert] of alerts.entries()) {
       const isAlertHover =
         alert?.options().price &&
-        Math.abs(checkPrice - alert?.options().price) / checkPrice < 0.005;
+        Math.abs(checkPrice - alert?.options().price) / checkPrice < 0.001;
       if (isAlertHover) {
         hoveredAlert = `alert${index + 1}`;
         alert.applyOptions({
@@ -248,8 +267,10 @@ function handleCrosshairMove(param) {
       volumeEl.innerHTML = `Volume: ${volumeSeries.priceFormatter().format(datapoints.value)}`;
     }
   }
-  currentPriceMove = candlestickSeries.coordinateToPrice(param.point.y);
-  checkHover(currentPriceMove);
+  if (candlestickSeries) {
+    currentPriceMove = candlestickSeries.coordinateToPrice(param.point.y);
+    checkHover(currentPriceMove);
+  }
   //drag effect
   if (isDroped) {
     return;
@@ -343,9 +364,9 @@ chart.applyOptions({ height: window.innerHeight - 100 });
 chart.subscribeClick(handleClick);
 chart.subscribeCrosshairMove(handleCrosshairMove);
 //show modal fullscreen
-async function showChart(ticker) {
+async function showChart(ticker, defaultAlerts = false) {
   symbol = ticker;
-  await setChartInterval(chartInterval);
+  await setChartInterval(chartInterval, defaultAlerts);
 }
 //deprecated
 chartModalEl.addEventListener("show.bs.modal", async (event) => {
@@ -367,7 +388,7 @@ chartModalEl.addEventListener("show.bs.modal", async (event) => {
   }
 });
 //render timeframes
-async function setChartInterval(interval) {
+async function setChartInterval(interval, defaultAlerts = false) {
   chartInterval = interval;
   //set active btn
   intervals.forEach((intervalId) => {
@@ -375,20 +396,55 @@ async function setChartInterval(interval) {
   });
   document.getElementById(interval).classList.add("btn-primary");
   //get ticker data
-  const response = await fetch(`/candles/${symbol}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json;charset=utf-8",
-    },
-    body: JSON.stringify({
-      interval,
-    }),
-  });
-  const resJson = await response.json();
-  if (!response.ok) {
-    alert(resJson.message);
+  // const response = await fetch(`/candles/${symbol}`, {
+  //   method: "POST",
+  //   headers: {
+  //     "Content-Type": "application/json;charset=utf-8",
+  //   },
+  //   body: JSON.stringify({
+  //     interval,
+  //   }),
+  // });
+  // const resJson = await response.json();
+  // if (!response.ok) {
+  //   alert(resJson.message);
+  //   return false;
+  // }
+  //bybit api v5
+  const intervalKline = {
+    "1min": 1,
+    "5min": 5,
+    "15min": 15,
+    "30min": 30,
+    "1h": 60,
+    "4h": 240,
+    "6h": 360,
+    "12h": 720,
+    "1d": "D",
+    "1w": "W",
+  };
+  const response = await fetch(
+    `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${intervalKline[interval]}&limit=300`,
+  );
+  const data = await response.json();
+  if (data.retCode !== 0) {
+    alert(data.retMsg);
+    window.location.href = "https://bybit.rzk.com.ru/#BTCUSDT";
     return false;
   }
+  const formattedData = data.result.list.reverse().map((item) => ({
+    time: parseInt(item[0]) / 1000,
+    open: parseFloat(item[1]),
+    high: parseFloat(item[2]),
+    low: parseFloat(item[3]),
+    close: parseFloat(item[4]),
+    volume: parseFloat(item[5]),
+  }));
+  // if (!resJson.candlesArray.length) {
+  //   alert("symbol not found");
+  //   window.location.href = "https://bybit.rzk.com.ru/#BTCUSDT";
+  //   return false;
+  // }
   //order by time use reverse!
   if (candlestickSeries) {
     chart.removeSeries(candlestickSeries);
@@ -425,15 +481,21 @@ async function setChartInterval(interval) {
       bottom: 0,
     },
   });
-  candlestickSeries.setData(resJson.candlesArray.reverse());
-  volumeSeries.setData(resJson.candlesArray);
-  //set alerts
+  //candlestickSeries.setData(resJson.candlesArray.reverse());
+  //volumeSeries.setData(resJson.candlesArray);
+  candlestickSeries.setData(formattedData);
+  volumeSeries.setData(
+    formattedData.map((candle) => [candle.time, candle.volume]),
+  );
   //set alerts
   const alertsData = await fetch(`/alerts/${symbol}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json;charset=utf-8",
     },
+    body: JSON.stringify({
+      defaultAlerts,
+    }),
   });
   const alertsDataJson = await alertsData.json();
   if (!alertsData.ok) {
@@ -447,28 +509,36 @@ async function setChartInterval(interval) {
     }
   }
   alerts = [];
-  for (const value of alertsDataJson.alerts) {
+  for (const [index, value] of alertsDataJson.ticker.alerts.entries()) {
     alerts.push(
       candlestickSeries.createPriceLine({
         price: value,
-        color: "blue",
+        color: index === 0 || index === 4 ? "red" : "blue",
         lineWidth: 2,
         lineStyle: window.LightweightCharts.LineStyle.Dashed,
         axisLabelVisible: true,
+        title: index + 1,
       }),
     );
   }
   //hide lines in 1d 1w interval
   for (const alert of alerts) {
+    const tfVisible =
+      interval === "4h" ||
+      interval === "6h" ||
+      interval === "12h" ||
+      interval === "1d" ||
+      interval === "1w";
     alert.applyOptions({
-      lineVisible:
-        interval === "15min" || interval === "1h" || interval === "4h",
+      lineVisible: !tfVisible,
+      axisLabelVisible: !tfVisible,
     });
   }
   //chart.timeScale().fitContent();
-  chart.timeScale().scrollToPosition(3);
-  symbolEl.innerHTML = `<button type="button" class="btn btn-outline-light" onclick="likeTicker(event, '${symbol}')" data-favorites="${resJson.ticker.favorites}">
-    ${resJson.ticker.favorites ? "🔔" : "🔕"}
+  chart.timeScale().scrollToPosition(5);
+  setupWebSocket(intervalKline[interval]);
+  symbolEl.innerHTML = `<button type="button" class="btn btn-outline-light" onclick="likeTicker(event, '${symbol}')" data-favorites="${alertsDataJson.ticker.favorites}">
+    ${alertsDataJson.ticker.favorites ? "🔔" : "🔕"}
   </button>
   <a class="d-lg-none" data-bs-toggle="offcanvas" href="#offcanvasResponsive" role="button" aria-controls="offcanvasExample">
     ${symbol}
@@ -485,6 +555,34 @@ async function setChartInterval(interval) {
 //   }
 // });
 //open chart by hash
+//ws
+function setupWebSocket(interval) {
+  ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
+  ws.onopen = () => {
+    ws.send(
+      JSON.stringify({
+        op: "subscribe",
+        args: [`kline.${interval}.${symbol}`],
+      }),
+    );
+  };
+
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.data?.length) {
+      const newCandle = {
+        time: parseInt(message.data[0].start) / 1000,
+        open: parseFloat(message.data[0].open),
+        high: parseFloat(message.data[0].high),
+        low: parseFloat(message.data[0].low),
+        close: parseFloat(message.data[0].close),
+        volume: parseFloat(message.data[0].volume),
+      };
+      candlestickSeries.update(newCandle);
+      volumeSeries.update(newCandle);
+    }
+  };
+}
 const loadFunction = async () => {
   if (window.location.hash) {
     symbol = window.location.hash.substring(1);

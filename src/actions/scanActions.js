@@ -1,39 +1,27 @@
 import Scan from "../models/Scan.js";
 import Session from "../models/Session.js";
-import { viewScanForm, editScanFormPage } from "../views/showScanPage.js";
-import { analyticCoinCandles } from "../helpers/checkTickersPump.js";
+import { viewScans, showScanPage } from "../views/showScanPage.js";
 
 //show intervals
-export const showAllScans = async (ctx) => {
+export const showAllScans = async (ctx, edit) => {
   const intervals = await Scan.all();
-  viewScanForm(ctx, intervals);
+  viewScans(ctx, intervals, edit);
 };
-//set chunk from message
-export const getChunkNumber = async (ctx, params) => {
+// scan page
+export const showScanEditPage = async (ctx, params) => {
   const { interval } = params;
-  const { tickersLength, countPumpTickers, chunkNumber } =
-    await analyticCoinCandles(ctx, interval, 50);
-  // const session = new Session(ctx.from.id);
-  // session.sessionData.interval = interval;
-  // session.sessionData.scene = "getChunkNumber";
-  // await session.save("bybit-scene");
-  // await ctx.replyWithHTML(
-  //   `Please enter chunk number [0-8] for scaning interval <b>${interval}</b>`,
-  // );
-  await ctx.answerCbQuery(
-    `Scan from ${tickersLength}, find ${countPumpTickers} coins Chunk Number ${chunkNumber}`,
-  );
-};
-// edit scan fields
-export const showScanEditForm = async (ctx, params) => {
-  const { interval } = params;
-  const scan = await Scan.find(interval);
+  const scan = await Scan.getConfig(interval);
   const scanFields = Scan.scanFields();
-  await editScanFormPage(ctx, interval, scan, scanFields);
+  await showScanPage(ctx, interval, scan, scanFields);
 };
 // edit scan settings fields
 export const editScanField = async (ctx, params) => {
-  const { interval, field } = params;
+  const { interval, field, value } = params;
+  if (field === "active") {
+    await Scan.updateField(interval, field, value);
+    await showScanEditPage(ctx, { interval });
+    return;
+  }
   const session = new Session(ctx.from.id);
   session.sessionData.scanId = interval;
   session.sessionData.scene = "editScan";

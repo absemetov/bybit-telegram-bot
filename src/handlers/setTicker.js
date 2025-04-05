@@ -14,7 +14,10 @@ export const handleCreateTicker = async (ctx) => {
 export const handleTickerInput = async (ctx, session) => {
   const tickersArray = ctx.message.text.split("\n");
   for (const symbol of tickersArray) {
-    const symbolUsdt = symbol.trim().toUpperCase() + "USDT";
+    const sUpperCase = symbol.trim().toUpperCase();
+    const symbolUsdt = sUpperCase.endsWith("USDT")
+      ? sUpperCase
+      : sUpperCase + "USDT";
     const tickerIsExists = await Ticker.find(symbolUsdt);
     if (tickerIsExists) {
       await ctx.reply(
