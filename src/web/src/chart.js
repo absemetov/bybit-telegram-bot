@@ -72,19 +72,16 @@ class Indicators {
       return;
     }
     const tolerance = tolerancePercent / 100;
-    const highs = candles
-      .slice(-candlesCount)
-      .map((c) => c.high)
-      .sort((a, b) => a - b);
-    const lows = candles
-      .slice(-candlesCount)
-      .map((c) => c.low)
-      .sort((a, b) => a - b);
+    const candleSlice = candles.slice(-candlesCount);
+    const highs = candleSlice.map((c) => c.high).sort((a, b) => a - b);
+    const lows = candleSlice.map((c) => c.low).sort((a, b) => a - b);
     // Рассчитываем уровень сопротивления
     let resistance = null;
     for (const high of highs.slice(-extrCount)) {
       const threshold = high * (1 - tolerance);
-      const touches = highs.filter((h) => h >= threshold).length;
+      const touches = candleSlice.filter(
+        (c) => c.low <= threshold && threshold <= c.high,
+      ).length;
       if (touches >= touchCount) {
         resistance = threshold;
       }
@@ -93,7 +90,10 @@ class Indicators {
     let support = null;
     for (const low of lows.slice(0, extrCount)) {
       const threshold = low * (1 + tolerance);
-      const touches = lows.filter((l) => l <= threshold).length;
+      //low <= value && value <= high)
+      const touches = candleSlice.filter(
+        (c) => c.low <= threshold && threshold <= c.high,
+      ).length;
       if (touches >= touchCount) {
         support = threshold;
       }
@@ -658,7 +658,7 @@ class ChartManager {
     //scroll chart
     ChartManager.state.chart.timeScale().scrollToPosition(8); //fitContent();//scrollToPosition(5);
     //load Alerts
-    await App.loadAlerts();
+    await App.loadAlerts({ defaultAlerts: false });
   }
   updateRealtime(newCandle) {
     if (!ChartManager.state.point) {
@@ -782,12 +782,12 @@ class App {
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
   };
 
-  static init() {
+  static async init() {
     this.chartManager = new ChartManager();
     this.router = new Router();
     this.initAutocomplete();
     this.initChart();
-    this.loadCoins();
+    await this.loadCoins();
     this.initEventListeners();
   }
   static initAutocomplete() {
@@ -1044,7 +1044,8 @@ class App {
       });
     }
   }
-  static async loadAlerts(defaultAlerts = false) {
+  static async loadAlerts(params) {
+    const { defaultAlerts = false } = params;
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -1193,11 +1194,7 @@ class App {
         e.target.classList.add("active");
         //this.setState({ activeTab: e.target.dataset.tab });
         this.state.activeTab = e.target.dataset.tab;
-        // if (e.target.dataset.tab === "bybit") {
-        //   await this.loadCoinsBybit();
-        // } else {
-        this.loadCoins();
-        //}
+        await this.loadCoins();
       });
     });
     // Выбор монеты
@@ -1294,12 +1291,12 @@ class App {
           }
           alertButton.dataset.alert = fieldData;
           alertButton.innerText = fieldData ? "🔔" : "🔕";
-          document
-            .querySelector(".reset-btn")
-            .classList.toggle("d-none", !fieldData);
-          document
-            .querySelector(".hide-btn")
-            .classList.toggle("d-none", !fieldData);
+          // document
+          //   .querySelector(".reset-btn")
+          //   .classList.toggle("d-none", !fieldData);
+          // document
+          //   .querySelector(".hide-btn")
+          //   .classList.toggle("d-none", !fieldData);
           await this.loadAlerts();
           return;
         }
@@ -1320,35 +1317,52 @@ class App {
     // Изменение таймфрейма
     document
       .querySelector(".timeframe-select")
-      .addEventListener("change", (event) => {
+      .addEventListener("change", async (event) => {
         //this.setState({ timeframe: event.target.value });
         this.router.navigate(
           `/chart/${this.state.symbol}/${event.target.value}`,
         );
         document
           .querySelectorAll(".tf-btn")
-          .forEach((n) => n.classList.remove("active"));
+          .forEach((n) => n.classList.remove("bg-primary"));
+        document
+          .querySelector(`[data-tf="${event.target.value}"]`)
+          ?.classList.add("bg-primary");
+        if (this.state.activeTab === "message") {
+          await this.loadCoins();
+        }
       });
     //short tf
     document.querySelectorAll(".tf-btn").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         document
           .querySelectorAll(".tf-btn")
-          .forEach((n) => n.classList.remove("active"));
-        e.target.classList.add("active");
+          .forEach((n) => n.classList.remove("bg-primary"));
+        e.target.classList.add("bg-primary");
         const { tf } = event.target.dataset;
         document.querySelector(".timeframe-select").value = tf;
         this.router.navigate(`/chart/${this.state.symbol}/${tf}`);
+        if (this.state.activeTab === "message") {
+          await this.loadCoins();
+        }
       });
     });
     // Пагинация
-    document.querySelector(".prev-btn").addEventListener("click", (event) => {
-      event.preventDefault();
-      this.loadCoins("prev", this.state.cursorPrev);
-    });
-    document.querySelector(".next-btn").addEventListener("click", (event) => {
-      event.preventDefault();
-      this.loadCoins("next", this.state.cursorNext);
+    document
+      .querySelector(".prev-btn")
+      .addEventListener("click", async (event) => {
+        event.preventDefault();
+        await this.loadCoins("prev", this.state.cursorPrev);
+      });
+    document
+      .querySelector(".next-btn")
+      .addEventListener("click", async (event) => {
+        event.preventDefault();
+        await this.loadCoins("next", this.state.cursorNext);
+      });
+    //panel
+    document.querySelector(".panel-btn").addEventListener("click", async () => {
+      document.querySelector(".panel-symbol").classList.toggle("d-none");
     });
     //indicators
     document
@@ -1373,7 +1387,7 @@ class App {
       });
     //reset hide info btns
     document.querySelector(".reset-btn").addEventListener("click", async () => {
-      await this.loadAlerts(true);
+      await this.loadAlerts({ defaultAlerts: true });
     });
     document.querySelector(".hide-btn").addEventListener("click", async () => {
       this.hideAlerts();

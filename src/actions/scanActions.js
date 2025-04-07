@@ -17,7 +17,7 @@ export const showScanEditPage = async (ctx, params) => {
 // edit scan settings fields
 export const editScanField = async (ctx, params) => {
   const { interval, field, value } = params;
-  if (field === "active") {
+  if (field === "active" || field === "notify") {
     await Scan.updateField(interval, field, value);
     await showScanEditPage(ctx, { interval });
     return;

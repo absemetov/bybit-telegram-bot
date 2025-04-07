@@ -25,21 +25,23 @@ export const runTimeframeScan = async (timeframe, bot) => {
   console.log(
     `Completed ${timeframe} scan. Processed ${count} symbols. Found ${findTickers} pump tickers`,
   );
-  await bot.telegram.sendMessage(
-    94899148,
-    `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols.`,
-    {
-      parse_mode: "HTML",
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            `BTCUSDT/${timeframe}`,
-            `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
-          ),
-        ],
-      ]),
-    },
-  );
+  if (config.notify) {
+    await bot.telegram.sendMessage(
+      94899148,
+      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols.`,
+      {
+        parse_mode: "HTML",
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              `BTCUSDT/${timeframe}`,
+              `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
+            ),
+          ],
+        ]),
+      },
+    );
+  }
 };
 // Обработка батча символов
 async function processBatch(symbols, config, timeframe) {

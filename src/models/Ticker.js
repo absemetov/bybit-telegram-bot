@@ -156,6 +156,7 @@ class Ticker {
   static async update(symbol, data) {
     await db.doc(`crypto/${symbol}`).update(data);
   }
+  //update field
   static async updateField(symbol, fieldName, fieldData) {
     //for bot
     if (fieldName === "star" && typeof fieldData !== "boolean") {

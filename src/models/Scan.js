@@ -11,7 +11,12 @@ class Scan {
       .collection("scanner");
   }
   static scanFields() {
-    return [{ name: "active" }, { name: "schedule" }, { name: "patterns" }];
+    return [
+      { name: "active" },
+      { name: "notify" },
+      { name: "schedule" },
+      { name: "patterns" },
+    ];
   }
   //new scan config
   static async getConfig(timeframe) {
@@ -36,6 +41,9 @@ class Scan {
   static async updateField(interval, fieldName, fieldData) {
     //for bot
     if (fieldName === "active" && typeof fieldData !== "boolean") {
+      fieldData = fieldData === "true";
+    }
+    if (fieldName === "notify" && typeof fieldData !== "boolean") {
       fieldData = fieldData === "true";
     }
     const editScanField = {

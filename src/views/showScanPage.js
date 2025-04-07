@@ -6,7 +6,7 @@ export const viewScans = async (ctx, intervals, edit = false) => {
   for (const interval of intervals) {
     buttons.push([
       Markup.button.callback(
-        `${interval.active ? "🟢" : "🔴"} ${interval.id} (${interval.schedule || "-"})`,
+        `${interval.active ? "🟢" : "🔴"} ${interval.notify ? "🔔" : "🔕"} ${interval.id} (${interval.schedule || "-"})`,
         `cron/${interval.id}`,
       ),
     ]);
@@ -32,7 +32,7 @@ export const showScanPage = async (ctx, interval, scan, scanFields) => {
     } else {
       message += `${field.name}: <code>${scan[field.name]}</code>\n`;
     }
-    if (field.name === "active") {
+    if (field.name === "active" || field.name === "notify") {
       buttons.push([
         Markup.button.callback(
           `Edit ${field.name}`,
