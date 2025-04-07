@@ -72,14 +72,14 @@ class Indicators {
       return;
     }
     const tolerance = tolerancePercent / 100;
-    const candleSlice = candles.slice(-candlesCount);
-    const highs = candleSlice.map((c) => c.high).sort((a, b) => a - b);
-    const lows = candleSlice.map((c) => c.low).sort((a, b) => a - b);
+    const candlesSlice = candles.slice(-candlesCount);
+    const highs = candlesSlice.map((c) => c.high).sort((a, b) => a - b);
+    const lows = candlesSlice.map((c) => c.low).sort((a, b) => a - b);
     // Рассчитываем уровень сопротивления
     let resistance = null;
     for (const high of highs.slice(-extrCount)) {
       const threshold = high * (1 - tolerance);
-      const touches = candleSlice.filter(
+      const touches = candlesSlice.filter(
         (c) => c.low <= threshold && threshold <= c.high,
       ).length;
       if (touches >= touchCount) {
@@ -90,8 +90,7 @@ class Indicators {
     let support = null;
     for (const low of lows.slice(0, extrCount)) {
       const threshold = low * (1 + tolerance);
-      //low <= value && value <= high)
-      const touches = candleSlice.filter(
+      const touches = candlesSlice.filter(
         (c) => c.low <= threshold && threshold <= c.high,
       ).length;
       if (touches >= touchCount) {
