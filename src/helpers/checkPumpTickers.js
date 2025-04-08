@@ -95,19 +95,19 @@ export const analyze = async (symbol, candles, config) => {
         );
         if (priceNearValue <= priceNearConfig) {
           arrayNotify.push(
-            `[LONG supportZone ${levels.support.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
+            `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
               `Candle ${candles[candles.length - 1].localTime}`,
           );
         }
       }
       if (levels.resistance) {
         const priceNearValue = Math.abs(
-          (levels.support - candles[candles.length - 1].close) /
+          (levels.resistance - candles[candles.length - 1].close) /
             candles[candles.length - 1].close,
         );
         if (priceNearValue <= priceNearConfig) {
           arrayNotify.push(
-            `[SHORT resistanceZone ${levels.resistance.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
+            `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
               `Candle ${candles[candles.length - 1].localTime}`,
           );
         }
