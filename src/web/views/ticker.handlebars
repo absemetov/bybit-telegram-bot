@@ -16,6 +16,13 @@
     </div>
   </div>
 </template>
+<template id="message-template">
+  <div class="card mb-2">
+    <h5 class="card-header">Featured</h5>
+    <ul class="list-group list-group-flush">
+    </ul>
+  </div>
+</template>
 <div data-page="main" class="active-page">
   <div class="row g-3">
       <div class="col-lg-3 offcanvas-lg">
@@ -26,18 +33,24 @@
             </div>
             <div class="offcanvas-body flex-column">
                 <ul class="nav nav-pills mb-3">
-                    <li class="nav-item">
-                        <a class="nav-link tab-link active" data-tab="favorites" href="#">Favorites</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link tab-link" data-tab="all" href="#">All</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link tab-link" data-tab="alerts" aria-current="page" href="#">Alerts</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link tab-link" data-tab="message" href="#">Message</span></a>
-                    </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link active" data-tab="favorites" href="#">Favorites</a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link" data-tab="all" href="#">All</a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link" data-tab="alerts" href="#">Alerts</a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link" data-tab="15min" href="#">15min</span></a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link" data-tab="30min" href="#">30min</span></a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link tab-link" data-tab="1h" href="#">1h</span></a>
+                  </li>
                 </ul>
                 <ul class="list-group coin-list"></ul>
                 <nav aria-label="Page navigation example">

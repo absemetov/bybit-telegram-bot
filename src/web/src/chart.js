@@ -19,7 +19,7 @@ class Router {
     this.navigate(`/chart/BTCUSDT/${App.state.timeframe}`);
   }
   handleMessage(params = {}) {
-    App.state.activeTab = "message";
+    App.state.activeTab = params.timeframe;
     this.navigate(`/chart/${params.symbol}/${params.timeframe}`);
   }
   async handleRoute(params = {}) {
@@ -657,7 +657,7 @@ class ChartManager {
     //scroll chart
     ChartManager.state.chart.timeScale().scrollToPosition(8); //fitContent();//scrollToPosition(5);
     //load Alerts
-    await App.loadAlerts({ defaultAlerts: false });
+    await App.loadAlerts();
   }
   updateRealtime(newCandle) {
     if (!ChartManager.state.point) {
@@ -914,7 +914,7 @@ class App {
   }
   //my coins
   static async loadCoins(direction = null, lastVisibleId = null) {
-    const url = `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.state.activeTab}&timeframe=${this.state.timeframe}`;
+    const url = `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.state.activeTab}`;
     try {
       const response = await fetch(url);
       const data = await response.json();
@@ -946,10 +946,10 @@ class App {
     const template = document.getElementById("coin-template");
     const fragment = document.createDocumentFragment();
     this.state.coins.forEach((coin) => {
-      const updatedAt = coin[`lastNotified_${this.state.timeframe}`]
+      const updatedAt = coin[`lastNotified_${this.state.activeTab}`]
         ? window
             .moment(
-              coin[`lastNotified_${this.state.timeframe}`]._seconds * 1000,
+              coin[`lastNotified_${this.state.activeTab}`]._seconds * 1000,
             )
             .fromNow()
         : "";
@@ -957,7 +957,7 @@ class App {
       const root = clone.firstElementChild;
       root.dataset.symbol = coin.symbol;
       clone.querySelector(".coin-symbol").textContent =
-        `${coin.symbol} ${this.state.activeTab === "message" ? `(${updatedAt})` : ""}`;
+        `${coin.symbol} ${["15min", "30min", "1h"].includes(this.state.activeTab) ? `${updatedAt}` : ""}`;
       clone.querySelector(".add-btn").dataset.symbolTitle = coin.symbol;
       clone.querySelector(".star-btn").dataset.symbolTitle = coin.symbol;
       clone.querySelector(".alert-btn").dataset.symbolTitle = coin.symbol;
@@ -1043,8 +1043,7 @@ class App {
       });
     }
   }
-  static async loadAlerts(params) {
-    const { defaultAlerts = false } = params;
+  static async loadAlerts(defaultAlerts = false) {
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -1141,7 +1140,10 @@ class App {
           }
         });
       }
-      this.renderCoinList();
+      if (!App.state.alertBtn) {
+        this.renderCoinList();
+      }
+      App.state.alertBtn = false;
     }
     App.state.item = false;
     //clear alerts
@@ -1164,15 +1166,23 @@ class App {
         }),
       );
     }
-    //set panel data
-    document.querySelector(".message").textContent = "";
+    //set pump messages
+    const messageList = document.querySelector(".message");
+    messageList.replaceChildren();
     if (alertsDataJson.pumpMsg.length) {
-      let notify = "";
+      const template = document.getElementById("message-template");
+      const fragment = document.createDocumentFragment();
       for (const message of alertsDataJson.pumpMsg) {
-        notify += `<p class="lead"><b>${message.timeframe} ${App.state.symbol} ${new Date(message.lastNotified._seconds * 1000).toLocaleString("ru-Ru")}</b><br/>
-        ${message.arrayNotify.join("<br/>")}</p>`;
+        //${message.arrayNotify.join("<br/>")}</p>`;
+        const clone = template.content.cloneNode(true);
+        clone.querySelector(".card-header").textContent =
+          `${message.timeframe} ${App.state.symbol} ${new Date(message.lastNotified._seconds * 1000).toLocaleString("ru-Ru")}`;
+        clone.querySelector(".list-group").innerHTML = message.arrayNotify
+          .map((n) => `<li class="list-group-item">${n}</li>`)
+          .join("");
+        fragment.appendChild(clone);
       }
-      document.querySelector(".message").innerHTML = notify;
+      messageList.replaceChildren(fragment);
     }
     document
       .querySelector(".reset-btn")
@@ -1296,6 +1306,7 @@ class App {
           // document
           //   .querySelector(".hide-btn")
           //   .classList.toggle("d-none", !fieldData);
+          this.state.alertBtn = true;
           await this.loadAlerts();
           return;
         }
@@ -1305,7 +1316,8 @@ class App {
             .forEach((n) => n.classList.remove("active"));
           item.classList.add("active");
           if (item) {
-            this.setState({ item });
+            //this.setState({ item });
+            this.state.item = item;
             this.router.navigate(
               `/chart/${item.dataset.symbol}/${this.state.timeframe}`,
             );
@@ -1327,9 +1339,9 @@ class App {
         document
           .querySelector(`[data-tf="${event.target.value}"]`)
           ?.classList.add("bg-primary");
-        if (this.state.activeTab === "message") {
-          await this.loadCoins();
-        }
+        // if (this.state.activeTab === "message") {
+        //   await this.loadCoins();
+        // }
       });
     //short tf
     document.querySelectorAll(".tf-btn").forEach((btn) => {
@@ -1341,9 +1353,9 @@ class App {
         const { tf } = event.target.dataset;
         document.querySelector(".timeframe-select").value = tf;
         this.router.navigate(`/chart/${this.state.symbol}/${tf}`);
-        if (this.state.activeTab === "message") {
-          await this.loadCoins();
-        }
+        // if (this.state.activeTab === "message") {
+        //   await this.loadCoins();
+        // }
       });
     });
     // Пагинация
@@ -1386,7 +1398,7 @@ class App {
       });
     //reset hide info btns
     document.querySelector(".reset-btn").addEventListener("click", async () => {
-      await this.loadAlerts({ defaultAlerts: true });
+      await this.loadAlerts(true);
     });
     document.querySelector(".hide-btn").addEventListener("click", async () => {
       this.hideAlerts();

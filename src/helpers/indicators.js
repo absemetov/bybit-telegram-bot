@@ -1,42 +1,19 @@
 class Indicators {
-  static calc(candles, config, timeframe) {
-    try {
-      const closes = candles.map((candle) => candle.close);
-      if (config.patterns?.patternSR) {
-        const { candlesCount, extrCount, tolerancePercent, touchCount } =
-          config.patterns.patternSR;
-        return {
-          levels: this.calculateLevels(
-            candles,
-            candlesCount,
-            extrCount,
-            tolerancePercent,
-            touchCount,
-          ),
-          rsiSignal: this.calculateRSISignal(closes, timeframe),
-        };
-      }
-    } catch (error) {
-      console.error(`Error Indicators:`, error.message);
-    }
-  }
   //levels
   static calculateLevels(
     candles,
-    candlesCount = 24,
     extrCount = 3,
     tolerancePercent = 0.01,
     touchCount = 3,
   ) {
     const tolerance = tolerancePercent / 100;
-    const candlesSlice = candles.slice(-candlesCount);
-    const highs = candlesSlice.map((c) => c.high).sort((a, b) => a - b);
-    const lows = candlesSlice.map((c) => c.low).sort((a, b) => a - b);
+    const highs = candles.map((c) => c.high).sort((a, b) => a - b);
+    const lows = candles.map((c) => c.low).sort((a, b) => a - b);
     // Рассчитываем уровень сопротивления
     let resistance = null;
     for (const high of highs.slice(-extrCount)) {
       const threshold = high * (1 - tolerance);
-      const touches = candlesSlice.filter(
+      const touches = candles.filter(
         (c) => c.low <= threshold && threshold <= c.high,
       ).length;
       if (touches >= touchCount) {
@@ -47,7 +24,7 @@ class Indicators {
     let support = null;
     for (const low of lows.slice(0, extrCount)) {
       const threshold = low * (1 + tolerance);
-      const touches = candlesSlice.filter(
+      const touches = candles.filter(
         (c) => c.low <= threshold && threshold <= c.high,
       ).length;
       if (touches >= touchCount) {
@@ -89,16 +66,12 @@ class Indicators {
   }
 
   // Паттерн RSI для лонга
-  static calculateRSISignal(closes) {
+  static calculateRSISignal(closes, longRSI = 35, shortRSI = 70) {
     const rsi = this.calculateRSI(closes);
     const last = rsi.length - 1;
-    // Условия для RSI
-    //rsi[last] > 35 && rsi[last - 1] <= 35, // Выход из перепроданности
-    //rsi[last] > rsi[last - 1] && // Восходящий тренд
-    //rsi[last - 1] > rsi[last - 2], // Подтверждение роста
     return {
-      signalLong: rsi[last - 1] <= 35 || rsi[last] <= 35,
-      signalShort: rsi[last - 1] >= 60 || rsi[last] >= 30,
+      signalLong: rsi[last - 1] <= longRSI || rsi[last] <= longRSI,
+      signalShort: rsi[last - 1] >= shortRSI || rsi[last] >= shortRSI,
       details: {
         currentRSI: rsi[last],
         previousRSI: rsi[last - 1],

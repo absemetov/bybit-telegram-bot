@@ -73,5 +73,19 @@ CRON schedule
 15min 5 */15 6-23 * * *
 1min 1 * 6-23 * * *
 //pattern settings
-{"patternSR":{"candlesCount":12,"extCount":3,"tolerancePercent":0.005,"touchCount":3,"priceNear":0.003}}
+{
+  "patternSR":
+  {
+    "candlesCount":24,
+    "extCount":3,
+    "tolerancePercent":0.01,
+    "touchCount":3,
+    "priceNear":0.01
+  },
+  "patternRSI":
+  {
+    "longRSI":30,
+    "shortRSI":70
+  }
+}
 

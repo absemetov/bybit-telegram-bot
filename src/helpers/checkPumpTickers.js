@@ -49,7 +49,7 @@ async function processBatch(symbols, config, timeframe) {
   let count = 0;
   for (const symbol of symbols) {
     try {
-      const candles = await getCandles(symbol, timeframe, 20);
+      const candles = await getCandles(symbol, timeframe, 50);
       const arrayNotify = await analyze(symbol, candles, config, timeframe);
       if (arrayNotify.length) {
         count += 1;
@@ -67,48 +67,76 @@ async function processBatch(symbols, config, timeframe) {
   await Ticker.sendNotifyPump(tickerNotifyArray, "pump");
   return count;
 }
-export const analyze = async (symbol, candles, config, timeframe) => {
+export const analyze = async (symbol, candles, config) => {
   try {
     const arrayNotify = [];
     //const analyzeCandles = CandlePatterns.analyze(candles);
-    const analyzeIndicators = Indicators.calc(candles, config, timeframe);
-    const { levels } = analyzeIndicators;
-    const priceNearConfig = config.patterns?.patternSR?.priceNear
-      ? config.patterns.patternSR.priceNear
-      : 0.002;
-    if (levels.support) {
-      const priceNear = Math.abs(
-        (levels.support - candles[candles.length - 1].close) /
-          candles[candles.length - 1].close,
+    // search levels zone
+    if (config.patterns?.patternSR) {
+      const {
+        candlesCount,
+        extrCount,
+        tolerancePercent,
+        touchCount,
+        priceNear,
+      } = config.patterns.patternSR;
+      const candlesSlice = candles.slice(-candlesCount);
+      const levels = Indicators.calculateLevels(
+        candlesSlice,
+        extrCount,
+        tolerancePercent,
+        touchCount,
       );
-      if (priceNear <= priceNearConfig) {
+      const priceNearConfig = priceNear || 0.002;
+      if (levels.support) {
+        const priceNearValue = Math.abs(
+          (levels.support - candles[candles.length - 1].close) /
+            candles[candles.length - 1].close,
+        );
+        if (priceNearValue <= priceNearConfig) {
+          arrayNotify.push(
+            `[LONG supportZone ${levels.support.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
+              `Candle ${candles[candles.length - 1].localTime}`,
+          );
+        }
+      }
+      if (levels.resistance) {
+        const priceNearValue = Math.abs(
+          (levels.support - candles[candles.length - 1].close) /
+            candles[candles.length - 1].close,
+        );
+        if (priceNearValue <= priceNearConfig) {
+          arrayNotify.push(
+            `[SHORT resistanceZone ${levels.resistance.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
+              `Candle ${candles[candles.length - 1].localTime}`,
+          );
+        }
+      }
+    }
+    //RSI pattern
+    if (config.patterns?.patternRSI) {
+      const { longRSI, shortRSI } = config.patterns.patternRSI;
+      const closes = candles.map((candle) => candle.close);
+      const rsiSignal = Indicators.calculateRSISignal(
+        closes,
+        longRSI,
+        shortRSI,
+      );
+      if (rsiSignal.signalLong) {
         arrayNotify.push(
-          `[LONG supportZone ${levels.support.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
+          `[RSI signalLong] Price ${candles[candles.length - 1].close}\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
-            `${JSON.stringify(analyzeIndicators)}`,
+            `${JSON.stringify(rsiSignal.details)}`,
+        );
+      }
+      if (rsiSignal.signalShort) {
+        arrayNotify.push(
+          `[RSI signalShort] Price ${candles[candles.length - 1].close}\n` +
+            `Candle ${candles[candles.length - 1].localTime}` +
+            `${JSON.stringify(rsiSignal.details)}`,
         );
       }
     }
-    if (levels.resistance) {
-      const priceNear = Math.abs(
-        (levels.support - candles[candles.length - 1].close) /
-          candles[candles.length - 1].close,
-      );
-      if (priceNear <= priceNearConfig) {
-        arrayNotify.push(
-          `[SHORT resistanceZone ${levels.resistance.toFixed(5)}] ${priceNear.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
-            `Candle ${candles[candles.length - 1].localTime}` +
-            `${JSON.stringify(analyzeIndicators)}`,
-        );
-      }
-    }
-    // if (rsiSignal.signal && macdSignal.zeroCross) {
-    //   arrayNotify.push(
-    //     `[LONG macdSignal.zeroCross+RSI] Price ${candles[candles.length - 1].close}\n` +
-    //       `Candle ${candles[candles.length - 1].localTime}` +
-    //       `${JSON.stringify(analyzeIndicators)}`,
-    //   );
-    // }
     return arrayNotify;
   } catch (error) {
     console.error(

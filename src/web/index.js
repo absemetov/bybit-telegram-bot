@@ -59,21 +59,6 @@ app.get("/", protectPage, async (req, res) => {
 app.get("/chart/:symbol?/:timeframe?/:tab?", protectPage, async (req, res) => {
   const title = "Bybit chart";
   res.render("ticker", { title, user: req.user });
-  //const title = "Dev Bot Web";
-  //const { direction, lastVisibleId, order, tickers } = req.query;
-  // const paginate = await Ticker.paginate(20, direction, lastVisibleId);
-  // const paginate = await Ticker.paginate(
-  //   10,
-  //   direction,
-  //   lastVisibleId,
-  //   order,
-  //   tickers ? false : true,
-  // );
-  //modify tickers set default alerts
-  // for (const ticker of paginate.tickers) {
-  //   await Ticker.createAlerts(ticker.symbol, ticker.lastPrice);
-  // }
-  //res.render("index", { title, paginate, user: req.user, order, tickers });
 });
 app.get("/api/tickers", protectPage, async (req, res) => {
   const { direction, lastVisibleId, tab, timeframe } = req.query;
@@ -86,20 +71,6 @@ app.get("/api/tickers", protectPage, async (req, res) => {
   );
   return res.json({ paginate });
 });
-//ticker page deprecated use modal in chart!
-// app.get("/t/:symbol", protectPage, async (req, res) => {
-//   const { symbol } = req.params;
-//   const title = `${symbol} - Dev Bot Web`;
-//   const ticker = await Ticker.find(symbol);
-//   res.render("ticker", { title, ticker, user: req.user });
-// });
-//favorites deprecated show in index page
-// app.get("/tickers", protectPage, async (req, res) => {
-//   const title = "Alerts - Dev Bot Web";
-//   const { direction, lastVisibleId } = req.query;
-//   const paginate = await Ticker.paginate(20, direction, lastVisibleId);
-//   res.render("favorites", { title, paginate, user: req.user });
-// });
 //simple auth
 app.get("/login", (req, res) => {
   const title = "Login";
@@ -182,15 +153,12 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { fieldName, fieldData } = req.body;
-    // const candlesArray = await bybitKline(symbol, "1d", 1);
-    // const { open, close } = candlesArray[0];
-    // await Ticker.update(symbol, {
-    //   price24h: open,
-    //   price24hPcnt: ((close - open) / open) * 100,
-    // });
     if (fieldName === "alert" && fieldData) {
       //set default alerts
-      await Ticker.createAlerts(symbol);
+      const alertsExist = await Ticker.alertsExist(symbol);
+      if (!alertsExist) {
+        await Ticker.createAlerts(symbol);
+      }
     }
     await Ticker.updateField(symbol, fieldName, fieldData);
     return res.json({ ok: "ok" });
@@ -198,18 +166,6 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-//get candles data
-// app.post("/candles/:symbol", async (req, res) => {
-//   const { interval } = req.body;
-//   try {
-//     const { symbol } = req.params;
-//     const ticker = await Ticker.find(symbol);
-//     const candlesArray = await bybitKline(symbol, interval, 350);
-//     return res.json({ candlesArray, ticker });
-//   } catch (error) {
-//     return res.status(422).json({ message: error.message });
-//   }
-// });
 
 app.listen(PORT, () => {
   console.log(`Bot-Web app listening on port ${PORT}`);

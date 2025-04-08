@@ -105,6 +105,10 @@ class Ticker {
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
+  static async alertsExist(symbol) {
+    const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
+    return alertsDoc.exists;
+  }
   // get all alerts
   static async getAlerts(symbol, timeframe) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
@@ -166,10 +170,6 @@ class Ticker {
       [fieldName]: fieldData,
     };
     await db.doc(`crypto/${symbol}`).update(editTickerField);
-    //todo sync favorites to crypto alerts
-    // if (fieldName === "favorites") {
-    //   await db.doc(`crypto-alerts/${symbol}`).update(editTickerField);
-    // }
   }
   //delete Ticker
   static async delete(symbol) {
@@ -180,15 +180,9 @@ class Ticker {
     direction = null,
     lastVisibleId = null,
     tab = "favorites",
-    timeframe,
   ) {
-    if (tab === "message") {
-      return await this.paginatePump(
-        limit,
-        direction,
-        lastVisibleId,
-        timeframe,
-      );
+    if (["15min", "30min", "1h"].includes(tab)) {
+      return await this.paginatePump(limit, direction, lastVisibleId, tab);
     }
     //.orderBy("price24hPcnt", order)
     const mainQuery =
@@ -292,69 +286,6 @@ class Ticker {
     }
     return { tickers: [] };
   }
-  //paginate alerts
-  // static async paginateAlerts(limit, direction = null, lastVisibleId = null) {
-  //   const mainQuery = db.collection("crypto").where("alert", "==", true);
-  //   let query = mainQuery;
-  //   const lastVisibleDoc = await db.doc(`crypto/${lastVisibleId}`).get();
-  //   if (direction && !lastVisibleDoc) {
-  //     direction = null;
-  //     //throw new Error("lastVisibleDoc is empty!");
-  //   }
-  //   if (direction === "next") {
-  //     query = query.startAfter(lastVisibleDoc);
-  //   } else if (direction === "prev") {
-  //     query = query.endBefore(lastVisibleDoc);
-  //   }
-  //   // set limit
-  //   if (direction === "prev") {
-  //     query = query.limitToLast(limit);
-  //   } else {
-  //     query = query.limit(limit);
-  //   }
-  //   const snapshot = await query.get();
-  //   // for doc use exists for qyery empty opt
-  //   if (!snapshot.empty) {
-  //     const tickers = snapshot.docs.map((doc) => {
-  //       return {
-  //         symbol: doc.id,
-  //         favorites: doc.data().favorites,
-  //       };
-  //     });
-  //     const firstVisible = snapshot.docs[0];
-  //     const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-  //     // Check for previous and next tickers
-  //     const hasPrevSnap = await mainQuery
-  //       .endBefore(firstVisible)
-  //       .limitToLast(1)
-  //       .get();
-  //     const hasNextSnap = await mainQuery
-  //       .startAfter(lastVisible)
-  //       .limit(1)
-  //       .get();
-  //     const hasPrev = !hasPrevSnap.empty;
-  //     const hasNext = !hasNextSnap.empty;
-  //     const firstVisibleId = firstVisible.id;
-  //     const lastVisibleId = lastVisible.id;
-  //     return { tickers, firstVisibleId, lastVisibleId, hasPrev, hasNext };
-  //   }
-  //   return { tickers: [] };
-  // }
-  // static async chunk(chunkNumber) {
-  //   const tickerSnapshot = await db
-  //     .collection("crypto")
-  //     .where("chunkNumber", "==", chunkNumber)
-  //     .get();
-  //   if (!tickerSnapshot.empty) {
-  //     return tickerSnapshot.docs.map((doc) => {
-  //       return {
-  //         symbol: doc.id,
-  //         ...doc.data(),
-  //       };
-  //     });
-  //   }
-  //   return [];
-  // }
   //new update notify telegram
   static async sendNotifyAlert(batchArray) {
     const batch = db.batch();
@@ -379,10 +310,11 @@ class Ticker {
     for (const ticker of batchArray) {
       const { symbol, timeframe, data } = ticker;
       if (symbol) {
+        //for ordering
         batch.set(
           db.doc(`crypto-pump/${symbol}`),
           {
-            [`lastNotified_${timeframe}`]: new Date(),
+            [`lastNotified_${timeframe}`]: data.lastNotified,
           },
           { merge: true },
         );
@@ -405,33 +337,6 @@ class Ticker {
       objects: algoliaObjects,
     });
   }
-  // static async setBatch(batchArray) {
-  //   const batch = db.batch();
-  //   for (const ticker of batchArray) {
-  //     const { symbol, data } = ticker;
-  //     const { error } = Ticker.validate({ symbol, ...data });
-  //     if (error) {
-  //       throw new Error(
-  //         `Invalid Ticker #${data.orderNumber} ${symbol} data: ${error.message}`,
-  //       );
-  //     }
-  //     const kline = await bybitKline(symbol, "15min", 1);
-  //     if (kline.length == 0) {
-  //       throw new Error(`Ticker ${symbol} not found in Bybit`);
-  //     }
-  //     batch.set(db.doc(`crypto/${symbol}`), data, {
-  //       merge: true,
-  //     });
-  //   }
-  //   await batch.commit();
-  // }
-  // static async deleteBatch(batchArray) {
-  //   const batch = db.batch();
-  //   for (const ticker of batchArray) {
-  //     batch.delete(db.doc(`crypto/${ticker}`));
-  //   }
-  //   await batch.commit();
-  // }
 }
 
 export default Ticker;
