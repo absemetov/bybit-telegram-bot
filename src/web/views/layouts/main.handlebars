@@ -18,6 +18,9 @@
   <body>
     <nav class="navbar navbar-expand navbar-dark  bg-secondary">
       <div class="container-fluid">
+        <button class="navbar-toggler d-lg-none d-inline" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasNavbar">
+          <span class="navbar-toggler-icon"></span>
+        </button>
         <a class="navbar-brand mx-2" href="/">🚀 Bot</a>
         <div id="autocomplete" class="overflow-hidden w-100"></div>
         <ul class="navbar-nav">
@@ -36,29 +39,31 @@
     <div class="container-fluid mt-3">
       {{{body}}}
     </div>
-    <!-- tickerEditModal -->
-    <div class="modal fade" id="tickerEditModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <!-- modal fot create order short or long -->
+    <div class="modal fade" id="createOrderModal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="tickerSymbol">Modal title</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <form id="tickerFormEdit">
-            <div class="modal-body">
-              <div class="mb-3">
-                <label for="alert-down" class="form-label">Alert Down</label>
-                <input type="number" step="0.00001" min="0" class="form-control" name="alertDown" id="alertDown" title="alertDown" aria-describedby="alert-down" required>
+          <div class="modal-body">
+            <form id="createOrderForm">
+              <div class="row">
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Take Profit (%)</label>
+                      <input type="number" class="form-control" name="takeProfit" value="5" step="0.1" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Stop Loss (%)</label>
+                      <input type="number" class="form-control" name="stopLoss" value="1" step="0.1" required>
+                  </div>
               </div>
-              <div class="mb-3">
-                <label for="alert-up" class="form-label">Alert Up</label>
-                <input type="number" step="0.00001" min="0" class="form-control" name="alertUp" id="alertUp" title="alertUp" aria-describedby="alert-up" required>
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn" id="submitOrder"></button>
               </div>
-            </div>
-            <div class="modal-footer">
-              <button type="submit" id="btn-edit-ticker" class="btn btn-success">Edit Ticker</button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

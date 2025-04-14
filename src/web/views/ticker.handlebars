@@ -67,10 +67,14 @@
         </div>
       </div>
       <div class="col-md-12 col-lg-9">
-          <button type="button" class="position-absolute btn panel-btn z-3 end-0" title="Hide info symbol">🫣</button>
+          <div class="position-absolute">
+            <div class="position-relative z-3">
+              <button type="button" class="btn panel-show-btn d-none" title="Hide info symbol">🔓</button>
+            </div>
+          </div>
           <div class="position-absolute panel-symbol">
             <div class="position-relative z-3">
-              <div class="btn-group" role="group">
+              <div class="btn-group d-none" role="group">
                 <select class="form-select timeframe-select w-auto">
                   <option value="1min">1min</option>
                   <option value="5min">5min</option>
@@ -90,7 +94,10 @@
                 <button type="button" class="btn btn-outline-light indicators-btn" title="Delete indicators">🟰</button>
                 <button type="button" class="btn btn-outline-light reset-btn d-none" title="Default Alerts">🔃</button>
                 <button type="button" class="btn btn-outline-light hide-btn d-none" title="Hide Alerts">📝</button>
-                <button type="button" class="btn btn-outline-light info-btn z-4" data-bs-toggle="modal" data-bs-target="#chartModal" title="Indicators">ℹ️</button>
+                <button type="button" class="btn btn-outline-light info-btn" data-bs-toggle="modal" data-bs-target="#chartModal" title="Indicators">ℹ️</button>
+                <button type="button" class="btn btn-sm btn-success long-btn" title="Hide info symbol">Long</button>  
+                <button type="button" class="btn btn-sm btn-danger short-btn" title="Hide info symbol">Short</button>  
+                <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
               </div>
             </div>
             <div class="btn-group position-relative z-3 mt-2" role="group" aria-label="Vertical button group">
@@ -103,12 +110,7 @@
               <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1w">1w</button>
             </div>
             <div class="position-relative z-3 mt-2">
-              <div class="d-none d-lg-block">
-                <span class="h4 display-symbol bg-success-subtle"></span>
-              </div>
-              <a class="d-lg-none" data-bs-toggle="offcanvas" href="#offcanvasResponsive" role="button" aria-controls="offcanvasExample">
-                <span class="h4 display-symbol-off bg-success-subtle"></span>
-              </a>
+              <span class="h4 display-symbol bg-success-subtle"></span>
             </div>
             <div class="position-relative z-2 mt-2">
               <span id="messageSymbol" class="fw-bold bg-success-subtle"></span>

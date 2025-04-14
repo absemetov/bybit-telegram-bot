@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { create } from "express-handlebars";
 import Ticker from "../models/Ticker.js";
 import cookieParser from "cookie-parser";
@@ -8,6 +9,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+// Use CORS middleware
+app.use(cors());
 // GET /foo.js etc
 app.use(express.static("./src/web/src"));
 app.use(express.urlencoded({ extended: true }));
@@ -166,7 +169,17 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-
+//create limit order
+app.post("/order/create/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { price, side, tpPercent, slPercent } = req.body;
+    await Ticker.createLimitOrder(symbol, side, price, tpPercent, slPercent);
+    return res.json({ ok: "ok" });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Bot-Web app listening on port ${PORT}`);
 });

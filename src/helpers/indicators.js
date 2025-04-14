@@ -3,7 +3,7 @@ class Indicators {
   static calculateLevels(
     candles,
     extrCount = 3,
-    tolerancePercent = 0.01,
+    tolerancePercent = 0.1,
     touchCount = 3,
   ) {
     const tolerance = tolerancePercent / 100;

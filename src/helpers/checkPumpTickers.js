@@ -4,31 +4,50 @@ import Ticker from "../models/Ticker.js";
 import Scan from "../models/Scan.js";
 import { Markup } from "telegraf";
 
-import { getCandles, getActiveSymbols } from "../helpers/bybitV5.js";
+import { getCandles } from "../helpers/bybitV5.js";
 // Основная функция сканирования
 export const runTimeframeScan = async (timeframe, bot) => {
   const config = await Scan.getConfig(timeframe);
-  let cursor = null;
   let count = 0;
   let findTickers = 0;
-
+  //bybit api tickers
+  //let cursor = null;
+  // do {
+  //   const { symbols, nextCursor } = await getActiveSymbols(cursor, 30);
+  //   const pumpTickers = await processBatch(symbols, config, timeframe);
+  //   findTickers += pumpTickers;
+  //   count += symbols.length;
+  //   cursor = nextCursor;
+  //   // Пауза между пагинациями
+  //   await new Promise((resolve) => setTimeout(resolve, 1000));
+  // } while (cursor);
+  //own tickers search
+  let direction = null;
+  let lastVisible = null;
   do {
-    const { symbols, nextCursor } = await getActiveSymbols(cursor, 30);
+    const { tickers, hasNext, lastVisibleId } = await Ticker.paginate(
+      50,
+      direction,
+      lastVisible,
+      "all",
+    );
+    const symbols = tickers.map((c) => c.symbol);
     const pumpTickers = await processBatch(symbols, config, timeframe);
     findTickers += pumpTickers;
-    count += symbols.length;
-    cursor = nextCursor;
-    // Пауза между пагинациями
+    count += tickers.length;
+    direction = hasNext ? "next" : null;
+    lastVisible = lastVisibleId;
+    // Пауза между пагинациями 1sec
     await new Promise((resolve) => setTimeout(resolve, 1000));
-  } while (cursor);
-
+  } while (direction);
+  //notify
   console.log(
     `Completed ${timeframe} scan. Processed ${count} symbols. Found ${findTickers} pump tickers`,
   );
   if (config.notify) {
     await bot.telegram.sendMessage(
       94899148,
-      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols.`,
+      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
       {
         parse_mode: "HTML",
         ...Markup.inlineKeyboard([
@@ -56,7 +75,8 @@ async function processBatch(symbols, config, timeframe) {
         tickerNotifyArray.push({
           symbol,
           timeframe,
-          data: { arrayNotify, lastNotified: new Date() },
+          lastNotified: new Date(),
+          arrayNotify,
         });
       }
       await new Promise((resolve) => setTimeout(resolve, 500)); // Пауза между символами
@@ -71,45 +91,67 @@ export const analyze = async (symbol, candles, config) => {
   try {
     const arrayNotify = [];
     //const analyzeCandles = CandlePatterns.analyze(candles);
-    // search levels zone
-    if (config.patterns?.patternSR) {
+    // level resistance
+    if (config.patterns?.patternR) {
       const {
         candlesCount,
         extrCount,
         tolerancePercent,
         touchCount,
-        priceNear,
-      } = config.patterns.patternSR;
+        pricePercent = 0.1,
+      } = config.patterns.patternR;
       const candlesSlice = candles.slice(-candlesCount);
+      const lastCandle = candlesSlice[candlesSlice.length - 1];
       const levels = Indicators.calculateLevels(
         candlesSlice,
         extrCount,
         tolerancePercent,
         touchCount,
       );
-      const priceNearConfig = priceNear || 0.002;
-      if (levels.support) {
-        const priceNearValue = Math.abs(
-          (levels.support - candles[candles.length - 1].close) /
-            candles[candles.length - 1].close,
-        );
-        if (priceNearValue <= priceNearConfig) {
-          arrayNotify.push(
-            `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
-              `Candle ${candles[candles.length - 1].localTime}`,
-          );
-        }
-      }
+      const priceNearConfig = pricePercent / 100;
       if (levels.resistance) {
         const priceNearValue = Math.abs(
-          (levels.resistance - candles[candles.length - 1].close) /
-            candles[candles.length - 1].close,
+          (levels.resistance - lastCandle.close) / lastCandle.close,
         );
         if (priceNearValue <= priceNearConfig) {
-          arrayNotify.push(
-            `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(3)} Price ${candles[candles.length - 1].close}\n` +
-              `Candle ${candles[candles.length - 1].localTime}`,
-          );
+          arrayNotify.push({
+            name: "patternR",
+            text:
+              `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)} Price ${lastCandle.close}\n` +
+              `Candle ${lastCandle.localTime}`,
+          });
+        }
+      }
+    }
+    //level support
+    if (config.patterns?.patternS) {
+      const {
+        candlesCount,
+        extrCount,
+        tolerancePercent,
+        touchCount,
+        pricePercent = 0.1,
+      } = config.patterns.patternS;
+      const candlesSlice = candles.slice(-candlesCount);
+      const lastCandle = candlesSlice[candlesSlice.length - 1];
+      const levels = Indicators.calculateLevels(
+        candlesSlice,
+        extrCount,
+        tolerancePercent,
+        touchCount,
+      );
+      const priceNearConfig = pricePercent / 100;
+      if (levels.support) {
+        const priceNearValue = Math.abs(
+          (levels.support - lastCandle.close) / lastCandle.close,
+        );
+        if (priceNearValue <= priceNearConfig) {
+          arrayNotify.push({
+            name: "patternS",
+            text:
+              `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)} Price ${lastCandle.close}\n` +
+              `Candle ${lastCandle.localTime}`,
+          });
         }
       }
     }
@@ -123,18 +165,22 @@ export const analyze = async (symbol, candles, config) => {
         shortRSI,
       );
       if (rsiSignal.signalLong) {
-        arrayNotify.push(
-          `[RSI signalLong] Price ${candles[candles.length - 1].close}\n` +
+        arrayNotify.push({
+          name: "patternRSI_long",
+          text:
+            `[RSI signalLong] Price ${candles[candles.length - 1].close}\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
-        );
+        });
       }
       if (rsiSignal.signalShort) {
-        arrayNotify.push(
-          `[RSI signalShort] Price ${candles[candles.length - 1].close}\n` +
+        arrayNotify.push({
+          name: "patternRSI_short",
+          text:
+            `[RSI signalShort] Price ${candles[candles.length - 1].close}\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
-        );
+        });
       }
     }
     return arrayNotify;

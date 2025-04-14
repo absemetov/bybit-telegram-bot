@@ -1,6 +1,6 @@
 import { db } from "../firebase.js";
 import Joi from "joi";
-import { getCandles } from "../helpers/bybitV5.js";
+import { getCandles, createLimitOrder } from "../helpers/bybitV5.js";
 import { algoliasearch } from "algoliasearch";
 import Scan from "../models/Scan.js";
 
@@ -40,6 +40,10 @@ class Ticker {
   }
   static validateAlertPrice(price) {
     return Joi.number().min(0).validate(price);
+  }
+  // create limit order
+  static async createLimitOrder(symbol, side, price, tpPercent, slPercent) {
+    await createLimitOrder(symbol, side, price, tpPercent, slPercent);
   }
   //create New ticker
   static async create(symbol) {
@@ -96,12 +100,12 @@ class Ticker {
     const { close } = kline[0];
     const step = symbol === "BTCUSDT" ? 0.01 : 0.02;
     const alerts = {
-      alert1: close * (1 - step * 3),
-      alert2: close * (1 - step * 2),
-      alert3: close * (1 - step),
-      alert4: close * (1 + step),
-      alert5: close * (1 + step * 2),
-      alert6: close * (1 + step * 3),
+      alert0: close * (1 - step * 3),
+      alert1: close * (1 - step * 2),
+      alert2: close * (1 - step),
+      alert3: close * (1 + step),
+      alert4: close * (1 + step * 2),
+      alert5: close * (1 + step * 3),
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
@@ -129,6 +133,7 @@ class Ticker {
     return {
       alerts: alertsDoc.exists
         ? [
+            alertsDoc.data().alert0,
             alertsDoc.data().alert1,
             alertsDoc.data().alert2,
             alertsDoc.data().alert3,
@@ -142,7 +147,7 @@ class Ticker {
       alert: symbolDoc.exists ? symbolDoc.data().alert : false,
       message: symbolDoc.exists ? symbolDoc.data().message : false,
       pumpMsg,
-      patternLevel: config?.patterns?.patternSR,
+      patternLevel: config?.patterns?.patternS || config?.patterns?.patternR,
     };
   }
   //update alert
@@ -308,26 +313,35 @@ class Ticker {
     );
     const algoliaObjects = [];
     for (const ticker of batchArray) {
-      const { symbol, timeframe, data } = ticker;
+      const { symbol, timeframe, arrayNotify, lastNotified } = ticker;
       if (symbol) {
         //for ordering
         batch.set(
           db.doc(`crypto-pump/${symbol}`),
           {
-            [`lastNotified_${timeframe}`]: data.lastNotified,
+            [`lastNotified_${timeframe}`]: lastNotified,
           },
           { merge: true },
         );
         //notify user tg
-        batch.set(db.doc(`crypto-pump/${symbol}/message/${timeframe}`), data, {
-          merge: true,
-        });
+        for (const notify of arrayNotify) {
+          batch.set(
+            db.doc(`crypto-pump/${symbol}/message/${timeframe}_${notify.name}`),
+            {
+              text: notify.text,
+              lastNotified,
+            },
+            {
+              merge: true,
+            },
+          );
+        }
         //algolia batch
         algoliaObjects.push({
           objectID: symbol,
           symbol,
           [`lastNotified_${timeframe}`]: new Date(),
-          arrayNotify: data.arrayNotify,
+          //arrayNotify: data.arrayNotify,
         });
       }
     }
