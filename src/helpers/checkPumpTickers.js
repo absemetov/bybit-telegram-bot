@@ -45,6 +45,23 @@ export const runTimeframeScan = async (timeframe, bot) => {
     `Completed ${timeframe} scan. Processed ${count} symbols. Found ${findTickers} pump tickers`,
   );
   if (config.notify) {
+    //channel notify
+    await bot.telegram.sendMessage(
+      "-1001828677837",
+      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
+      {
+        parse_mode: "HTML",
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              `BTCUSDT/${timeframe}`,
+              `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
+            ),
+          ],
+        ]),
+      },
+    );
+    //@absemetov
     await bot.telegram.sendMessage(
       94899148,
       `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,

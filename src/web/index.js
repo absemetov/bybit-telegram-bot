@@ -63,6 +63,11 @@ app.get("/chart/:symbol?/:timeframe?/:tab?", protectPage, async (req, res) => {
   const title = "Bybit chart";
   res.render("ticker", { title, user: req.user });
 });
+//public page
+app.get("/ticker/:symbol/:timeframe?", protectPage, async (req, res) => {
+  const title = "Bybit chart";
+  res.render("ticker", { title, user: req.user });
+});
 app.get("/api/tickers", protectPage, async (req, res) => {
   const { direction, lastVisibleId, tab, timeframe } = req.query;
   const paginate = await Ticker.paginate(

@@ -1177,20 +1177,10 @@ class App {
   }
   static setState(newState) {
     this.state = { ...this.state, ...newState };
-    //this.renderCoinTitle();
-    //document.querySelector(".symbol-display").textContent = this.state.symbol;
     document.querySelector(".timeframe-select").value = this.state.timeframe;
-    // document.querySelector(".reset-btn").dataset.symbolTitle =
-    //   this.state.symbol;
-    // document.querySelector(".hide-btn").dataset.symbolTitle = this.state.symbol;
-    // document.querySelector(".info-btn").dataset.symbolTitle = this.state.symbol;
     document.querySelector(".hide-btn").textContent = this.state.hideAlerts
       ? "📝"
       : "🔏";
-    // try {
-    // } catch (error) {
-    //   alert(error);
-    // }
   }
   static async renderChart() {
     await this.chartManager.loadChartData();
