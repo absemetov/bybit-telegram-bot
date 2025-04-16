@@ -12,7 +12,8 @@ const app = express();
 // Use CORS middleware
 app.use(cors());
 // GET /foo.js etc
-app.use(express.static("./src/web/src"));
+//app.use(express.static("./src/web/src"));
+//app.use(express.static("./src/web/cloudflare-pages"));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.json());

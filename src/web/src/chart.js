@@ -500,12 +500,7 @@ class ChartManager {
     // Обработчик движения мыши
     this.container.addEventListener("mousemove", () => {
       if (isMouseDown) {
-        // Получаем координаты мыши
-        // const x = e.clientX;
-        // const y = e.clientY;
         this.dragAlert();
-        // Ваш код здесь (например, рисуем или перемещаем объект)
-        //console.log(`Mouse moved to: ${x}, ${y}`);
       }
     });
 
@@ -514,13 +509,6 @@ class ChartManager {
       this.dropAlert();
       isMouseDown = false;
     });
-    //drag
-    //this.container.addEventListener("mouseenter", () => this.dragAlert());
-    //drop
-    // this.container.addEventListener(
-    //   "mouseup",
-    //   async () => await this.dropAlert(),
-    // );
     //touch events
     //drag
     this.container.addEventListener("touchmove", () => this.dragAlert());
@@ -1345,6 +1333,13 @@ class App {
       .querySelector(".hide-btn")
       .classList.toggle("d-none", !ChartManager.state.alerts.length);
     this.state.bsOffcanvas.hide();
+    //tf active
+    document
+      .querySelectorAll(".tf-btn")
+      .forEach((n) => n.classList.remove("bg-primary"));
+    document
+      .querySelector(`[data-tf="${App.state.timeframe}"]`)
+      ?.classList.add("bg-primary");
   }
   static initEventListeners() {
     //tabs
@@ -1578,7 +1573,6 @@ class App {
         throw new Error(`Error API: ${dataInfo.retMsg}`);
       }
       const ticker = dataInfo.result.list[0];
-      console.log(ticker);
       //set title
       const modalTitle = chartModalEl.querySelector(".modal-title");
       const modalBody = chartModalEl.querySelector(".modal-body");
