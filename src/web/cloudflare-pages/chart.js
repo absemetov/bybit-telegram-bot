@@ -740,8 +740,8 @@ class App {
     const { createLocalStorageRecentSearchesPlugin } =
       window["@algolia/autocomplete-plugin-recent-searches"];
     const searchClient = liteClient(
-      "YSHMAC99ZS",
-      "c9f2ff23faccc8a423feb221fdbfdb53",
+      "YZIFWJVE7R",
+      "a56bd432142fc9813846fa737167eeef",
     );
     const recentSearchesPlugin = createLocalStorageRecentSearchesPlugin({
       key: "navbar",
@@ -749,15 +749,10 @@ class App {
         return {
           ...source,
           onSelect({ item }) {
-            //window.location.href = `/${item.label}`;
             const symbol = item.label.toUpperCase();
-            // App.setState({
-            //   symbol: `${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
-            // });
             App.router.navigate(
               `/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
             );
-            //App.setState({ symbol: item.label });
           },
         };
       },
@@ -765,16 +760,12 @@ class App {
     autocomplete({
       debug: false,
       container: "#autocomplete",
-      placeholder: "Search for tickers",
+      placeholder: "Search cryptocurrencies...",
       detachedMediaQuery: "(max-width: 991.98px)",
       openOnFocus: true,
       plugins: [recentSearchesPlugin],
       onSubmit({ state }) {
-        //window.location.href = `/${state.query}`;
         const symbol = state.query.toUpperCase();
-        // App.setState({
-        //   symbol: `${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
-        // });
         if (symbol) {
           App.router.navigate(
             `/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
@@ -784,8 +775,8 @@ class App {
       getSources() {
         return [
           {
-            sourceId: "querySuggestions",
-            getItemInputValue: ({ item }) => item.symbol,
+            sourceId: "crypto",
+            getItemInputValue: ({ item }) => item.name,
             getItems({ query }) {
               return getAlgoliaResults({
                 searchClient,
@@ -795,6 +786,18 @@ class App {
                     params: {
                       query,
                       hitsPerPage: 4,
+                      attributesToRetrieve: [
+                        "exactMatch",
+                        "name",
+                        "textPart",
+                        "keywords",
+                      ],
+                      restrictSearchableAttributes: [
+                        "exactMatch",
+                        "name",
+                        "textPart",
+                        "keywords",
+                      ],
                     },
                   },
                 ],
@@ -808,7 +811,7 @@ class App {
                       <div class="aa-ItemContentTitle text-wrap">
                         ${components.Highlight({
                           hit: item,
-                          attribute: "symbol",
+                          attribute: "name",
                         })}
                       </div>
                     </div>
@@ -818,14 +821,10 @@ class App {
             },
             onSelect({ item }) {
               recentSearchesPlugin.data.addItem({
-                id: item.symbol,
-                label: item.symbol,
+                id: item.name,
+                label: item.name,
               });
-              //window.location.href = `/${item.symbol}`;
-              const symbol = item.symbol.toUpperCase();
-              // App.setState({
-              //   symbol: `${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
-              // });
+              const symbol = item.name.toUpperCase();
               App.router.navigate(
                 `/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
               );

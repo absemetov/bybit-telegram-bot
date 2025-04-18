@@ -74,7 +74,15 @@ CRON schedule
 1min 1 * 6-23 * * *
 //pattern settings
 {
-  "patternSR":
+  "patternR":
+  {
+    "candlesCount":24,
+    "extCount":3,
+    "tolerancePercent":0.01,
+    "touchCount":3,
+    "priceNear":0.01
+  },
+  "patternS":
   {
     "candlesCount":24,
     "extCount":3,

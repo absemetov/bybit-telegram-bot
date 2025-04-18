@@ -1,5 +1,7 @@
 import CandlePatterns from "../helpers/candlePatterns.js";
 import Indicators from "../helpers/indicators.js";
+import { getActiveSymbols } from "../helpers/bybitV5.js";
+import { uploadDataToAlgolia } from "../helpers/algoliaIndex.js";
 import Ticker from "../models/Ticker.js";
 import Scan from "../models/Scan.js";
 import { Markup } from "telegraf";
@@ -11,16 +13,20 @@ export const runTimeframeScan = async (timeframe, bot) => {
   let count = 0;
   let findTickers = 0;
   //bybit api tickers
-  //let cursor = null;
-  // do {
-  //   const { symbols, nextCursor } = await getActiveSymbols(cursor, 30);
-  //   const pumpTickers = await processBatch(symbols, config, timeframe);
-  //   findTickers += pumpTickers;
-  //   count += symbols.length;
-  //   cursor = nextCursor;
-  //   // Пауза между пагинациями
-  //   await new Promise((resolve) => setTimeout(resolve, 1000));
-  // } while (cursor);
+  if (timeframe === "1d") {
+    let cursor = null;
+    //await configureAlgoliaIndex();
+    do {
+      const { symbols, nextCursor } = await getActiveSymbols(cursor, 30);
+      await uploadDataToAlgolia(symbols);
+      //const pumpTickers = await processBatch(symbols, config, timeframe);
+      //findTickers += pumpTickers;
+      //count += symbols.length;
+      cursor = nextCursor;
+      // Пауза между пагинациями
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } while (cursor);
+  }
   //own tickers search
   let direction = null;
   let lastVisible = null;
@@ -46,25 +52,25 @@ export const runTimeframeScan = async (timeframe, bot) => {
   );
   if (config.notify) {
     //channel notify
-    await bot.telegram.sendMessage(
-      "-1001828677837",
-      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
-      {
-        parse_mode: "HTML",
-        ...Markup.inlineKeyboard([
-          [
-            Markup.button.url(
-              `BTCUSDT/${timeframe}`,
-              `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
-            ),
-          ],
-        ]),
-      },
-    );
+    // await bot.telegram.sendMessage(
+    //   "-1001828677837",
+    //   `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
+    //   {
+    //     parse_mode: "HTML",
+    //     ...Markup.inlineKeyboard([
+    //       [
+    //         Markup.button.url(
+    //           `BTCUSDT/${timeframe}`,
+    //           `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
+    //         ),
+    //       ],
+    //     ]),
+    //   },
+    // );
     //@absemetov
     await bot.telegram.sendMessage(
       94899148,
-      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
+      `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols.`,
       {
         parse_mode: "HTML",
         ...Markup.inlineKeyboard([

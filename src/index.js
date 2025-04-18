@@ -16,6 +16,8 @@ tasks(bot);
 // mutators
 bot.use(async (ctx, next) => {
   //admin absemetov
+  //not channel
+  if (!ctx.from) return;
   if (ctx.from.id != 94899148) {
     await ctx.reply("Access Denied!");
     return;

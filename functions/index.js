@@ -54,7 +54,7 @@ exports.tickerAlerts = onDocumentWritten(
               ...Markup.inlineKeyboard([
                 [
                   Markup.button.url(
-                    `${symbol}`,
+                    symbol,
                     `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
                   ),
                 ],
@@ -158,7 +158,7 @@ exports.AlgoliaSync = onDocumentWritten(
         //delete pump crypto-alerts
         await db.doc(`crypto/${symbol}/alerts/triggers`).delete();
         await db.doc(`crypto/${symbol}/message/alert`).delete();
-        await db.doc(`crypto/${symbol}/message/pump`).delete();
+        //await db.doc(`crypto/${symbol}/message/pump`).delete();
         // const snapshot = await db.collection(`crypto-alerts/${symbol}`).get();
         // if (!snapshot.empty) {
         //   const batch = db.batch();

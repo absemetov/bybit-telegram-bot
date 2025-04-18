@@ -1,7 +1,6 @@
 import { db } from "../firebase.js";
 import Joi from "joi";
 import { getCandles, createLimitOrder } from "../helpers/bybitV5.js";
-import { algoliasearch } from "algoliasearch";
 import Scan from "../models/Scan.js";
 
 class Ticker {
@@ -186,7 +185,7 @@ class Ticker {
     lastVisibleId = null,
     tab = "favorites",
   ) {
-    if (["15min", "30min", "1h"].includes(tab)) {
+    if (["15min", "30min", "1h", "4h", "1d"].includes(tab)) {
       return await this.paginatePump(limit, direction, lastVisibleId, tab);
     }
     //.orderBy("price24hPcnt", order)
@@ -307,11 +306,7 @@ class Ticker {
   //TODO make new pump collection
   static async sendNotifyPump(batchArray) {
     const batch = db.batch();
-    const algoliaClient = algoliasearch(
-      process.env.ALGOLIA_APP_ID,
-      process.env.ALGOLIA_API_KEY,
-    );
-    const algoliaObjects = [];
+    //const algoliaObjects = [];
     for (const ticker of batchArray) {
       const { symbol, timeframe, arrayNotify, lastNotified } = ticker;
       if (symbol) {
@@ -337,19 +332,15 @@ class Ticker {
           );
         }
         //algolia batch
-        algoliaObjects.push({
-          objectID: symbol,
-          symbol,
-          [`lastNotified_${timeframe}`]: new Date(),
-          //arrayNotify: data.arrayNotify,
-        });
+        // algoliaObjects.push({
+        //   objectID: symbol,
+        //   symbol,
+        //   [`lastNotified_${timeframe}`]: new Date(),
+        //   //arrayNotify: data.arrayNotify,
+        // });
       }
     }
     await batch.commit();
-    await algoliaClient.saveObjects({
-      indexName: "crypto",
-      objects: algoliaObjects,
-    });
   }
 }
 
