@@ -39,29 +39,34 @@ exports.updatePumpCrypto = onDocumentWritten(
       if (ticker) {
         //const previousMessageData = event.data.before.data();
         const timestampSeconds = Math.round(Date.now() / 1000);
-        const silent15min =
-          !ticker.lastNotified ||
-          timestampSeconds - ticker.lastNotified >= 15 * 60;
+        // const silent15min =
+        //   !ticker.lastNotified ||
+        //   timestampSeconds - ticker.lastNotified >= 15 * 60;
         const currentPrice = ticker[`price`];
+        const prevPrice = ticker[`prevPrice`];
+        //if diff 3% then alert
+        const silent =
+          !prevPrice ||
+          Math.abs((currentPrice - prevPrice) / prevPrice) >= 0.03;
         let nearCount = 0;
         for (const timeframe of ["15min", "30min", "1h", "2h", "4h"]) {
           for (const side of ["S", "R"]) {
             const price = ticker[`price_pattern${side}_${timeframe}`];
-            const difference = Math.abs(currentPrice - price);
-            const isNear = difference <= currentPrice * 0.01;
+            const difference = Math.abs((currentPrice - price) / price);
+            //diff 1% levels
+            const isNear = difference <= 0.01;
             if (isNear) nearCount++; // Увеличиваем счетчик
           }
         }
         //levels near
-        if (nearCount >= 3 && silent15min) {
+        if (nearCount >= 2 && silent) {
           // Then return a promise of a set operation to update the count
-          //chanel 🎯 Bybit S/R Zone Futures Signals
+          //channel bybitLevels
           await bot.telegram.sendMessage(
-            "-1002640533584",
-            `<b>🚨 ${symbol.slice(0, -4)} Approaching Key Zone 🚨</b>\n` +
+            "-1002687531775",
+            `<b>🚨 ${symbol.slice(0, -4)} ${ticker["price"]}$ Approaching Key Zone 🚨</b>\n` +
               `Stay Alert for Potential Volatility!\n` +
-              `${symbol.slice(0, -4)} Price: ${ticker["price"]}$\n` +
-              `#${symbol.slice(0, -4)}`,
+              `Trade Smarter, Not Harder. #${symbol.slice(0, -4)}`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([
@@ -78,6 +83,15 @@ exports.updatePumpCrypto = onDocumentWritten(
                   ),
                 ],
               ]),
+            },
+          );
+          //set prev price
+          return event.data.after.ref.set(
+            {
+              prevPrice: currentPrice,
+            },
+            {
+              merge: true,
             },
           );
           //@absemetov
@@ -115,14 +129,6 @@ exports.updatePumpCrypto = onDocumentWritten(
           //     ]),
           //   },
           // );
-          return event.data.after.ref.set(
-            {
-              lastNotified: timestampSeconds,
-            },
-            {
-              merge: true,
-            },
-          );
         }
       }
     } catch (error) {
