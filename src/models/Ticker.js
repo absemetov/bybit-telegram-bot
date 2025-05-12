@@ -1,6 +1,10 @@
 import { db } from "../firebase.js";
 import Joi from "joi";
-import { getCandles, createLimitOrder } from "../helpers/bybitV5.js";
+import {
+  getCandles,
+  getLimitOrders,
+  getPositions,
+} from "../helpers/bybitV5.js";
 import Scan from "../models/Scan.js";
 
 class Ticker {
@@ -39,10 +43,6 @@ class Ticker {
   }
   static validateAlertPrice(price) {
     return Joi.number().min(0).validate(price);
-  }
-  // create limit order
-  static async createLimitOrder(symbol, side, price, tpPercent, slPercent) {
-    await createLimitOrder(symbol, side, price, tpPercent, slPercent);
   }
   //create New ticker
   static async create(symbol) {
@@ -90,27 +90,48 @@ class Ticker {
     return null;
   }
   //create default Alerts
-  static async createAlerts(symbol) {
-    const kline = await getCandles(symbol, "1d", 1);
-    if (kline.length == 0) {
-      throw new Error(`Ticker ${symbol} not found in Bybit`);
+  static async createAlerts(symbol, alerts = null) {
+    if (alerts) {
+      await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
+    } else {
+      const kline = await getCandles(symbol, "1d", 1);
+      if (kline.length == 0) {
+        throw new Error(`Ticker ${symbol} not found in Bybit`);
+      }
+      // validate
+      const { close } = kline[0];
+      const step = 0.01;
+      const alerts = {
+        alert0: close * (1 - step * 3),
+        alert1: close * (1 - step * 2),
+        alert2: close * (1 - step),
+        alert3: close * (1 + step),
+        alert4: close * (1 + step * 2),
+        alert5: close * (1 + step * 3),
+      };
+      await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
     }
-    // validate
-    const { close } = kline[0];
-    const step = symbol === "BTCUSDT" ? 0.01 : 0.02;
-    const alerts = {
-      alert0: close * (1 - step * 3),
-      alert1: close * (1 - step * 2),
-      alert2: close * (1 - step),
-      alert3: close * (1 + step),
-      alert4: close * (1 + step * 2),
-      alert5: close * (1 + step * 3),
-    };
-    await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
   static async alertsExist(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     return alertsDoc.exists;
+  }
+  //for check cross
+  static async getOnlyAlerts(symbol) {
+    const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
+    return {
+      alerts: alertsDoc.exists
+        ? [
+            alertsDoc.data().alert0,
+            alertsDoc.data().alert1,
+            alertsDoc.data().alert2,
+            alertsDoc.data().alert3,
+            alertsDoc.data().alert4,
+            alertsDoc.data().alert5,
+            alertsDoc.data().alert6,
+          ]
+        : [],
+    };
   }
   // get all alerts
   static async getAlerts(symbol, timeframe) {
@@ -129,6 +150,9 @@ class Ticker {
         return { timeframe: doc.id, ...doc.data() };
       });
     }
+    //get limit orders
+    const getOrders = await getLimitOrders("", 10, symbol);
+    const getAllpositions = await getPositions("", 10, symbol);
     return {
       alerts: alertsDoc.exists
         ? [
@@ -142,11 +166,13 @@ class Ticker {
           ]
         : [],
       exists: symbolDoc.exists,
-      star: symbolDoc.exists ? symbolDoc.data().star : false,
-      alert: symbolDoc.exists ? symbolDoc.data().alert : false,
-      message: symbolDoc.exists ? symbolDoc.data().message : false,
+      star: symbolDoc.exists ? symbolDoc.data().star : null,
+      alert: symbolDoc.exists ? symbolDoc.data().alert : null,
+      message: symbolDoc.exists ? symbolDoc.data().message : null,
       pumpMsg,
       patternLevel: config?.patterns?.patternS || config?.patterns?.patternR,
+      orders: getOrders.orders,
+      positions: getAllpositions.positions,
     };
   }
   //update alert
@@ -185,7 +211,7 @@ class Ticker {
     lastVisibleId = null,
     tab = "favorites",
   ) {
-    if (["15min", "30min", "1h", "4h", "1d"].includes(tab)) {
+    if (["15min", "30min", "1h", "2h", "4h", "1d"].includes(tab)) {
       return await this.paginatePump(limit, direction, lastVisibleId, tab);
     }
     //.orderBy("price24hPcnt", order)
@@ -269,7 +295,11 @@ class Ticker {
     // for doc use exists for qyery empty opt
     if (!snapshot.empty) {
       const tickers = snapshot.docs.map((doc) => {
-        return { symbol: doc.id, exists: false, ...doc.data() };
+        return {
+          symbol: doc.id,
+          ...doc.data(),
+          exists: true,
+        };
       });
       const firstVisible = snapshot.docs[0];
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];
@@ -306,24 +336,19 @@ class Ticker {
   //TODO make new pump collection
   static async sendNotifyPump(batchArray) {
     const batch = db.batch();
-    //const algoliaObjects = [];
     for (const ticker of batchArray) {
       const { symbol, timeframe, arrayNotify, lastNotified } = ticker;
       if (symbol) {
-        //for ordering
-        batch.set(
-          db.doc(`crypto-pump/${symbol}`),
-          {
-            [`lastNotified_${timeframe}`]: lastNotified,
-          },
-          { merge: true },
-        );
         //notify user tg
+        const fieldForAnalytics = {};
         for (const notify of arrayNotify) {
+          fieldForAnalytics[`price_${notify.name}_${timeframe}`] = notify.price;
+          fieldForAnalytics["price"] = notify.price;
           batch.set(
             db.doc(`crypto-pump/${symbol}/message/${timeframe}_${notify.name}`),
             {
               text: notify.text,
+              price: notify.price,
               lastNotified,
             },
             {
@@ -331,13 +356,15 @@ class Ticker {
             },
           );
         }
-        //algolia batch
-        // algoliaObjects.push({
-        //   objectID: symbol,
-        //   symbol,
-        //   [`lastNotified_${timeframe}`]: new Date(),
-        //   //arrayNotify: data.arrayNotify,
-        // });
+        //for ordering
+        batch.set(
+          db.doc(`crypto-pump/${symbol}`),
+          {
+            [`lastNotified_${timeframe}`]: lastNotified,
+            ...fieldForAnalytics,
+          },
+          { merge: true },
+        );
       }
     }
     await batch.commit();

@@ -1,5 +1,9 @@
 import Session from "../models/Session.js";
-import { viewTickers, showTicker } from "../actions/tickerActions.js";
+import {
+  viewTickers,
+  showTicker,
+  getAllOrders,
+} from "../actions/tickerActions.js";
 import { showAllScans } from "../actions/scanActions.js";
 import {
   handleCreateTicker,
@@ -38,6 +42,14 @@ const textMessageRouter = (bot) => {
   });
   //show cron jobs
   bot.command("cron", async (ctx) => {
+    await showAllScans(ctx);
+  });
+  //show limit orders
+  bot.command("orders", async (ctx) => {
+    await getAllOrders(ctx, { edit: false });
+  });
+  //show all positions
+  bot.command("positions", async (ctx) => {
     await showAllScans(ctx);
   });
   //show ticker

@@ -7,12 +7,13 @@ class Router {
   initRoutes() {
     this.router
       .on({
-        "/": async ({ data }) => await this.handleRoute(data),
-        "/:symbol/:timeframe": async ({ data }) => await this.handleRoute(data),
+        "/": async ({ data, params }) => await this.handleRoute(data, params),
+        "/:symbol/:timeframe": async ({ data, params }) =>
+          await this.handleRoute(data, params),
       })
       .resolve();
   }
-  async handleRoute(params = {}) {
+  async handleRoute(data, params) {
     const intervalKline = {
       "1min": "1",
       "5min": "5",
@@ -28,9 +29,11 @@ class Router {
       "1m": "M",
     };
     App.state = {
-      symbol: params?.symbol || "BTCUSDT",
-      timeframe: params?.timeframe || "1h",
-      intervalKline: intervalKline[params?.timeframe || "1h"],
+      symbol: data?.symbol || "BTCUSDT",
+      timeframe: data?.timeframe || "1h",
+      intervalKline: intervalKline[data?.timeframe || "1h"],
+      markerTime: +params?.time,
+      markerPrice: params?.price,
     };
     await App.renderChart();
   }
@@ -101,8 +104,46 @@ class Indicators {
       lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
-      title: `${(((supportV - resistance) / resistance) * 100).toFixed(1)}%`,
+      title: `${(((supportV - resistance) / resistance) * 100).toFixed(2)}%`,
     });
+    //notify marker
+    //first delete lines and markers
+    ChartManager.state.markerSeries.setMarkers([]);
+    ChartManager.state.markers = [];
+    for (const messageLine of ChartManager.state.messages) {
+      ChartManager.state.candlestickSeries.removePriceLine(messageLine);
+    }
+    ChartManager.state.messages = [];
+    if (App.state.markerPrice && App.state.markerTime) {
+      ChartManager.state.messages.push(
+        ChartManager.state.candlestickSeries.createPriceLine({
+          price: App.state.markerPrice,
+          color: "black",
+          lineWidth: 2,
+          lineStyle: 1,
+          title: "Level",
+        }),
+      );
+      //marker
+      ChartManager.state.markers.push({
+        time: App.state.markerTime,
+        position:
+          ChartManager.state.candles[ChartManager.state.candles.length - 1]
+            .close > App.state.markerPrice
+            ? "aboveBar"
+            : "belowBar",
+        color: "black",
+        shape:
+          ChartManager.state.candles[ChartManager.state.candles.length - 1]
+            .close < App.state.markerPrice
+            ? "arrowUp"
+            : "arrowDown",
+        size: 2,
+        //price: App.state.markerPrice,
+        text: "Key",
+      });
+      ChartManager.state.markerSeries.setMarkers(ChartManager.state.markers);
+    }
   }
   // RSI для всех свечей
   static calculateRSI(closes, period = 14) {
@@ -203,6 +244,8 @@ class ChartManager {
     selectedAlert: null,
     currentPriceMove: null,
     isDroped: true,
+    messages: [],
+    markers: [],
   };
   constructor() {
     this.container = document.getElementById("chart");
@@ -256,6 +299,11 @@ class ChartManager {
       },
       0,
     );
+    //markers
+    ChartManager.state.markerSeries =
+      window.LightweightCharts.createSeriesMarkers(
+        ChartManager.state.candlestickSeries,
+      );
     ChartManager.state.candlestickSeries.priceScale().applyOptions({
       scaleMargins: {
         autoScale: true,
@@ -437,7 +485,7 @@ class ChartManager {
   async loadChartData() {
     try {
       const response = await fetch(
-        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${App.state.symbol}&interval=${App.state.intervalKline}&limit=300`,
+        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${App.state.symbol}&interval=${App.state.intervalKline}&limit=1000`,
       );
       const data = await response.json();
       if (data.retCode !== 0) {
@@ -707,7 +755,7 @@ class ChartManager {
         const resistance = ChartManager.state.linesSr[1].line.options().price;
         const support = ChartManager.state.linesSr[0].line.options().price;
         ChartManager.state.linesSr[0].line.applyOptions({
-          title: `${(((support - resistance) / resistance) * 100).toFixed(1)}%`,
+          title: `${(((support - resistance) / resistance) * 100).toFixed(2)}%`,
         });
         ChartManager.state.chart.applyOptions({
           handleScroll: false,

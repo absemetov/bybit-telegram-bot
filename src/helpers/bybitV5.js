@@ -1,3 +1,4 @@
+import Ticker from "../models/Ticker.js";
 import { RestClientV5 } from "bybit-api";
 import dotenv from "dotenv";
 dotenv.config();
@@ -5,6 +6,94 @@ const bybitClient = new RestClientV5({
   key: process.env.BYBIT_API_KEY,
   secret: process.env.BYBIT_API_SECRET,
 });
+//cancel order
+export const closePosition = async (symbol, side, qty) => {
+  const response = await bybitClient.submitOrder({
+    category: "linear",
+    symbol,
+    side: side === "Buy" ? "Sell" : "Buy", // Инвертируем направление
+    orderType: "Market",
+    qty,
+    positionIdx: side === "Sell" ? 2 : 1,
+    reduceOnly: true,
+  });
+  if (response.retCode !== 0) {
+    throw new Error(`Error API: ${response.retMsg}`);
+  }
+};
+//get position
+export const getPositions = async (cursor, limit = 10, symbol) => {
+  const balance = await getBybitBalance();
+  const params = {
+    category: "linear",
+    settleCoin: "USDT",
+    limit,
+    cursor,
+  };
+  if (symbol) {
+    params.symbol = symbol;
+  }
+  const response = await bybitClient.getPositionInfo(params);
+  if (response.retCode !== 0) {
+    throw new Error(`Error API: ${response.retMsg}`);
+  }
+  const positions = response.result.list
+    .filter((item) => item.avgPrice > 0)
+    .map((order) => ({
+      orderId: order.orderId,
+      symbol: order.symbol,
+      localTime: new Date(parseInt(order.updatedTime)).toLocaleString("ru-RU"),
+      side: order.side,
+      avgPrice: parseFloat(order.avgPrice),
+      markPrice: parseFloat(order.markPrice),
+      takeProfit: parseFloat(order.takeProfit),
+      stopLoss: parseFloat(order.stopLoss),
+      positionValue: parseFloat(order.positionValue),
+      size: parseFloat(order.size),
+      unrealisedPnl: parseFloat(order.unrealisedPnl),
+    }));
+  return { positions, nextPageCursor: response.result.nextPageCursor, balance };
+};
+//cancel order
+export const cancelOrder = async (symbol, orderId) => {
+  const response = await bybitClient.cancelOrder({
+    category: "linear",
+    symbol,
+    orderId,
+  });
+  if (response.retCode !== 0) {
+    throw new Error(`Error API: ${response.retMsg}`);
+  }
+};
+//list orders
+export const getLimitOrders = async (cursor, limit = 10, symbol) => {
+  const params = {
+    category: "linear",
+    settleCoin: "USDT",
+    openOnly: 0,
+    orderFilter: "Order",
+    limit,
+    cursor,
+  };
+  if (symbol) {
+    params.symbol = symbol;
+  }
+  const response = await bybitClient.getActiveOrders(params);
+  if (response.retCode !== 0) {
+    throw new Error(`Error API: ${response.retMsg}`);
+  }
+  const orders = response.result.list.map((order) => ({
+    orderId: order.orderId,
+    symbol: order.symbol,
+    localTime: new Date(parseInt(order.createdTime)).toLocaleString("ru-RU"),
+    side: order.side,
+    price: parseFloat(order.price),
+    qty: parseFloat(order.qty),
+    sum: order.qty * order.price,
+  }));
+  return { orders, nextPageCursor: response.result.nextPageCursor };
+};
+//create order
 export const createLimitOrder = async (
   symbol,
   side,
@@ -47,7 +136,8 @@ export const createLimitOrder = async (
     } = instrument;
 
     // 2. Рассчитываем количество контрактов как в споте: qty = сумма / цена
-    const maxUsdt = 10;
+    //sl 1$ TP 5$
+    const maxUsdt = 34;
     const baseQty = maxUsdt / price;
 
     // 3. Приводим к шагу qtyStep
@@ -86,7 +176,6 @@ export const createLimitOrder = async (
       stopLoss = formatPrice(price * (1 - slPercent / 100));
     }
 
-    console.log(qtyStep, adjustedQty, formattedQty);
     const response = await bybitClient.submitOrder({
       category: "linear",
       symbol,
@@ -102,8 +191,18 @@ export const createLimitOrder = async (
     if (response.retCode !== 0) {
       throw new Error(`Order create Error: ${response.retMsg}`);
     }
-    console.log("Ордер создан:", response);
-    return response.orderId;
+    //first enable alerts
+    await Ticker.updateField(symbol, "alert", true);
+    const alerts = {
+      alert0: side === "Buy" ? +stopLoss : takeProfit * (1 - 0.01 * 3),
+      alert1: side === "Buy" ? +entryPrice : takeProfit * (1 - 0.01 * 2),
+      alert2: side === "Buy" ? +takeProfit : takeProfit * (1 - 0.01 * 1),
+      alert3: side === "Sell" ? +takeProfit : takeProfit * (1 + 0.01),
+      alert4: side === "Sell" ? +entryPrice : takeProfit * (1 + 0.01 * 2),
+      alert5: side === "Sell" ? +stopLoss : takeProfit * (1 + 0.01 * 3),
+    };
+    await Ticker.createAlerts(symbol, alerts);
+    return { orderId: response.result.orderId };
   } catch (error) {
     throw new Error(`Order creation failed: ${error.message}`);
   }
@@ -113,7 +212,7 @@ export const getBybitBalance = async () => {
     const response = await bybitClient.getWalletBalance({
       accountType: "UNIFIED",
     });
-    return response.result.list[0].totalEquity;
+    return +response.result.list[0].totalEquity;
   } catch (error) {
     console.error("Failed to get wallet balance:", error);
   }

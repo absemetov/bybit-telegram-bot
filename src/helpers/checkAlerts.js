@@ -5,12 +5,7 @@ import { getCandles } from "../helpers/bybitV5.js";
 export const checkAlerts = async (bot) => {
   try {
     const interval = "1min";
-    //const start = Date.now();
-    // TODO write batch!!!
     const tickerNotifyArray = [];
-    // load config for paginate
-    //const scanPaginateSettings = await Scan.paginateData(1);
-    //const { direction, lastVisibleId } = scanPaginateSettings;
     let direction = null;
     let lastVisibleId = null;
     do {
@@ -22,7 +17,7 @@ export const checkAlerts = async (bot) => {
       );
       for (const tickerAlerts of paginate.tickers) {
         const { symbol } = tickerAlerts;
-        const alerts = await Ticker.getAlerts(symbol);
+        const alerts = await Ticker.getOnlyAlerts(symbol);
         //reverse!!! old->new
         const candlesArray = await getCandles(symbol, interval, 2);
         //check pre last candle
@@ -33,7 +28,7 @@ export const checkAlerts = async (bot) => {
               tickerNotifyArray.push({
                 symbol,
                 data: {
-                  alertMessage: `#${index + 1} Alert cross at ${value.toFixed(5)}$ ${localTime} 1min candle`,
+                  alertMessage: `#${index + 1} ${index === 0 || index === 5 ? "SL" : index === 1 || index === 4 ? "Position open" : "TP"} Alert cross at ${value.toFixed(5)}$ ${localTime} 1min candle`,
                   lastNotified: new Date(),
                 },
               });
@@ -48,19 +43,6 @@ export const checkAlerts = async (bot) => {
       // Пауза между пагинациями 1sec
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } while (direction);
-    //TODO use paginate params
-    // if (paginate.hasNext) {
-    //   scanPaginateSettings.direction = "next";
-    //   scanPaginateSettings.lastVisibleId = paginate.lastVisibleId;
-    // } else {
-    //   scanPaginateSettings.direction = null;
-    //   scanPaginateSettings.lastVisibleId = null;
-    // }
-    // await scanPaginateSettings.update();
-    //const end = Date.now();
-    // console.log(
-    //   `Scan alert tickers ${Date(end)} time: ${(end - start) / 1000} sec`,
-    // );
   } catch (error) {
     console.error(
       `[${new Date().toISOString()}] Error in cron job checkAlerts:`,

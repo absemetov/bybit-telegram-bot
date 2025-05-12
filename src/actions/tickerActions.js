@@ -1,13 +1,23 @@
 import { googleSheet } from "../helpers/googleSpreadSheets.js";
 import Ticker from "../models/Ticker.js";
 import Session from "../models/Session.js";
+import { getLimitOrders } from "../helpers/bybitV5.js";
 import {
   showTickerPage,
   showTickersPage,
   showTickerIndicators,
+  showLimitOrders,
 } from "../views/showTickersPage.js";
 import { sleep } from "../helpers/helpers.js";
 import { analyzeCoin } from "../helpers/checkPumpTickers.js";
+//show all limit ordes
+export const getAllOrders = async (ctx, params = {}) => {
+  const { cursor, symbol, edit = true } = params;
+  console.log(cursor, symbol);
+  const { orders, nextPageCursor } = await getLimitOrders(cursor, 10, symbol);
+  console.log(orders, nextPageCursor);
+  await showLimitOrders(ctx, orders, nextPageCursor, edit);
+};
 //TODO test technical indicators
 export const tickerIndicators = async (ctx, params) => {
   const { symbol, interval } = params;
@@ -47,10 +57,6 @@ export const uploadTickersAction = async () => {
     // clear cache
     sheet.resetLocalCache(true);
   }
-  // await ctx.answerCbQuery(
-  //   `Scan ${limitRows} rows. ${setBatchArray.length} Tickers added, deleted: ${deleteBatchArray.length}`,
-  // );
-  //await viewTickers(ctx);
 };
 // index page
 export const viewTickers = async (ctx, params = {}) => {

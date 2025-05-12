@@ -1,4 +1,31 @@
 import { Markup } from "telegraf";
+//show limit orders
+export const showLimitOrders = async (ctx, orders, cursor, edit = true) => {
+  const message = `Limit orders ${new Date().toLocaleString("ru-RU")}\n`;
+  const keyboardArray = [];
+  orders?.forEach((ticker) => {
+    keyboardArray.push([
+      Markup.button.callback(
+        `${ticker.symbol} ${ticker.side} ${ticker.price}$ = ${ticker.sum}$`,
+        `show-order/${ticker.symbol}`,
+      ),
+    ]);
+  });
+  // todo hide prev next
+  const keyboardPrevNext = [];
+  if (keyboardPrevNext.length) {
+    keyboardArray.push(keyboardPrevNext);
+  }
+  const inlineKeyboard = Markup.inlineKeyboard(keyboardArray);
+  if (edit) {
+    await ctx.editMessageText(message, {
+      parse_mode: "HTML",
+      ...inlineKeyboard,
+    });
+  } else {
+    await ctx.replyWithHTML(message, inlineKeyboard);
+  }
+};
 //show indicators
 export const showTickerIndicators = async (
   ctx,

@@ -5,6 +5,13 @@ import Ticker from "../models/Ticker.js";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { createHash } from "crypto";
+import {
+  createLimitOrder,
+  getLimitOrders,
+  cancelOrder,
+  getPositions,
+  closePosition,
+} from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -180,8 +187,61 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { price, side, tpPercent, slPercent } = req.body;
-    await Ticker.createLimitOrder(symbol, side, price, tpPercent, slPercent);
-    return res.json({ ok: "ok" });
+    const response = await createLimitOrder(
+      symbol,
+      side,
+      price,
+      tpPercent,
+      slPercent,
+    );
+    const getOrders = await getLimitOrders();
+    return res.json({ orderId: response.orderId, orders: getOrders.orders });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
+//get limit orders
+app.post("/order/list", protectPage, async (req, res) => {
+  try {
+    //const { symbol } = req.params;
+    const { cursor } = req.body;
+    const response = await getLimitOrders(cursor);
+    return res.json(response);
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
+//cancel order
+app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { orderId } = req.body;
+    await cancelOrder(symbol, orderId);
+    const response = await getLimitOrders();
+    return res.json(response);
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
+//get positions
+app.post("/position/list", protectPage, async (req, res) => {
+  try {
+    //const { symbol } = req.params;
+    const { cursor } = req.body;
+    const response = await getPositions(cursor);
+    return res.json(response);
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
+//cancel position
+app.post("/position/close/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { side, qty } = req.body;
+    await closePosition(symbol, side, qty);
+    const response = await getPositions();
+    return res.json(response);
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }

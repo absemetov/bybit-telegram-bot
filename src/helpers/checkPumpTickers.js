@@ -139,8 +139,9 @@ export const analyze = async (symbol, candles, config) => {
         if (priceNearValue <= priceNearConfig) {
           arrayNotify.push({
             name: "patternR",
+            price: lastCandle.close,
             text:
-              `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)} Price ${lastCandle.close}\n` +
+              `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)}\n` +
               `Candle ${lastCandle.localTime}`,
           });
         }
@@ -171,8 +172,9 @@ export const analyze = async (symbol, candles, config) => {
         if (priceNearValue <= priceNearConfig) {
           arrayNotify.push({
             name: "patternS",
+            price: lastCandle.close,
             text:
-              `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)} Price ${lastCandle.close}\n` +
+              `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)}\n` +
               `Candle ${lastCandle.localTime}`,
           });
         }
@@ -190,8 +192,9 @@ export const analyze = async (symbol, candles, config) => {
       if (rsiSignal.signalLong) {
         arrayNotify.push({
           name: "patternRSI_long",
+          price: candles[candles.length - 1].close,
           text:
-            `[RSI signalLong] Price ${candles[candles.length - 1].close}\n` +
+            `[RSI signalLong]\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
         });
@@ -199,8 +202,9 @@ export const analyze = async (symbol, candles, config) => {
       if (rsiSignal.signalShort) {
         arrayNotify.push({
           name: "patternRSI_short",
+          price: candles[candles.length - 1].close,
           text:
-            `[RSI signalShort] Price ${candles[candles.length - 1].close}\n` +
+            `[RSI signalShort]\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
         });
