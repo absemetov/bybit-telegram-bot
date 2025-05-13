@@ -34,6 +34,7 @@ class Router {
       intervalKline: intervalKline[data?.timeframe || "1h"],
       markerTime: +params?.time,
       markerPrice: params?.price,
+      markerSide: params?.side,
     };
     await App.renderChart();
   }
@@ -127,17 +128,9 @@ class Indicators {
       //marker
       ChartManager.state.markers.push({
         time: App.state.markerTime,
-        position:
-          ChartManager.state.candles[ChartManager.state.candles.length - 1]
-            .close > App.state.markerPrice
-            ? "aboveBar"
-            : "belowBar",
+        position: App.state.markerSide === "s" ? "belowBar" : "aboveBar",
         color: "black",
-        shape:
-          ChartManager.state.candles[ChartManager.state.candles.length - 1]
-            .close < App.state.markerPrice
-            ? "arrowUp"
-            : "arrowDown",
+        shape: App.state.markerSide === "s" ? "arrowUp" : "arrowDown",
         size: 2,
         //price: App.state.markerPrice,
         text: "Key",

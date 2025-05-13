@@ -48,23 +48,25 @@ exports.updatePumpCrypto = onDocumentWritten(
         const silent =
           !prevPrice ||
           Math.abs((currentPrice - prevPrice) / prevPrice) >= 0.03;
-        let nearCount = 0;
+        const nearCount = { S: 0, R: 0 };
         for (const timeframe of ["15min", "30min", "1h", "2h", "4h"]) {
           for (const side of ["S", "R"]) {
             const price = ticker[`price_pattern${side}_${timeframe}`];
             const difference = Math.abs((currentPrice - price) / price);
             //diff 1% levels
             const isNear = difference <= 0.01;
-            if (isNear) nearCount++; // Увеличиваем счетчик
+            if (isNear) nearCount[side]++; // Увеличиваем счетчик
           }
         }
+        const side = nearCount["S"] > nearCount["R"] ? "s" : "r";
         //levels near
-        if (nearCount >= 2 && silent) {
+        if ((nearCount["S"] >= 2 || nearCount["R"] >= 2) && silent) {
           // Then return a promise of a set operation to update the count
           //channel bybitLevels
           await bot.telegram.sendMessage(
             "-1002687531775",
-            `<b>🚨 ${symbol.slice(0, -4)} ${ticker["price"]}$ Approaching Key Zone 🚨</b>\n` +
+            `<b>🚨 ${symbol.slice(0, -4)} ${ticker["price"]}$ ${currentPrice > prevPrice ? "⬆️" : "⬇️"} ` +
+              `Approaching ${side === "s" ? "Support" : "Ressistance"} Zone 🚨</b>\n` +
               `Stay Alert for Potential Volatility!\n` +
               `Trade Smarter, Not Harder. #${symbol.slice(0, -4)}`,
             {
@@ -73,13 +75,13 @@ exports.updatePumpCrypto = onDocumentWritten(
                 [
                   Markup.button.url(
                     `Public site ${symbol}`,
-                    `https://bybit-telegram-bot.pages.dev/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}`,
+                    `https://bybit-telegram-bot.pages.dev/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}&side=${side}`,
                   ),
                 ],
                 [
                   Markup.button.url(
                     `Terminal ${symbol}`,
-                    `https://bybit.rzk.com.ru/chart/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}`,
+                    `https://bybit.rzk.com.ru/chart/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}&side=${side}`,
                   ),
                 ],
               ]),

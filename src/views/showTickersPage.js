@@ -73,6 +73,12 @@ export const showTickerPage = async (
     ],
     [
       Markup.button.callback(
+        `${ticker.alert ? "🔔" : "🔕"}`,
+        `edit-ticker/${symbol}/alert/${!ticker.alert}`,
+      ),
+    ],
+    [
+      Markup.button.callback(
         `📃 Edit message`,
         `edit-ticker/${symbol}/message`,
       ),

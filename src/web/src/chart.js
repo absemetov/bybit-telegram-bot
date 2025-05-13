@@ -455,17 +455,9 @@ class Order {
       //marker
       ChartManager.state.markers.push({
         time: App.state.markerTime,
-        position:
-          ChartManager.state.candles[ChartManager.state.candles.length - 1]
-            .close > App.state.markerPrice
-            ? "aboveBar"
-            : "belowBar",
+        position: App.state.markerSide === "s" ? "belowBar" : "aboveBar",
         color: "black",
-        shape:
-          ChartManager.state.candles[ChartManager.state.candles.length - 1]
-            .close < App.state.markerPrice
-            ? "arrowUp"
-            : "arrowDown",
+        shape: App.state.markerSide === "s" ? "arrowUp" : "arrowDown",
         size: 2,
         //price: App.state.markerPrice,
         text: "Key",
@@ -576,6 +568,7 @@ class Router {
       intervalKline: intervalKline[data.timeframe],
       markerTime: +params?.time,
       markerPrice: params?.price,
+      markerSide: params?.side,
     };
     App.setState(state);
     await App.renderChart();
@@ -1588,12 +1581,19 @@ class App {
     } else {
       //add loaded coin
       if (!this.state.coins.find((coin) => coin.symbol === this.state.symbol)) {
-        this.state.coins.unshift({
+        //TODO show only one coin!!!
+        const loadedCoin = {
           symbol: this.state.symbol,
           star: alertsDataJson.star,
           alert: alertsDataJson.alert,
           exists: alertsDataJson.exists,
-        });
+          loaded: true,
+        };
+        if (this.state.coins[0].loaded) {
+          this.state.coins[0] = loadedCoin;
+        } else {
+          this.state.coins.unshift(loadedCoin);
+        }
       } else {
         const symbol = this.state.symbol;
         this.state.coins = this.state.coins.map((coin) => {

@@ -196,6 +196,9 @@ class Ticker {
     if (fieldName === "star" && typeof fieldData !== "boolean") {
       fieldData = fieldData === "true";
     }
+    if (fieldName === "alert" && typeof fieldData !== "boolean") {
+      fieldData = fieldData === "true";
+    }
     const editTickerField = {
       [fieldName]: fieldData,
     };

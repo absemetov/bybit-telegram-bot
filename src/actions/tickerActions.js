@@ -124,6 +124,11 @@ export const editTicker = async (ctx, params) => {
     await showTicker(ctx, { symbol, clear: false, editMessageText: true });
     return;
   }
+  if (field === "alert") {
+    await Ticker.updateField(symbol, field, value);
+    await showTicker(ctx, { symbol, clear: false, editMessageText: true });
+    return;
+  }
   const session = new Session(ctx.from.id);
   session.sessionData.symbol = symbol;
   session.sessionData.scene = "editTicker";
