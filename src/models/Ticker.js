@@ -2,10 +2,11 @@ import { db } from "../firebase.js";
 import Joi from "joi";
 import {
   getCandles,
-  getLimitOrders,
-  getPositions,
+  getTickerOrders,
+  getTickerPositions,
+  getTicker,
+  getClosedPositionsHistory,
 } from "../helpers/bybitV5.js";
-import Scan from "../models/Scan.js";
 
 class Ticker {
   // constructor(symbol) {
@@ -14,11 +15,6 @@ class Ticker {
   // }
   static validate(ticker) {
     const schema = Joi.object({
-      //TODO Order by pcnt change!!!
-      //orderNumber: Joi.number().integer().min(0).required(),
-      //symbol: Joi.string().required(),
-      //TODO use paginate!!! for scaning
-      //chunkNumber: Joi.number().integer().min(0).required(),
       alerts: Joi.object({
         alert1: Joi.number().min(0).allow(null),
         alert2: Joi.number().min(0).allow(null),
@@ -46,35 +42,17 @@ class Ticker {
   }
   //create New ticker
   static async create(symbol) {
-    // const snapshotCount = await db.collection("crypto").count().get();
-    // const tickersCount = snapshotCount.data().count;
-    // if (tickersCount > 100) {
-    //   throw new Error("Tickers limit 100!");
-    // }
-    const kline = await getCandles(symbol, "1d", 1);
-    if (kline.length == 0) {
+    const ticker = await getTicker(symbol);
+    if (ticker.length == 0) {
       throw new Error(`Ticker ${symbol} not found in Bybit`);
     }
-    // validate
-    //const { close } = kline[0];
-    //set alert +/-5%
-    //create alerts
-    //await Ticker.createAlerts(symbol);
+    const priceScale = ticker.length ? +ticker[0].priceScale : 4;
     const newTickerData = {
-      // price24h: open,
-      // price24hPcnt: ((close - open) / open) * 100,
-      // lastPrice: close,
       alert: false,
       star: false,
+      priceScale,
     };
-    // const { error } = Ticker.validate(newTickerData);
-    // if (error) {
-    //   throw new Error(`Invalid ticker data: ${error.message}`);
-    // }
-    // lastPrice: Joi.number().min(0).allow(null),
-    // price24hPcnt
     await db.doc(`crypto/${symbol}`).set(newTickerData);
-    //return tickersCount + 1;
   }
   static async find(ticker, getDoc = false) {
     if (ticker) {
@@ -134,25 +112,16 @@ class Ticker {
     };
   }
   // get all alerts
-  static async getAlerts(symbol, timeframe) {
+  static async getAlerts(symbol) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
-    const config = await Scan.getConfig(timeframe);
-    const snapshotPumpMsg = await db
-      .collection("crypto-pump")
-      .doc(symbol)
-      .collection("message")
-      .orderBy("lastNotified", "desc")
-      .get();
-    let pumpMsg = [];
-    if (!snapshotPumpMsg.empty) {
-      pumpMsg = snapshotPumpMsg.docs.map((doc) => {
-        return { timeframe: doc.id, ...doc.data() };
-      });
-    }
+    //const config = await Scan.getConfig(timeframe);
+    //const pumpMsg = await this.getLevels(symbol);
     //get limit orders
-    const getOrders = await getLimitOrders("", 10, symbol);
-    const getAllpositions = await getPositions("", 10, symbol);
+    const orders = await getTickerOrders(symbol);
+    const positions = await getTickerPositions(symbol);
+    const closedPositions = await getClosedPositionsHistory(symbol);
+    console.log(closedPositions);
     return {
       alerts: alertsDoc.exists
         ? [
@@ -166,13 +135,10 @@ class Ticker {
           ]
         : [],
       exists: symbolDoc.exists,
-      star: symbolDoc.exists ? symbolDoc.data().star : null,
-      alert: symbolDoc.exists ? symbolDoc.data().alert : null,
-      message: symbolDoc.exists ? symbolDoc.data().message : null,
-      pumpMsg,
-      patternLevel: config?.patterns?.patternS || config?.patterns?.patternR,
-      orders: getOrders.orders,
-      positions: getAllpositions.positions,
+      ...(symbolDoc.exists ? symbolDoc.data() : {}),
+      orders,
+      positions,
+      closedPositions,
     };
   }
   //update alert
@@ -190,14 +156,10 @@ class Ticker {
   static async update(symbol, data) {
     await db.doc(`crypto/${symbol}`).update(data);
   }
-  //update field
+  //update field text
   static async updateField(symbol, fieldName, fieldData) {
-    //for bot
-    if (fieldName === "star" && typeof fieldData !== "boolean") {
-      fieldData = fieldData === "true";
-    }
-    if (fieldName === "alert" && typeof fieldData !== "boolean") {
-      fieldData = fieldData === "true";
+    if (fieldName === "patterns") {
+      fieldData = JSON.parse(fieldData);
     }
     const editTickerField = {
       [fieldName]: fieldData,
@@ -214,10 +176,6 @@ class Ticker {
     lastVisibleId = null,
     tab = "favorites",
   ) {
-    if (["15min", "30min", "1h", "2h", "4h", "1d"].includes(tab)) {
-      return await this.paginatePump(limit, direction, lastVisibleId, tab);
-    }
-    //.orderBy("price24hPcnt", order)
     const mainQuery =
       tab === "favorites"
         ? db.collection("crypto").where("star", "==", true)
@@ -267,18 +225,11 @@ class Ticker {
     return { tickers: [] };
   }
   //paginate Pump message
-  static async paginatePump(
-    limit,
-    direction = null,
-    lastVisibleId = null,
-    timeframe,
-  ) {
+  static async paginatePump(limit, direction = null, lastVisibleId = null) {
     //.orderBy("price24hPcnt", order)
-    const mainQuery = db
-      .collection("crypto-pump")
-      .orderBy(`lastNotified_${timeframe}`, "desc");
+    const mainQuery = db.collection("crypto").orderBy(`lastNotified`, "desc");
     let query = mainQuery;
-    const lastVisibleDoc = await db.doc(`crypto-pump/${lastVisibleId}`).get();
+    const lastVisibleDoc = await db.doc(`crypto/${lastVisibleId}`).get();
     if (direction && !lastVisibleDoc) {
       direction = null;
       //throw new Error("lastVisibleDoc is empty!");
@@ -324,12 +275,41 @@ class Ticker {
     return { tickers: [] };
   }
   //new update notify telegram
+  static async getAlertMessage(ticker) {
+    if (ticker) {
+      const alertDoc = await db
+        .doc(`crypto/${ticker}/message-alert/alert`)
+        .get();
+      if (alertDoc.exists) {
+        return { ...alertDoc.data() };
+      }
+    }
+    return {};
+  }
+  //get levels
+  static async getLevels(symbol) {
+    const snapshotPumpMsg = await db
+      .collection("crypto")
+      .doc(symbol)
+      .collection("message-levels")
+      .orderBy("lastNotified", "desc")
+      .get();
+    let levels = [];
+    if (!snapshotPumpMsg.empty) {
+      levels = snapshotPumpMsg.docs.map((doc) => {
+        return {
+          ...doc.data(),
+        };
+      });
+    }
+    return levels;
+  }
   static async sendNotifyAlert(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
       const { symbol, data } = ticker;
       if (symbol) {
-        batch.set(db.doc(`crypto/${symbol}/message/alert`), data, {
+        batch.set(db.doc(`crypto/${symbol}/message-alert/alert`), data, {
           merge: true,
         });
       }
@@ -337,40 +317,42 @@ class Ticker {
     await batch.commit();
   }
   //TODO make new pump collection
-  static async sendNotifyPump(batchArray) {
+  static async saveLevelsBatch(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
-      const { symbol, timeframe, arrayNotify, lastNotified } = ticker;
-      if (symbol) {
-        //notify user tg
-        const fieldForAnalytics = {};
-        for (const notify of arrayNotify) {
-          fieldForAnalytics[`price_${notify.name}_${timeframe}`] = notify.price;
-          fieldForAnalytics["price"] = notify.price;
-          batch.set(
-            db.doc(`crypto-pump/${symbol}/message/${timeframe}_${notify.name}`),
-            {
-              text: notify.text,
-              price: notify.price,
-              lastNotified,
-            },
-            {
-              merge: true,
-            },
-          );
-        }
-        //for ordering
+      const { symbol, timeframe, arrayNotify } = ticker;
+      for (const notify of arrayNotify) {
         batch.set(
-          db.doc(`crypto-pump/${symbol}`),
-          {
-            [`lastNotified_${timeframe}`]: lastNotified,
-            ...fieldForAnalytics,
-          },
-          { merge: true },
+          db.doc(`crypto/${symbol}/message-levels/${timeframe}_${notify.name}`),
+          notify,
         );
       }
     }
     await batch.commit();
+  }
+  static async saveLevelAlertBatch(batchArray) {
+    const batch = db.batch();
+    for (const ticker of batchArray) {
+      const { symbol, levelPrice, upPrice, side, lastNotified } = ticker;
+      batch.set(
+        db.doc(`crypto/${symbol}`),
+        {
+          levelPrice,
+          lastNotified,
+          upPrice,
+          side,
+        },
+        { merge: true },
+      );
+    }
+    await batch.commit();
+  }
+  //create Order
+  static async createOrder(symbol) {
+    await db.collection("crypto").doc(symbol).collection("orders").add({
+      name: "Tokyo",
+      country: "Japan",
+    });
   }
 }
 

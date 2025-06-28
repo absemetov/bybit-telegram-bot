@@ -11,6 +11,8 @@ import {
   cancelOrder,
   getPositions,
   closePosition,
+  editStopLoss,
+  editTakeProfit,
 } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -122,12 +124,12 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts, timeframe } = req.body;
+    const { defaultAlerts } = req.body;
     if (defaultAlerts) {
       //set default alerts
       await Ticker.createAlerts(symbol);
     }
-    const alerts = await Ticker.getAlerts(symbol, timeframe);
+    const alerts = await Ticker.getAlerts(symbol);
     return res.json(alerts);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -182,11 +184,12 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
 app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { price, side, tpPercent, slPercent } = req.body;
+    const { price, side, tpPercent, slPercent, MAX_POSITION } = req.body;
     const response = await createLimitOrder(
       symbol,
       side,
       price,
+      MAX_POSITION,
       tpPercent,
       slPercent,
     );
@@ -230,6 +233,23 @@ app.post("/position/list", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
+//edit position
+app.post("/position/edit/:field/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol, field } = req.params;
+    const { side, stopLoss, takeProfit } = req.body;
+    if (field === "sl") {
+      await editStopLoss(symbol, side, stopLoss);
+    }
+    if (field === "tp") {
+      await editTakeProfit(symbol, side, takeProfit);
+    }
+    const response = await getPositions();
+    return res.json(response);
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 //cancel position
 app.post("/position/close/:symbol", protectPage, async (req, res) => {
   try {
@@ -242,6 +262,7 @@ app.post("/position/close/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
+//run app
 app.listen(PORT, () => {
   console.log(`Bot-Web app listening on port ${PORT}`);
 });

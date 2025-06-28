@@ -97,3 +97,4 @@ CRON schedule
   }
 }
 
+handlebars src/web/views/client/history-positions.handlebars -f src/web/src/example.js

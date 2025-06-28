@@ -13,7 +13,8 @@ export const runTimeframeScan = async (timeframe, bot) => {
   let count = 0;
   let findTickers = 0;
   //bybit api tickers
-  if (timeframe === "1d") {
+  //algolia set "1d" for upload
+  if (timeframe === "====") {
     let cursor = null;
     //await configureAlgoliaIndex();
     do {
@@ -37,8 +38,8 @@ export const runTimeframeScan = async (timeframe, bot) => {
       lastVisible,
       "all",
     );
-    const symbols = tickers.map((c) => c.symbol);
-    const pumpTickers = await processBatch(symbols, config, timeframe);
+    //const symbols = tickers.map((c) => c.symbol);
+    const pumpTickers = await processBatch(tickers, config, timeframe);
     findTickers += pumpTickers;
     count += tickers.length;
     direction = hasNext ? "next" : null;
@@ -48,25 +49,9 @@ export const runTimeframeScan = async (timeframe, bot) => {
   } while (direction);
   //notify
   console.log(
-    `Completed ${timeframe} scan. Processed ${count} symbols. Found ${findTickers} pump tickers`,
+    `Completed ${timeframe} scan ${new Date()}. Processed ${count} symbols. Found ${findTickers} levels`,
   );
   if (config.notify) {
-    //channel notify
-    // await bot.telegram.sendMessage(
-    //   "-1001828677837",
-    //   `Completed ${timeframe} scan. Found ${findTickers} pump tickers. From ${count} symbols. Config: ${JSON.stringify(config)}`,
-    //   {
-    //     parse_mode: "HTML",
-    //     ...Markup.inlineKeyboard([
-    //       [
-    //         Markup.button.url(
-    //           `BTCUSDT/${timeframe}`,
-    //           `https://bybit.rzk.com.ru/chart/BTCUSDT/${timeframe}/message`,
-    //         ),
-    //       ],
-    //     ]),
-    //   },
-    // );
     //@absemetov
     await bot.telegram.sendMessage(
       94899148,
@@ -86,96 +71,97 @@ export const runTimeframeScan = async (timeframe, bot) => {
   }
 };
 // Обработка батча символов
-async function processBatch(symbols, config, timeframe) {
-  const tickerNotifyArray = [];
+async function processBatch(tickers, config, timeframe) {
+  const tickerLevelsArray = [];
   let count = 0;
-  for (const symbol of symbols) {
+  for (const ticker of tickers) {
     try {
+      const { symbol } = ticker;
       const candles = await getCandles(symbol, timeframe, 50);
       const arrayNotify = await analyze(symbol, candles, config, timeframe);
-      if (arrayNotify.length) {
+      //save batch
+      if (arrayNotify.length > 0) {
         count += 1;
-        tickerNotifyArray.push({
+        tickerLevelsArray.push({
           symbol,
           timeframe,
-          lastNotified: new Date(),
           arrayNotify,
         });
       }
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Пауза между символами
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1second pause
     } catch (error) {
-      console.error(`Error processing ${symbol}:`, error.message);
+      console.error(`Error processing ${ticker.symbol}:`, error.message);
     }
   }
-  await Ticker.sendNotifyPump(tickerNotifyArray, "pump");
+  await Ticker.saveLevelsBatch(tickerLevelsArray);
   return count;
 }
-export const analyze = async (symbol, candles, config) => {
+export const analyze = async (symbol, candles, config, timeframe) => {
   try {
     const arrayNotify = [];
-    //const analyzeCandles = CandlePatterns.analyze(candles);
+    const levelsPrice = await Ticker.getLevels(symbol);
+    const levelS = levelsPrice.filter((l) => l.name === "patternS");
+    const levelR = levelsPrice.filter((l) => l.name === "patternR");
+    const tolerancePercentNewLevel = 0.1;
     // level resistance
     if (config.patterns?.patternR) {
-      const {
-        candlesCount,
-        extrCount,
-        tolerancePercent,
-        touchCount,
-        pricePercent = 0.1,
-      } = config.patterns.patternR;
+      const { candlesCount, tolerancePercent, touchCount } =
+        config.patterns.patternR;
       const candlesSlice = candles.slice(-candlesCount);
       const lastCandle = candlesSlice[candlesSlice.length - 1];
       const levels = Indicators.calculateLevels(
         candlesSlice,
-        extrCount,
         tolerancePercent,
         touchCount,
       );
-      const priceNearConfig = pricePercent / 100;
       if (levels.resistance) {
-        const priceNearValue = Math.abs(
-          (levels.resistance - lastCandle.close) / lastCandle.close,
+        const prevPrice = levelR.find((l) => l.timeframe === timeframe)?.price;
+        const difPricePercent = Math.abs(
+          ((prevPrice - levels.resistance) / levels.resistance) * 100,
         );
-        if (priceNearValue <= priceNearConfig) {
+        if (!prevPrice || difPricePercent >= tolerancePercentNewLevel) {
           arrayNotify.push({
             name: "patternR",
-            price: lastCandle.close,
+            price: levels.resistance,
             text:
-              `[SHORT resistanceZone ${levels.resistance.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)}\n` +
+              `[SHORT resistanceZone ${levels.resistance.toFixed(5)}]` +
               `Candle ${lastCandle.localTime}`,
+            lastNotified: new Date(),
+            timeframe,
           });
         }
       }
     }
     //level support
     if (config.patterns?.patternS) {
-      const {
-        candlesCount,
-        extrCount,
-        tolerancePercent,
-        touchCount,
-        pricePercent = 0.1,
-      } = config.patterns.patternS;
+      const { candlesCount, tolerancePercent, touchCount } =
+        config.patterns.patternS;
       const candlesSlice = candles.slice(-candlesCount);
       const lastCandle = candlesSlice[candlesSlice.length - 1];
       const levels = Indicators.calculateLevels(
         candlesSlice,
-        extrCount,
         tolerancePercent,
         touchCount,
       );
-      const priceNearConfig = pricePercent / 100;
+      //const priceNearConfig = tolerancePercent / 100;
       if (levels.support) {
-        const priceNearValue = Math.abs(
-          (levels.support - lastCandle.close) / lastCandle.close,
+        // const priceNearValue = Math.abs(
+        //   (levels.support - lastCandle.close) / lastCandle.close,
+        // );
+        //if (priceNearValue <= priceNearConfig) {
+        const prevPrice = levelS.find((l) => l.timeframe === timeframe)?.price;
+        const difPricePercent = Math.abs(
+          ((prevPrice - levels.support) / levels.support) * 100,
         );
-        if (priceNearValue <= priceNearConfig) {
+        if (!prevPrice || difPricePercent >= tolerancePercentNewLevel) {
           arrayNotify.push({
             name: "patternS",
-            price: lastCandle.close,
+            price: levels.support,
             text:
-              `[LONG supportZone ${levels.support.toFixed(5)}], priceNearValue ${priceNearValue.toFixed(5)}\n` +
+              `[LONG supportZone ${levels.support.toFixed(5)}]` +
               `Candle ${lastCandle.localTime}`,
+            lastNotified: new Date(),
+            timeframe,
           });
         }
       }
@@ -197,6 +183,7 @@ export const analyze = async (symbol, candles, config) => {
             `[RSI signalLong]\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
+          lastNotified: new Date(),
         });
       }
       if (rsiSignal.signalShort) {
@@ -207,6 +194,7 @@ export const analyze = async (symbol, candles, config) => {
             `[RSI signalShort]\n` +
             `Candle ${candles[candles.length - 1].localTime}` +
             `${JSON.stringify(rsiSignal.details)}`,
+          lastNotified: new Date(),
         });
       }
     }

@@ -8,6 +8,9 @@ class Router {
     this.router
       .on({
         "/": async ({ data, params }) => await this.handleRoute(data, params),
+        "/:symbol": ({ data }) => {
+          this.router.navigate(`/${data.symbol}/1h`);
+        },
         "/:symbol/:timeframe": async ({ data, params }) =>
           await this.handleRoute(data, params),
       })
@@ -105,7 +108,7 @@ class Indicators {
       lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
-      title: `${(((supportV - resistance) / resistance) * 100).toFixed(2)}%`,
+      title: `${(((resistance - supportV) / supportV) * 100).toFixed(2)}%`,
     });
     //notify marker
     //first delete lines and markers
@@ -139,85 +142,117 @@ class Indicators {
     }
   }
   // RSI для всех свечей
-  static calculateRSI(closes, period = 14) {
-    if (closes.length < period + 1) return [];
-    const rsi = [];
-    let avgGain = 0;
-    let avgLoss = 0;
-    // Инициализация первых значений
+  static calculateRSI(candles, period = 14) {
+    if (candles.length < period + 1) return [];
+    const results = [];
+    let gains = 0;
+    let losses = 0;
+
+    // Рассчитываем начальные средние gain/loss
     for (let i = 1; i <= period; i++) {
-      const delta = closes[i] - closes[i - 1];
-      avgGain += Math.max(delta, 0);
-      avgLoss += Math.abs(Math.min(delta, 0));
+      const change = candles[i].close - candles[i - 1].close;
+      if (change >= 0) gains += change;
+      else losses -= change;
     }
 
-    avgGain /= period;
-    avgLoss /= period;
-    // Первое значение RSI
-    rsi.push(100 - 100 / (1 + (avgLoss === 0 ? Infinity : avgGain / avgLoss)));
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    let rsi = 100 - 100 / (1 + rs);
+    results.push({
+      time: candles[period].time,
+      value: rsi,
+    });
 
-    // Расчет последующих значений
-    for (let i = period + 1; i < closes.length; i++) {
-      const delta = closes[i] - closes[i - 1];
-      const gain = Math.max(delta, 0);
-      const loss = Math.abs(Math.min(delta, 0));
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
+    // Рассчитываем последующие значения RSI
+    for (let i = period + 1; i < candles.length; i++) {
+      const change = candles[i].close - candles[i - 1].close;
+      let currentGain = 0;
+      let currentLoss = 0;
 
-      const rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-      rsi.push(100 - 100 / (1 + rs));
+      if (change >= 0) currentGain = change;
+      else currentLoss = -change;
+
+      // Сглаживаем средние значения
+      avgGain = (avgGain * (period - 1) + currentGain) / period;
+      avgLoss = (avgLoss * (period - 1) + currentLoss) / period;
+
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      rsi = 100 - 100 / (1 + rs);
+      results.push({
+        time: candles[i].time,
+        value: rsi,
+      });
     }
 
-    return new Array(period).fill(null).concat(rsi);
+    return results;
   }
+  // Вспомогательная функция для расчета EMA
+  static calculateEMA(candles, period) {
+    const k = 2 / (period + 1);
+    const emaArray = [];
+    let ema =
+      candles
+        .slice(0, period)
+        .reduce(
+          (sum, item) => sum + (item.close ? item.close : item.value),
+          0,
+        ) / period;
 
+    emaArray.push({ time: candles[period - 1].time, value: ema });
+
+    for (let i = period; i < candles.length; i++) {
+      ema =
+        (candles[i].close ? candles[i].close : candles[i].value) * k +
+        ema * (1 - k);
+      emaArray.push({ time: candles[i].time, value: ema });
+    }
+
+    return emaArray;
+  }
   static calculateMACD(
-    closes,
-    fastPeriod = 12,
-    slowPeriod = 26,
+    candles,
+    shortPeriod = 12,
+    longPeriod = 26,
     signalPeriod = 9,
   ) {
-    const calculateEMA = (data, period) => {
-      if (data.length < period) return new Array(data.length).fill(null);
-      const ema = [];
-      // Инициализация SMA
-      let sma =
-        data.slice(0, period).reduce((sum, val) => sum + val, 0) / period;
-      ema.push(...new Array(period - 1).fill(null));
-      ema.push(sma);
-      // Расчет EMA
-      const k = 2 / (period + 1);
-      for (let i = period; i < data.length; i++) {
-        sma = data[i] * k + sma * (1 - k);
-        ema.push(sma);
+    // Рассчитываем EMA для короткого и длинного периодов
+    const shortEMA = Indicators.calculateEMA(candles, shortPeriod);
+    const longEMA = Indicators.calculateEMA(candles, longPeriod);
+
+    // Выравниваем массивы EMA по времени
+    const macdLine = [];
+    for (let i = 0; i < longEMA.length; i++) {
+      const longItem = longEMA[i];
+      const shortItem = shortEMA.find((s) => s.time === longItem.time);
+      if (shortItem) {
+        macdLine.push({
+          time: longItem.time,
+          value: shortItem.value - longItem.value,
+        });
       }
-      return ema;
+    }
+
+    // Рассчитываем сигнальную линию (EMA от MACD)
+    const signalLine = Indicators.calculateEMA(macdLine, signalPeriod);
+
+    // Создаем гистограмму с цветами
+    const histogram = [];
+    for (let i = 0; i < signalLine.length; i++) {
+      const macdItem = macdLine[i + signalPeriod - 1]; // Смещение для выравнивания
+      const diff = macdItem.value - signalLine[i].value;
+      histogram.push({
+        time: signalLine[i].time,
+        value: diff,
+        color: diff >= 0 ? "green" : "red",
+      });
+    }
+
+    return {
+      macdLine,
+      signalLine,
+      histogram,
     };
-
-    // Рассчитываем EMA
-    const emaFast = calculateEMA(closes, fastPeriod);
-    const emaSlow = calculateEMA(closes, slowPeriod);
-
-    // Рассчитываем MACD Line
-    const macdLine = emaFast.map((fast, i) => {
-      if (fast === null || emaSlow[i] === null) return null;
-      return fast - emaSlow[i];
-    });
-
-    // Рассчитываем Signal Line
-    const validMacdValues = macdLine.filter((v) => v !== null);
-    const signalLineEMA = calculateEMA(validMacdValues, signalPeriod);
-    const signalLine = new Array(macdLine.length - validMacdValues.length)
-      .fill(null)
-      .concat(signalLineEMA);
-
-    // Рассчитываем Histogram
-    const histogram = macdLine.map((macd, i) => {
-      if (macd === null || signalLine[i] === null) return null;
-      return macd - signalLine[i];
-    });
-
-    return { macd: macdLine, signal: signalLine, histogram };
   }
 }
 //LightweightCharts
@@ -253,7 +288,7 @@ class ChartManager {
       this.container,
       {
         //width: this.container.offsetWidth,
-        height: 800,
+        height: document.documentElement.scrollHeight - 80,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },
@@ -353,6 +388,33 @@ class ChartManager {
       },
       1,
     );
+    ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
+      window.LightweightCharts.LineSeries,
+      {
+        color: "blue",
+        lineWidth: 1,
+        priceLineVisible: false,
+      },
+      1,
+    );
+    ChartManager.state.rsiSeries.createPriceLine({
+      price: 30,
+      color: "green",
+      lineWidth: 2,
+      lineStyle: 4,
+    });
+    ChartManager.state.rsiSeries.createPriceLine({
+      price: 50,
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 4,
+    });
+    ChartManager.state.rsiSeries.createPriceLine({
+      price: 70,
+      color: "red",
+      lineWidth: 2,
+      lineStyle: 4,
+    });
     ChartManager.state.macdLineSeries = ChartManager.state.chart.addSeries(
       window.LightweightCharts.LineSeries,
       {
@@ -394,7 +456,9 @@ class ChartManager {
       },
       2,
     );
-    ChartManager.state.chart.panes()[0].setHeight(550);
+    ChartManager.state.chart
+      .panes()[0]
+      .setHeight(document.documentElement.scrollHeight - 300);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     //start WS
     this.initEventListeners();
@@ -601,46 +665,19 @@ class ChartManager {
       })),
     );
     // Рассчитываем и отображаем исторические индикаторы
-    const closes = history.map((c) => c.close);
-    if (closes.length > 14) {
-      const rsiData = Indicators.calculateRSI(closes);
-      ChartManager.state.rsiSeries.setData(
-        history.slice(14).map((c, i) => {
-          return {
-            time: c.time,
-            value: rsiData[i + 14],
-          };
-        }),
-      );
+    if (history.length > 14) {
+      const rsiData = Indicators.calculateRSI(history);
+      ChartManager.state.rsiSeries.setData(rsiData);
+      ChartManager.state.rsiEMA = Indicators.calculateEMA(rsiData, 10);
+      ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
     }
 
-    if (closes.length >= 35) {
-      const macdData = Indicators.calculateMACD(closes);
-      ChartManager.state.macdLineSeries.setData(
-        history.slice(34).map((c, i) => {
-          return {
-            time: c.time,
-            value: macdData.macd[i + 34],
-          };
-        }),
-      );
-      ChartManager.state.signalLineSeries.setData(
-        history.slice(34).map((c, i) => {
-          return {
-            time: c.time,
-            value: macdData.signal[i + 34],
-          };
-        }),
-      );
-      ChartManager.state.macdHistogramSeries.setData(
-        history.slice(34).map((c, i) => {
-          return {
-            time: c.time,
-            value: macdData.histogram[i + 34],
-            color: macdData.histogram[i + 34] >= 0 ? "#4CAF50" : "#EF5350",
-          };
-        }),
-      );
+    if (history.length >= 35) {
+      const macdData = Indicators.calculateMACD(history);
+      console.log(macdData);
+      ChartManager.state.macdLineSeries.setData(macdData.macdLine);
+      ChartManager.state.signalLineSeries.setData(macdData.signalLine);
+      ChartManager.state.macdHistogramSeries.setData(macdData.histogram);
     }
 
     //scroll chart
@@ -670,7 +707,6 @@ class ChartManager {
       ChartManager.state.candles[ChartManager.state.candles.length - 1] =
         newCandle;
     }
-    const closes = ChartManager.state.candles.map((c) => c.close);
     ChartManager.state.candlestickSeries.update(newCandle);
     ChartManager.state.volumeSeries.update({
       time: newCandle.time,
@@ -678,31 +714,25 @@ class ChartManager {
       color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
     });
     // Расчет и обновление RSI
-    if (closes.length > 14) {
-      const rsi = Indicators.calculateRSI(closes);
-      ChartManager.state.rsiSeries.update({
-        time: newCandle.time,
-        value: rsi[rsi.length - 1],
-      });
+    if (ChartManager.state.candles.length > 14) {
+      const rsi = Indicators.calculateRSI(ChartManager.state.candles);
+      ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
+      const rsiEma10 = Indicators.calculateEMA(rsi, 10);
+      ChartManager.state.rsiSeriesEMA.update(rsiEma10[rsiEma10.length - 1]);
     }
 
     // // Расчет и обновление MACD
-    if (closes.length > 35) {
-      const macd = Indicators.calculateMACD(closes);
-      const last = macd.macd.length - 1;
-      ChartManager.state.macdLineSeries.update({
-        time: newCandle.time,
-        value: macd.macd[last],
-      });
-      ChartManager.state.signalLineSeries.update({
-        time: newCandle.time,
-        value: macd.signal[last],
-      });
-      ChartManager.state.macdHistogramSeries.update({
-        time: newCandle.time,
-        value: macd.histogram[last],
-        color: macd.histogram[last] >= 0 ? "#4CAF50" : "#EF5350",
-      });
+    if (ChartManager.state.candles.length > 35) {
+      const macd = Indicators.calculateMACD(ChartManager.state.candles);
+      ChartManager.state.macdLineSeries.update(
+        macd.macdLine[macd.macdLine.length - 1],
+      );
+      ChartManager.state.signalLineSeries.update(
+        macd.signalLine[macd.signalLine.length - 1],
+      );
+      ChartManager.state.macdHistogramSeries.update(
+        macd.histogram[macd.histogram.length - 1],
+      );
     }
   }
   //cross events
@@ -748,7 +778,7 @@ class ChartManager {
         const resistance = ChartManager.state.linesSr[1].line.options().price;
         const support = ChartManager.state.linesSr[0].line.options().price;
         ChartManager.state.linesSr[0].line.applyOptions({
-          title: `${(((support - resistance) / resistance) * 100).toFixed(2)}%`,
+          title: `${(((resistance - support) / support) * 100).toFixed(2)}%`,
         });
         ChartManager.state.chart.applyOptions({
           handleScroll: false,

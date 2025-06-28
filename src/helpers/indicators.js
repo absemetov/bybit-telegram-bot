@@ -1,34 +1,32 @@
 class Indicators {
   //levels
-  static calculateLevels(
-    candles,
-    extrCount = 3,
-    tolerancePercent = 0.1,
-    touchCount = 3,
-  ) {
-    const tolerance = tolerancePercent / 100;
-    const highs = candles.map((c) => c.high).sort((a, b) => a - b);
+  static calculateLevels(candles, tolerancePercent = 0.4, touchCount = 3) {
+    const highs = candles.map((c) => c.high).sort((a, b) => b - a);
     const lows = candles.map((c) => c.low).sort((a, b) => a - b);
     // Рассчитываем уровень сопротивления
-    let resistance = null;
-    for (const high of highs.slice(-extrCount)) {
-      const threshold = high * (1 - tolerance);
-      const touches = candles.filter(
-        (c) => c.low <= threshold && threshold <= c.high,
+    let resistance = 0;
+    //highs.slice(0, 2)
+    for (const high of highs) {
+      const touchesHigh = candles.filter(
+        (candle) =>
+          (Math.abs(candle.high - high) / high) * 100 <= tolerancePercent,
       ).length;
-      if (touches >= touchCount) {
-        resistance = threshold;
+      if (touchesHigh >= touchCount) {
+        resistance = high;
+        break;
       }
     }
     // Рассчитываем уровень поддержки
-    let support = null;
-    for (const low of lows.slice(0, extrCount)) {
-      const threshold = low * (1 + tolerance);
-      const touches = candles.filter(
-        (c) => c.low <= threshold && threshold <= c.high,
+    let support = 0;
+    //lows.slice(0, 2)
+    for (const low of lows) {
+      const touchesLow = candles.filter(
+        (candle) =>
+          (Math.abs(candle.low - low) / low) * 100 <= tolerancePercent,
       ).length;
-      if (touches >= touchCount) {
-        support = threshold;
+      if (touchesLow >= touchCount) {
+        support = low;
+        break;
       }
     }
     return {
@@ -36,128 +34,167 @@ class Indicators {
       resistance,
     };
   }
-  // Паттерн MACD для лонга
-  static calculateMACDSignal(closes) {
-    const macdData = this.calculateMACD(closes);
-    // const macd = macdData.macd.slice(-3);
-    // const signal = macdData.signal.slice(-3);
-    const histogram = macdData.histogram.slice(-3);
-    // Получаем последние 3 значения для анализа
-    // 1. Основное условие: MACD пересекает сигнальную линию снизу вверх
-    //const crossover = macd[2] > signal[2] && macd[1] <= signal[1];
-    // 2. Гистограмма меняет направление
-    const histogramGrowth =
-      histogram[2] < 0 &&
-      (histogram[2] >= histogram[1] || histogram[1] >= histogram[0]);
-    // 3. Положение относительно нулевой линии
-    // const aboveZero = macd[2] > 0 && signal[2] > 0;
-    const zeroCross =
-      (histogram[2] > 0 && histogram[1] <= 0) ||
-      (histogram[1] > 0 && histogram[0] <= 0);
-    // Комбинированные условия
-    // const strongSignal =
-    //   crossover && histogramGrowth && (aboveZero || zeroCross);
-    // const weakSignal = crossover && !aboveZero;
+  // RSI для всех свечей
+  static calculateRSI(candles, period = 14) {
+    if (candles.length < period + 1) return [];
+    const results = [];
+    let gains = 0;
+    let losses = 0;
+
+    // Рассчитываем начальные средние gain/loss
+    for (let i = 1; i <= period; i++) {
+      const change = candles[i].close - candles[i - 1].close;
+      if (change >= 0) gains += change;
+      else losses -= change;
+    }
+
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    let rsi = 100 - 100 / (1 + rs);
+    results.push({
+      time: candles[period].time,
+      value: rsi,
+    });
+
+    // Рассчитываем последующие значения RSI
+    for (let i = period + 1; i < candles.length; i++) {
+      const change = candles[i].close - candles[i - 1].close;
+      let currentGain = 0;
+      let currentLoss = 0;
+
+      if (change >= 0) currentGain = change;
+      else currentLoss = -change;
+
+      // Сглаживаем средние значения
+      avgGain = (avgGain * (period - 1) + currentGain) / period;
+      avgLoss = (avgLoss * (period - 1) + currentLoss) / period;
+
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      rsi = 100 - 100 / (1 + rs);
+      results.push({
+        time: candles[i].time,
+        value: rsi,
+      });
+    }
+
+    return results;
+  }
+  // Вспомогательная функция для расчета EMA
+  static calculateEMA(candles, period = 10) {
+    const k = 2 / (period + 1);
+    const emaArray = [];
+    let ema =
+      candles
+        .slice(0, period)
+        .reduce(
+          (sum, item) => sum + (item.close ? item.close : item.value),
+          0,
+        ) / period;
+
+    emaArray.push({ time: candles[period - 1].time, value: ema });
+
+    for (let i = period; i < candles.length; i++) {
+      ema =
+        (candles[i].close ? candles[i].close : candles[i].value) * k +
+        ema * (1 - k);
+      emaArray.push({ time: candles[i].time, value: ema });
+    }
+
+    return emaArray;
+  }
+  static calculateMACD(
+    candles,
+    shortPeriod = 12,
+    longPeriod = 26,
+    signalPeriod = 9,
+  ) {
+    // Рассчитываем EMA для короткого и длинного периодов
+    const shortEMA = Indicators.calculateEMA(candles, shortPeriod);
+    const longEMA = Indicators.calculateEMA(candles, longPeriod);
+
+    // Выравниваем массивы EMA по времени
+    const macdLine = [];
+    for (let i = 0; i < longEMA.length; i++) {
+      const longItem = longEMA[i];
+      const shortItem = shortEMA.find((s) => s.time === longItem.time);
+      if (shortItem) {
+        macdLine.push({
+          time: longItem.time,
+          value: shortItem.value - longItem.value,
+        });
+      }
+    }
+
+    // Рассчитываем сигнальную линию (EMA от MACD)
+    const signalLine = Indicators.calculateEMA(macdLine, signalPeriod);
+
+    // Создаем гистограмму с цветами
+    const histogram = [];
+    for (let i = 0; i < signalLine.length; i++) {
+      const macdItem = macdLine[i + signalPeriod - 1]; // Смещение для выравнивания
+      const diff = macdItem.value - signalLine[i].value;
+      histogram.push({
+        time: signalLine[i].time,
+        value: diff,
+        color: diff >= 0 ? "green" : "red",
+      });
+    }
+
     return {
-      histogramGrowth,
-      zeroCross,
+      macdLine,
+      signalLine,
       histogram,
     };
   }
-
-  // Паттерн RSI для лонга
-  static calculateRSISignal(closes, longRSI = 35, shortRSI = 70) {
-    const rsi = this.calculateRSI(closes);
-    const last = rsi.length - 1;
-    return {
-      signalLong: rsi[last - 1] <= longRSI || rsi[last] <= longRSI,
-      signalShort: rsi[last - 1] >= shortRSI || rsi[last] >= shortRSI,
-      details: {
-        currentRSI: rsi[last],
-        previousRSI: rsi[last - 1],
-      },
-    };
-  }
-  // RSI для всех свечей
-  static calculateRSI(closes, period = 14) {
-    if (closes.length < period + 1) return [];
-    const rsi = [];
-    let avgGain = 0;
-    let avgLoss = 0;
-    // Инициализация первых значений
-    for (let i = 1; i <= period; i++) {
-      const delta = closes[i] - closes[i - 1];
-      avgGain += Math.max(delta, 0);
-      avgLoss += Math.abs(Math.min(delta, 0));
+  //check cross lines
+  static findIntersections(lineA, lineB) {
+    if (lineA.length !== lineB.length) {
+      console.error("Линии имеют разную длину");
+      return [];
     }
-
-    avgGain /= period;
-    avgLoss /= period;
-    // Первое значение RSI
-    rsi.push(100 - 100 / (1 + (avgLoss === 0 ? Infinity : avgGain / avgLoss)));
-
-    // Расчет последующих значений
-    for (let i = period + 1; i < closes.length; i++) {
-      const delta = closes[i] - closes[i - 1];
-      const gain = Math.max(delta, 0);
-      const loss = Math.abs(Math.min(delta, 0));
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
-
-      const rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-      rsi.push(100 - 100 / (1 + rs));
-    }
-
-    return new Array(period).fill(null).concat(rsi);
-  }
-
-  static calculateMACD(
-    closes,
-    fastPeriod = 12,
-    slowPeriod = 26,
-    signalPeriod = 9,
-  ) {
-    const calculateEMA = (data, period) => {
-      if (data.length < period) return new Array(data.length).fill(null);
-      const ema = [];
-      // Инициализация SMA
-      let sma =
-        data.slice(0, period).reduce((sum, val) => sum + val, 0) / period;
-      ema.push(...new Array(period - 1).fill(null));
-      ema.push(sma);
-      // Расчет EMA
-      const k = 2 / (period + 1);
-      for (let i = period; i < data.length; i++) {
-        sma = data[i] * k + sma * (1 - k);
-        ema.push(sma);
+    const intersections = [];
+    for (let i = 1; i < lineA.length; i++) {
+      // Проверка совпадения временных меток
+      if (
+        lineA[i].time !== lineB[i].time ||
+        lineA[i - 1].time !== lineB[i - 1].time
+      ) {
+        console.warn("Несовпадение временных меток в точке", i);
+        continue;
       }
-      return ema;
-    };
 
-    // Рассчитываем EMA
-    const emaFast = calculateEMA(closes, fastPeriod);
-    const emaSlow = calculateEMA(closes, slowPeriod);
-
-    // Рассчитываем MACD Line
-    const macdLine = emaFast.map((fast, i) => {
-      if (fast === null || emaSlow[i] === null) return null;
-      return fast - emaSlow[i];
-    });
-
-    // Рассчитываем Signal Line
-    const validMacdValues = macdLine.filter((v) => v !== null);
-    const signalLineEMA = calculateEMA(validMacdValues, signalPeriod);
-    const signalLine = new Array(macdLine.length - validMacdValues.length)
-      .fill(null)
-      .concat(signalLineEMA);
-
-    // Рассчитываем Histogram
-    const histogram = macdLine.map((macd, i) => {
-      if (macd === null || signalLine[i] === null) return null;
-      return macd - signalLine[i];
-    });
-
-    return { macd: macdLine, signal: signalLine, histogram };
+      // Текущая и предыдущая разница значений
+      const prevDiff = lineA[i - 1].value - lineB[i - 1].value;
+      const currDiff = lineA[i].value - lineB[i].value;
+      // Проверка смены знака (пересечение)
+      if (Math.sign(prevDiff) !== Math.sign(currDiff)) {
+        // Параметры для линейной интерполяции
+        const timeA = lineA[i].time;
+        const timeB = lineB[i].time;
+        console.log(timeA, timeB);
+        // const valueA1 = lineA[i - 1].value;
+        const valueA2 = lineA[i].value;
+        // const valueB1 = lineB[i - 1].value;
+        const valueB2 = lineB[i].value;
+        console.log(valueA2, valueB2);
+        // // Вычисление времени пересечения
+        // const denominator = valueA1 - valueA2 - (valueB1 - valueB2);
+        // if (Math.abs(denominator) < 1e-10) continue; // Защита от деления на 0
+        // const t = (valueB1 - valueA1) / denominator;
+        // const intersectionTime = timeA + t * (timeB - timeA);
+        // // Вычисление значения в точке пересечения
+        // const intersectionValue = valueA1 + t * (valueA2 - valueA1);
+        // Определение типа пересечения
+        const type = prevDiff > 0 ? "bearish" : "bullish";
+        intersections.push({
+          time: timeB,
+          value: valueB2,
+          type,
+        });
+      }
+    }
+    return intersections;
   }
 }
 

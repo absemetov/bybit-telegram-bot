@@ -55,35 +55,41 @@ export const showTickerPage = async (
   TickersPreviousPage,
   editMessageText = true,
 ) => {
-  const message = `${ticker.star ? "❤️" : ""} ${ticker.alert ? "🔔" : "🔕"} <b>${symbol}</b>\n${ticker.message || ""}`;
+  const message =
+    `${ticker.star ? "❤️" : "🖤"} ${ticker.alert ? "🔔" : "🔕"} <b>${symbol}</b>\n${ticker.message || ""}\n` +
+    `Patterns: <code>${ticker.patterns ? JSON.stringify(ticker.patterns) : "no"}</code>\n`;
   const buttons = [
-    [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
-    [Markup.button.callback("Indicators 1w", `indicators/${symbol}/1w`)],
-    [Markup.button.callback("Indicators 1d", `indicators/${symbol}/1d`)],
-    [Markup.button.callback("Indicators 4h", `indicators/${symbol}/4h`)],
-    [Markup.button.callback("Indicators 1h", `indicators/${symbol}/1h`)],
-    [Markup.button.callback("Indicators 30min", `indicators/${symbol}/30min`)],
-    [Markup.button.callback("Indicators 15min", `indicators/${symbol}/15min`)],
     [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
     [
       Markup.button.callback(
+        `${ticker.trading ? "🟢 Trading on" : "🔴 Trading off"}`,
+        `edit-ticker-bool/${symbol}/trading/${!ticker.trading}`,
+      ),
+    ],
+    [
+      Markup.button.callback(
+        `${ticker.openLong ? "↗️ Long side" : "↘️ Short side"}`,
+        `edit-ticker-bool/${symbol}/openLong/${!ticker.openLong}`,
+      ),
+    ],
+    [
+      Markup.button.callback(
         `${ticker.star ? "❤️ Favorites" : "Add to favorites"}`,
-        `edit-ticker/${symbol}/star/${!ticker.star}`,
+        `edit-ticker-bool/${symbol}/star/${!ticker.star}`,
       ),
     ],
     [
       Markup.button.callback(
         `${ticker.alert ? "🔔" : "🔕"}`,
-        `edit-ticker/${symbol}/alert/${!ticker.alert}`,
+        `edit-ticker-bool/${symbol}/alert/${!ticker.alert}`,
       ),
     ],
     [
       Markup.button.callback(
-        `📃 Edit message`,
-        `edit-ticker/${symbol}/message`,
+        `📃 Edit patterns`,
+        `edit-ticker/${symbol}/patterns`,
       ),
     ],
-    [Markup.button.callback(`🗑 Delete ${symbol}`, `delete-ticker/${symbol}`)],
     [
       Markup.button.url(
         `${symbol}`,
@@ -114,6 +120,7 @@ export const showTickerPage = async (
         `https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true`,
       ),
     ],
+    [Markup.button.callback(`🗑 Delete ${symbol}`, `delete-ticker/${symbol}`)],
   ];
   //render
   if (editMessageText) {
@@ -136,7 +143,7 @@ export const showTickersPage = async (
   edit = true,
   tab,
 ) => {
-  let message = `${tab ? `${tab} tickers` : "All tickers"} ${new Date().toLocaleString("ru-RU")}\n`;
+  let message = `${tab} tickers ${new Date().toLocaleString("ru-RU")}\n`;
   const keyboardArray = [];
   // upload btn deprecated!!!
   // keyboardArray.push([
@@ -145,7 +152,15 @@ export const showTickersPage = async (
   tickers?.forEach((ticker) => {
     keyboardArray.push([
       Markup.button.callback(
-        `${ticker.star ? "❤️" : ""} ${ticker.alert ? "🔔" : "🔕"} ${ticker.symbol}`,
+        `${ticker.trading ? "🟢" : "🔴"}${ticker.patterns ? "" : "No pattern"}`,
+        `edit-ticker-bool/${ticker.symbol}/trading/${!ticker.trading}/redirect`,
+      ),
+      Markup.button.callback(
+        `${ticker.openLong ? "↗️ Long" : "↘️ Short"}`,
+        `edit-ticker-bool/${ticker.symbol}/openLong/${!ticker.openLong}/redirect`,
+      ),
+      Markup.button.callback(
+        `${ticker.symbol}`,
         `show-ticker/${ticker.symbol}`,
       ),
     ]);

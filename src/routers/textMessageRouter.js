@@ -30,7 +30,7 @@ const textMessageRouter = (bot) => {
   });
   //show tickers
   bot.command("tickers", async (ctx) => {
-    await viewTickers(ctx, { edit: false });
+    await viewTickers(ctx, { edit: false, tab: "all" });
   });
   //star coins
   bot.command("favorites", async (ctx) => {

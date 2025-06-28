@@ -4,6 +4,7 @@ import {
   viewTickersPaginate,
   showTicker,
   editTicker,
+  editTickerBool,
   deleteTicker,
   tickerIndicators,
 } from "../actions/tickerActions.js";
@@ -15,7 +16,7 @@ import {
 const inlineButtonRouter = (ctx) => {
   const routes = new Router(ctx);
   // show coins
-  routes.action("show-tickers{/:tab}", async (ctx, params) => {
+  routes.action("show-tickers/:tab", async (ctx, params) => {
     await viewTickers(ctx, params);
   });
   // paginate coins
@@ -33,10 +34,16 @@ const inlineButtonRouter = (ctx) => {
   routes.action("indicators/:symbol/:interval", async (ctx, params) => {
     await tickerIndicators(ctx, params);
   });
-  // edit ticker
-  routes.action("edit-ticker/:symbol/:field{/:value}", async (ctx, params) => {
-    await editTicker(ctx, params);
-  });
+  // edit ticker text field
+  routes.action(
+    "edit-ticker/:symbol/:field{/:value}{/:redirect}",
+    async (ctx, params) => await editTicker(ctx, params),
+  );
+  // edit ticker boolean field
+  routes.action(
+    "edit-ticker-bool/:symbol/:field{/:value}{/:redirect}",
+    async (ctx, params) => await editTickerBool(ctx, params),
+  );
   // delete ticker
   routes.action("delete-ticker/:symbol", async (ctx, params) => {
     await deleteTicker(ctx, params);

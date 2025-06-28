@@ -10,12 +10,11 @@ import {
 } from "../views/showTickersPage.js";
 import { sleep } from "../helpers/helpers.js";
 import { analyzeCoin } from "../helpers/checkPumpTickers.js";
+import { match } from "path-to-regexp";
 //show all limit ordes
 export const getAllOrders = async (ctx, params = {}) => {
   const { cursor, symbol, edit = true } = params;
-  console.log(cursor, symbol);
   const { orders, nextPageCursor } = await getLimitOrders(cursor, 10, symbol);
-  console.log(orders, nextPageCursor);
   await showLimitOrders(ctx, orders, nextPageCursor, edit);
 };
 //TODO test technical indicators
@@ -61,10 +60,9 @@ export const uploadTickersAction = async () => {
 // index page
 export const viewTickers = async (ctx, params = {}) => {
   //text params
-  const { edit = true, tab = "" } = params;
+  const { edit = true, tab } = params;
   const session = new Session(ctx.from.id);
   session.sessionData.TickersPreviousPage = `show-tickers/${tab}`;
-  //session.sessionData.favorites = favorites === "true" || favorites === true;
   await session.save();
   const firstPageSnapshot = await Ticker.paginate(10, null, null, tab);
   await showTickersPage(
@@ -79,12 +77,13 @@ export const viewTickers = async (ctx, params = {}) => {
   );
 };
 // paginate Tickers
-export const viewTickersPaginate = async (ctx, params) => {
+export const viewTickersPaginate = async (ctx, params, update = true) => {
   const { direction, lastVisibleId, tab } = params;
-  const session = new Session(ctx.from.id);
-  session.sessionData.TickersPreviousPage = ctx.callbackQuery.data;
-  //session.sessionData.favorites = favorites === "true";
-  await session.save();
+  if (update) {
+    const session = new Session(ctx.from.id);
+    session.sessionData.TickersPreviousPage = ctx.callbackQuery.data;
+    await session.save();
+  }
   const tickersSnapshot = await Ticker.paginate(
     10,
     direction,
@@ -107,7 +106,7 @@ export const showTicker = async (ctx, params) => {
   const { symbol, clear, editMessageText } = params;
   const session = await Session.findById(ctx.from.id);
   const prevPage = clear
-    ? `show-tickers`
+    ? `show-tickers/all`
     : session.sessionData.TickersPreviousPage;
   const ticker = await Ticker.find(symbol);
   if (ticker) {
@@ -116,20 +115,31 @@ export const showTicker = async (ctx, params) => {
     ctx.replyWithHTML(`${symbol} not found. /tickers`);
   }
 };
-// show ticker info
+//edit ticker boolean data
+export const editTickerBool = async (ctx, params) => {
+  const { symbol, field, value, redirect } = params;
+  const session = await Session.findById(ctx.from.id);
+  const fieldData = value === "true";
+  await Ticker.updateField(symbol, field, fieldData);
+  if (redirect) {
+    const test1 = match("show-tickers/:tab");
+    const check1 = test1(session.sessionData.TickersPreviousPage);
+    if (check1) {
+      viewTickers(ctx, check1.params);
+    }
+    const test2 = match("show-tickers/:direction/:lastVisibleId/:tab");
+    const check2 = test2(session.sessionData.TickersPreviousPage);
+    if (check2) {
+      viewTickersPaginate(ctx, check2.params, false);
+    }
+  } else {
+    await showTicker(ctx, { symbol, clear: false, editMessageText: true });
+  }
+};
+// edit ticker text
 export const editTicker = async (ctx, params) => {
-  const { symbol, field, value } = params;
-  if (field === "star") {
-    await Ticker.updateField(symbol, field, value);
-    await showTicker(ctx, { symbol, clear: false, editMessageText: true });
-    return;
-  }
-  if (field === "alert") {
-    await Ticker.updateField(symbol, field, value);
-    await showTicker(ctx, { symbol, clear: false, editMessageText: true });
-    return;
-  }
-  const session = new Session(ctx.from.id);
+  const { symbol, field } = params;
+  const session = await Session.findById(ctx.from.id);
   session.sessionData.symbol = symbol;
   session.sessionData.scene = "editTicker";
   session.sessionData.field = field;

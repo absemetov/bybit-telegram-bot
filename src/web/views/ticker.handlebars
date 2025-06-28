@@ -1,112 +1,72 @@
-<div data-page="main" class="active-page">
-  <div class="row g-3">
-      <div class="col-lg-3 offcanvas-lg">
-        <div class="offcanvas-lg offcanvas-start" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Tickers</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasResponsive" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body flex-column">
-                <ul class="nav nav-pills mb-3">
-                  <li class="nav-item">
-                    <a class="nav-link tab-link active" data-tab="favorites" href="#">Fav</a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="all" href="#">All</a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="alerts" href="#">Alerts</a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link show-orders" href="#">Orders</a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link show-positions" href="#">Positions</a>
-                  </li>
-                </ul>
-                <ul class="nav nav-pills mb-3">
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="15min" href="#">15min</span></a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="30min" href="#">30min</span></a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="1h" href="#">1h</span></a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="2h" href="#">2h</span></a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="4h" href="#">4h</span></a>
-                  </li>
-                  <li class="nav-item">
-                    <a class="nav-link tab-link" data-tab="1d" href="#">1d</span></a>
-                  </li>
-                </ul>
-                <div class="coin-list"></div>
-            </div>
+<div class="row g-3">
+    <div class="col-lg-3 offcanvas-lg">
+      <div class="offcanvas-lg offcanvas-start" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
+          <div class="offcanvas-header">
+              <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Tickers</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasResponsive" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body flex-column">
+              <ul class="nav nav-pills mb-3">
+                <li class="nav-item">
+                  <a class="nav-link tab-link active" data-tab="favorites" href="#">❤️</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link tab-link" data-tab="alerts" href="#">🔔</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link tab-link" data-tab="all" href="#">🪙</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link show-orders" href="#">⌛️</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link show-positions" href="#">💰</a>
+                </li>
+              </ul>
+              <div class="coin-list"></div>
+          </div>
+      </div>
+    </div>
+    <div class="col-md-12 col-lg-9">
+        <div class="btn-group position-relative z-3" role="group" aria-label="Vertical button group">
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="15min">15min</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="30min">30min</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1h">1h</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="2h">2h</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="4h">4h</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1d">1d</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1w">1w</button>
+          <button type="button" class="btn level-move-btn btn-sm btn-light" data-key="ArrowLeft">⬅️L</button>
+          <button type="button" class="btn level-move-btn btn-sm btn-light" data-key="ArrowRight">R➡️</button>
         </div>
-      </div>
-      <div class="col-md-12 col-lg-9">
-          <div class="btn-group position-relative z-3 my-2" role="group" aria-label="Vertical button group">
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="15min">15min</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="30min">30min</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1h">1h</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="2h">2h</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="4h">4h</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1d">1d</button>
-            <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1w">1w</button>
+        <div class="position-absolute">
+          <div class="position-relative z-3">
+            <button type="button" class="btn panel-show-btn d-none" title="Hide info symbol">🔓</button>
           </div>
-          <div class="position-absolute">
-            <div class="position-relative z-3">
-              <button type="button" class="btn panel-show-btn d-none" title="Hide info symbol">🔓</button>
-            </div>
-          </div>
-          <div class="position-absolute panel-symbol">
-            <div class="position-relative z-3">
-              <div class="btn-group d-none" role="group">
-                <select class="form-select timeframe-select w-auto">
-                  <option value="1min">1min</option>
-                  <option value="5min">5min</option>
-                  <option value="15min">15min</option>
-                  <option value="30min">30min</option>
-                  <option value="1h" selected>1h</option>
-                  <option value="2h">2h</option>
-                  <option value="4h">4h</option>
-                  <option value="6h">6h</option>
-                  <option value="12h">12h</option>
-                  <option value="1d">1d</option>
-                  <option value="1w">1w</option>
-                  <option value="1m">1m</option>
-                </select>
-              </div>
-              <div class="btn-group" role="group" aria-label="Basic example">
-                <button type="button" class="btn btn-outline-light indicators-btn" title="Show levels">🚫</button>
-                <button type="button" class="btn btn-outline-light hide-msg-btn" title="Hide messages">🟰</button>
-                <button type="button" class="btn btn-outline-light hide-btn d-none" title="Hide Alerts">📝</button>
-                <button type="button" class="btn btn-outline-light reset-btn d-none" title="Default Alerts">🔃</button>
-                <button type="button" class="btn btn-outline-light info-btn" title="Indicators">ℹ️</button>
-                <button type="button" class="btn btn-sm btn-success long-btn" title="Hide info symbol">Long</button>  
-                <button type="button" class="btn btn-sm btn-danger short-btn" title="Hide info symbol">Short</button>  
-                <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
-              </div>
-            </div>
-            <div class="position-relative z-3 mt-2">
-              <span class="h4 display-symbol bg-success-subtle"></span>
-            </div>
-            <div class="position-relative z-2 mt-2">
-              <span id="messageSymbol" class="fw-bold bg-success-subtle"></span>
-            </div>
-            <div class="position-relative z-2 mt-2">
-              <span class="fw-bold bg-success-subtle mt-2" id="volumeEl">Volume</span>
-            </div>
-            <div class="position-relative z-2 mt-2">
-              <span class="fw-bold bg-success-subtle" id="candleEl">Candle</span>
+        </div>
+        <div class="position-absolute panel-symbol">
+          <div class="position-relative z-3">
+            <div class="btn-group" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-outline-light indicators-btn" title="Show levels">🟰</button>
+              <button type="button" class="btn btn-outline-light hide-btn d-none" title="Hide Alerts">📝</button>
+              <button type="button" class="btn btn-outline-light reset-btn d-none" title="Default Alerts">🔃</button>
+              <button type="button" class="btn btn-outline-light info-btn" title="Indicators">ℹ️</button>
+              <button type="button" class="btn btn-sm btn-success long-btn" title="Hide info symbol">Long</button>  
+              <button type="button" class="btn btn-sm btn-danger short-btn" title="Hide info symbol">Short</button>  
+              <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
             </div>
           </div>
-          <div class="chart-container" id="chart"></div>
-          <div class="message text-break"></div>
-      </div>
-  </div>
+          <div class="position-relative z-3 mt-2">
+            <span class="h4 display-symbol bg-success-subtle"></span>
+          </div>
+          <div class="position-relative z-2 mt-2">
+            <span class="fw-bold bg-success-subtle mt-2" id="volumeEl">Volume</span>
+          </div>
+          <div class="position-relative z-2 mt-2">
+            <span class="fw-bold bg-success-subtle" id="candleEl">Candle</span>
+          </div>
+        </div>
+        <div class="chart-container" id="chart"></div>
+        <div id="closed-positions-list"></div>
+    </div>
 </div>

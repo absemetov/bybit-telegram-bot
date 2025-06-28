@@ -1,0 +1,52 @@
+<div class="row">
+  <div class="col-12">
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Size</th>
+            <th>P&L</th>
+            <th>Entry Price</th>
+            <th>Exit Price</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="positions-body">
+          {{#each positions}}
+            <tr data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}" class="item-row">
+              <td>{{symbol}}</td>
+              <td>
+                <span class="badge {{#if (eq side 'Buy')}}bg-danger{{else}}bg-success{{/if}}">
+                  {{#if (eq side 'Buy')}}Short{{else}}Long{{/if}}
+                </span>
+              </td>
+              <td>
+                {{formatPrice cumExitValue}}$
+              </td>
+              <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice closedPnl}}$
+              </td>
+              <td>{{avgEntryPrice}}$</td>
+              <td>{{avgExitPrice}}$</td>
+              <td>{{formatDate updatedTime}}</td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="6" class="text-center">No positions found</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-12 text-center">
+    <button id="load-more" class="btn btn-primary" {{#unless cursor}}disabled{{/unless}}>
+      Load More Positions
+    </button>
+  </div>
+</div>

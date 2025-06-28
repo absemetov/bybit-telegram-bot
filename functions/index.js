@@ -25,7 +25,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 initializeApp();
 const db = getFirestore();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-
+//deprecated!
 exports.updatePumpCrypto = onDocumentWritten(
   {
     document: "crypto-pump/{symbol}",
@@ -44,31 +44,29 @@ exports.updatePumpCrypto = onDocumentWritten(
         //   timestampSeconds - ticker.lastNotified >= 15 * 60;
         const currentPrice = ticker[`price`];
         const prevPrice = ticker[`prevPrice`];
-        //if diff 3% then alert
+        //if diff 1% then alert
         const silent =
           !prevPrice ||
-          Math.abs((currentPrice - prevPrice) / prevPrice) >= 0.03;
+          Math.abs((currentPrice - prevPrice) / prevPrice) >= 0.01;
         const nearCount = { S: 0, R: 0 };
         for (const timeframe of ["15min", "30min", "1h", "2h", "4h"]) {
           for (const side of ["S", "R"]) {
             const price = ticker[`price_pattern${side}_${timeframe}`];
             const difference = Math.abs((currentPrice - price) / price);
-            //diff 1% levels
-            const isNear = difference <= 0.01;
-            if (isNear) nearCount[side]++; // Увеличиваем счетчик
+            //diff 0.25% levels
+            if (difference <= 0.0025) nearCount[side]++; // Увеличиваем счетчик
           }
         }
         const side = nearCount["S"] > nearCount["R"] ? "s" : "r";
         //levels near
-        if ((nearCount["S"] >= 2 || nearCount["R"] >= 2) && silent) {
+        if ((nearCount["S"] >= 3 || nearCount["R"] >= 3) && silent) {
           // Then return a promise of a set operation to update the count
           //channel bybitLevels
           await bot.telegram.sendMessage(
             "-1002687531775",
-            `<b>🚨 ${symbol.slice(0, -4)} ${ticker["price"]}$ ${currentPrice > prevPrice ? "⬆️" : "⬇️"} ` +
-              `Approaching ${side === "s" ? "Support" : "Ressistance"} Zone 🚨</b>\n` +
-              `Stay Alert for Potential Volatility!\n` +
-              `Trade Smarter, Not Harder. #${symbol.slice(0, -4)}`,
+            `<b><code>${symbol.slice(0, -4)}</code> ${currentPrice}$ ${currentPrice > prevPrice ? "⬆️" : "🔻"} ` +
+              `${side === "s" ? "Support" : "Ressistance"} ${new Date(timestampSeconds * 1000).toLocaleString("ru", { timeZone: "Europe/Moscow" })}</b>\n` +
+              `Trade Smarter, Not Harder. #${symbol.slice(0, -4)} $${symbol.slice(0, -4)}`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([
@@ -91,6 +89,9 @@ exports.updatePumpCrypto = onDocumentWritten(
           return event.data.after.ref.set(
             {
               prevPrice: currentPrice,
+              lastNotified: timestampSeconds,
+              upPrice: currentPrice > prevPrice ? "⬆️" : "🔻",
+              side: side === "s" ? "S" : "R",
             },
             {
               merge: true,
@@ -229,22 +230,119 @@ exports.updateCrypto = onDocumentWritten(
       const { symbol } = event.params;
       const ticker = event.data.after.exists ? event.data.after.data() : null;
       if (ticker) {
-        //update data
+        //update ticker data
+        //const previousMessageData = event.data.before.data();
+        //const timestampSeconds = Math.round(Date.now() / 1000);
+        // const silent15min =
+        //   !ticker.lastNotified ||
+        //   timestampSeconds - ticker.lastNotified >= 15 * 60;
+        //const currentPrice = ticker[`price`];
+        //const prevPrice = ticker[`prevPrice`];
+        //if diff 1% then alert
+        // const silent =
+        //   !prevPrice ||
+        //   Math.abs((currentPrice - prevPrice) / prevPrice) >= 0.01;
+        // const nearCount = { S: 0, R: 0 };
+        // for (const timeframe of ["15min", "30min", "1h", "2h", "4h"]) {
+        //   for (const side of ["S", "R"]) {
+        //     const price = ticker[`price_pattern${side}_${timeframe}`];
+        //     const difference = Math.abs((currentPrice - price) / price);
+        //     //diff 0.25% levels
+        //     if (difference <= 0.0025) nearCount[side]++; // Увеличиваем счетчик
+        //   }
+        // }
+        //const side = nearCount["S"] > nearCount["R"] ? "s" : "r";
+        //levels near
+        //if ((nearCount["S"] >= 3 || nearCount["R"] >= 3) && silent) {
+        // Then return a promise of a set operation to update the count
+        //channel bybitLevels
+        // await bot.telegram.sendMessage(
+        //   "-1002687531775",
+        //   `<b><code>${symbol.slice(0, -4)}</code> ${currentPrice}$ ${currentPrice > prevPrice ? "⬆️" : "🔻"} ` +
+        //     `${side === "s" ? "Support" : "Ressistance"} ${new Date(timestampSeconds * 1000).toLocaleString("ru", { timeZone: "Europe/Moscow" })}</b>\n` +
+        //     `Trade Smarter, Not Harder. #${symbol.slice(0, -4)}`,
+        //   {
+        //     parse_mode: "HTML",
+        //     ...Markup.inlineKeyboard([
+        //       [
+        //         Markup.button.url(
+        //           `Public site ${symbol}`,
+        //           `https://bybit-telegram-bot.pages.dev/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}&side=${side}`,
+        //         ),
+        //       ],
+        //       [
+        //         Markup.button.url(
+        //           `Terminal ${symbol}`,
+        //           `https://bybit.rzk.com.ru/chart/${symbol}/1h?price=${ticker["price"]}&time=${timestampSeconds}&side=${side}`,
+        //         ),
+        //       ],
+        //     ]),
+        //   },
+        // );
+        //set prev price
+        // return event.data.after.ref.set(
+        //   {
+        //     prevPrice: currentPrice,
+        //     lastNotified: timestampSeconds,
+        //     upPrice: currentPrice > prevPrice ? "⬆️" : "🔻",
+        //     side: side === "s" ? "S" : "R",
+        //   },
+        //   {
+        //     merge: true,
+        //   },
+        // );
+        //@absemetov
+        // await bot.telegram.sendMessage(
+        //   94899148,
+        //   `<b>${symbol.slice(0, -4)} #pattern${level} ${ticker["price"]}$, countCross ${countCross} 10min interval confirmed!</b> #${symbol.slice(0, -4)}\n/${symbol}`,
+        //   {
+        //     parse_mode: "HTML",
+        //     ...Markup.inlineKeyboard([
+        //       [
+        //         Markup.button.url(
+        //           symbol,
+        //           `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
+        //         ),
+        //       ],
+        //       [
+        //         Markup.button.url(
+        //           `📈 Tradingview chart: ${symbol}`,
+        //           `https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P&interval=D`,
+        //         ),
+        //       ],
+        //       [
+        //         Markup.button.url(
+        //           `📈 Coinglass chart: ${symbol}`,
+        //           `https://www.coinglass.com/tv/ru/Bybit_${symbol}`,
+        //         ),
+        //       ],
+        //       [
+        //         Markup.button.url(
+        //           `📟 Bybit: ${symbol}`,
+        //           `https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true`,
+        //         ),
+        //       ],
+        //       [Markup.button.callback(`🗑 Delete message`, "delete/msg")],
+        //     ]),
+        //   },
+        // );
+        //}
       } else {
+        //delete ticker
         await db.doc(`crypto/${symbol}/alerts/triggers`).delete();
-        await db.doc(`crypto/${symbol}/message/alert`).delete();
+        await db.doc(`crypto/${symbol}/message-alert/alert`).delete();
         //delete pump crypto-alerts
-        const snapshot = await db
-          .collection(`crypto-pump/${symbol}/message`)
-          .get();
-        if (!snapshot.empty) {
-          const batch = db.batch();
-          snapshot.docs.forEach((doc) => {
-            batch.delete(doc.ref);
-          });
-          await batch.commit();
-        }
-        await db.doc(`crypto-pump/${symbol}`).delete();
+        // const snapshot = await db
+        //   .collection(`crypto/${symbol}/message-levels`)
+        //   .get();
+        // if (!snapshot.empty) {
+        //   const batch = db.batch();
+        //   snapshot.docs.forEach((doc) => {
+        //     batch.delete(doc.ref);
+        //   });
+        //   await batch.commit();
+        // }
+        //await db.doc(`crypto/${symbol}`).delete();
       }
     } catch (error) {
       await bot.telegram.sendMessage(
