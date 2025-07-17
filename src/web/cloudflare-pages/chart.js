@@ -16,7 +16,7 @@ class Router {
       })
       .resolve();
   }
-  async handleRoute(data, params) {
+  async handleRoute(data) {
     const intervalKline = {
       "1min": "1",
       "5min": "5",
@@ -35,9 +35,6 @@ class Router {
       symbol: data?.symbol || "BTCUSDT",
       timeframe: data?.timeframe || "1h",
       intervalKline: intervalKline[data?.timeframe || "1h"],
-      markerTime: +params?.time,
-      markerPrice: params?.price,
-      markerSide: params?.side,
     };
     await App.renderChart();
   }
@@ -49,12 +46,36 @@ class Router {
 
 class Indicators {
   //levels
+  static state = {
+    countLoads: 0,
+  };
+  static findExtremeCandles(candles) {
+    if (candles.length === 0)
+      return { maxHighCandle: null, minLowCandle: null };
+
+    const initial = {
+      maxHighCandle: candles[0],
+      minLowCandle: candles[0],
+    };
+
+    return candles.reduce((acc, candle) => {
+      // Обновляем свечу с максимальным high
+      if (candle.high > acc.maxHighCandle.high) {
+        acc.maxHighCandle = candle;
+      }
+      // Обновляем свечу с минимальным low
+      if (candle.low < acc.minLowCandle.low) {
+        acc.minLowCandle = candle;
+      }
+      return acc;
+    }, initial);
+  }
+  //levels
   static calculateLevels(
     candles,
     candlesCount = 24,
-    extrCount = 3,
-    tolerancePercent = 0.05,
-    touchCount = 3,
+    tolerancePercent = 0.5,
+    touchCount = 5,
   ) {
     if (ChartManager.state.hideSr) {
       for (const alert of ChartManager.state.linesSr) {
@@ -65,81 +86,100 @@ class Indicators {
       }
       return;
     }
-    const tolerance = tolerancePercent / 100;
-    const candlesSlice = candles.slice(-candlesCount);
-    const highs = candlesSlice.map((c) => c.high).sort((a, b) => a - b);
-    const lows = candlesSlice.map((c) => c.low).sort((a, b) => a - b);
-    // Рассчитываем уровень сопротивления
-    let resistance = null;
-    for (const high of highs.slice(-extrCount)) {
-      const threshold = high * (1 - tolerance);
-      const touches = candlesSlice.filter(
-        (c) => c.low <= threshold && threshold <= c.high,
-      ).length;
-      if (touches >= touchCount) {
-        resistance = threshold;
-      }
+    //set markers
+    const step = 1;
+    const lastIndex = candles.length - step * this.state.countLoads; //not included!!!+1
+    const lastCandle = candles[lastIndex - 1];
+    const firstIndex =
+      candles.length - candlesCount - step * this.state.countLoads;
+    const firstCandle = candles[firstIndex];
+    if (!firstCandle) {
+      return;
     }
-    // Рассчитываем уровень поддержки
-    let support = null;
-    for (const low of lows.slice(0, extrCount)) {
-      const threshold = low * (1 + tolerance);
-      const touches = candlesSlice.filter(
-        (c) => c.low <= threshold && threshold <= c.high,
-      ).length;
-      if (touches >= touchCount) {
-        support = threshold;
-      }
-    }
-    //resistance line
-    ChartManager.state.linesSr[1].line.applyOptions({
-      price: resistance || highs[highs.length - 1],
-      color: resistance ? "red" : "black",
-      lineStyle: resistance ? 1 : 2,
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    resistance = resistance || highs[highs.length - 1];
-    //support line
-    const supportV = support || lows[0];
-    ChartManager.state.linesSr[0].line.applyOptions({
-      price: support || lows[0],
-      color: support ? "green" : "black",
-      lineStyle: support ? 1 : 2,
-      lineVisible: true,
-      axisLabelVisible: true,
-      title: `${(((resistance - supportV) / supportV) * 100).toFixed(2)}%`,
-    });
-    //notify marker
-    //first delete lines and markers
+    const candlesSlice = candles.slice(firstIndex, lastIndex);
+    const { maxHighCandle, minLowCandle } =
+      Indicators.findExtremeCandles(candlesSlice);
     ChartManager.state.markerSeries.setMarkers([]);
-    ChartManager.state.markers = [];
-    for (const messageLine of ChartManager.state.messages) {
-      ChartManager.state.candlestickSeries.removePriceLine(messageLine);
-    }
-    ChartManager.state.messages = [];
-    if (App.state.markerPrice && App.state.markerTime) {
-      ChartManager.state.messages.push(
-        ChartManager.state.candlestickSeries.createPriceLine({
-          price: App.state.markerPrice,
-          color: "black",
-          lineWidth: 2,
-          lineStyle: 1,
-          title: "Level",
-        }),
-      );
-      //marker
-      ChartManager.state.markers.push({
-        time: App.state.markerTime,
-        position: App.state.markerSide === "s" ? "belowBar" : "aboveBar",
-        color: "black",
-        shape: App.state.markerSide === "s" ? "arrowUp" : "arrowDown",
-        size: 2,
-        //price: App.state.markerPrice,
-        text: "Key",
-      });
-      ChartManager.state.markerSeries.setMarkers(ChartManager.state.markers);
-    }
+    ChartManager.state.markLevels = [];
+    // Рассчитываем уровень сопротивления
+    let resistance = 0;
+    let checkPercent = 0;
+    do {
+      const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
+      const touchesHigh = candlesSlice.filter(
+        (candle) => lineCross <= candle.high,
+      ).length;
+      if (touchesHigh >= touchCount) {
+        resistance = lineCross;
+        break;
+      }
+      checkPercent += 0.01;
+    } while (checkPercent < tolerancePercent * 5);
+    // Рассчитываем уровень поддержки
+    let support = 0;
+    checkPercent = 0;
+    do {
+      const lineCross = minLowCandle.low * (1 + checkPercent / 100);
+      const touchesLow = candlesSlice.filter(
+        (candle) => lineCross >= candle.low,
+      ).length;
+      if (touchesLow >= touchCount) {
+        support = lineCross;
+        break;
+      }
+      checkPercent += 0.01;
+    } while (checkPercent <= tolerancePercent * 5);
+    ChartManager.state.markLevels.push({
+      time: firstCandle.time,
+      position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+      //text: firstEma21.toFixed(App.state.priceScale),
+    });
+    ChartManager.state.markLevels.push({
+      time: lastCandle.time,
+      position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+    });
+    ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
+    ChartManager.state.markerRsi.setMarkers([]);
+    ChartManager.state.markRSI = [];
+    ChartManager.state.markRSI.push({
+      time: firstCandle.time,
+      position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
+    });
+    ChartManager.state.markRSI.push({
+      time: lastCandle.time,
+      position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}`,
+    });
+    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    //resistance line
+    const resistanceV = resistance || maxHighCandle.high;
+    ChartManager.state.linesSr[1].line.applyOptions({
+      price: resistanceV,
+      color: resistance ? "red" : "black",
+      //lineStyle: resistance ? 1 : 2,
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    //support line
+    const supportV = support || minLowCandle.low;
+    ChartManager.state.linesSr[0].line.applyOptions({
+      price: supportV,
+      color: support ? "green" : "black",
+      //lineStyle: support ? 1 : 2,
+      lineVisible: true,
+      axisLabelVisible: true,
+      title: `${(((resistanceV - supportV) / supportV) * 100).toFixed(2)}%`,
+    });
   }
   // RSI для всех свечей
   static calculateRSI(candles, period = 14) {
@@ -189,6 +229,7 @@ class Indicators {
   }
   // Вспомогательная функция для расчета EMA
   static calculateEMA(candles, period) {
+    if (candles.length < period + 1) return [];
     const k = 2 / (period + 1);
     const emaArray = [];
     let ema =
@@ -262,9 +303,9 @@ class ChartManager {
     candlestickSeries: null,
     volumeSeries: null,
     rsiSeries: null,
-    macdLineSeries: null,
-    signalLineSeries: null,
-    macdHistogramSeries: null,
+    // macdLineSeries: null,
+    // signalLineSeries: null,
+    // macdHistogramSeries: null,
     candles: [],
     hideSr: false,
     linesSr: [],
@@ -327,6 +368,25 @@ class ChartManager {
       },
       0,
     );
+    //ema 9 21
+    ChartManager.state.ema9Series = ChartManager.state.chart.addSeries(
+      window.LightweightCharts.LineSeries,
+      {
+        color: "#FF6D00",
+        lineWidth: 1.5,
+        priceLineVisible: false,
+      },
+      0,
+    );
+    ChartManager.state.ema21Series = ChartManager.state.chart.addSeries(
+      window.LightweightCharts.LineSeries,
+      {
+        color: "blue",
+        lineWidth: 1.5,
+        priceLineVisible: false,
+      },
+      0,
+    );
     //markers
     ChartManager.state.markerSeries =
       window.LightweightCharts.createSeriesMarkers(
@@ -346,7 +406,7 @@ class ChartManager {
         price: 1,
         color: "green",
         lineWidth: 2,
-        lineStyle: 2,
+        lineStyle: 3,
         title: "Long",
         lineVisible: false,
         axisLabelVisible: false,
@@ -358,7 +418,7 @@ class ChartManager {
         price: 1,
         color: "red",
         lineWidth: 2,
-        lineStyle: 2,
+        lineStyle: 3,
         title: "Short",
         lineVisible: false,
         axisLabelVisible: false,
@@ -388,6 +448,9 @@ class ChartManager {
       },
       1,
     );
+    ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
+      ChartManager.state.rsiSeries,
+    );
     ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
       window.LightweightCharts.LineSeries,
       {
@@ -402,64 +465,68 @@ class ChartManager {
       color: "green",
       lineWidth: 2,
       lineStyle: 4,
+      axisLabelVisible: false,
     });
     ChartManager.state.rsiSeries.createPriceLine({
       price: 50,
       color: "black",
       lineWidth: 2,
       lineStyle: 4,
+      axisLabelVisible: false,
     });
     ChartManager.state.rsiSeries.createPriceLine({
       price: 70,
       color: "red",
       lineWidth: 2,
       lineStyle: 4,
+      axisLabelVisible: false,
     });
-    ChartManager.state.macdLineSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "#2962FF",
-        lineWidth: 1,
-        priceLineVisible: false,
-        priceFormat: {
-          type: "price",
-          minMove: 0.00001,
-        },
-      },
-      2,
-    );
-    ChartManager.state.signalLineSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "#FF6D00",
-        lineWidth: 1,
-        priceLineVisible: false,
-        priceFormat: {
-          type: "price",
-          //precision: 5,
-          minMove: 0.00001,
-        },
-      },
-      2,
-    );
-    ChartManager.state.macdHistogramSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.HistogramSeries,
-      {
-        color: "rgba(76, 175, 80, 0.5)",
-        negativeColor: "rgba(255, 82, 82, 0.5)",
-        priceLineVisible: false,
-        priceFormat: {
-          type: "price",
-          //precision: 5,
-          minMove: 0.00001,
-        },
-      },
-      2,
-    );
+    // ChartManager.state.macdLineSeries = ChartManager.state.chart.addSeries(
+    //   window.LightweightCharts.LineSeries,
+    //   {
+    //     color: "#2962FF",
+    //     lineWidth: 1,
+    //     priceLineVisible: false,
+    //     priceFormat: {
+    //       type: "price",
+    //       minMove: 0.00001,
+    //     },
+    //   },
+    //   2,
+    // );
+    // ChartManager.state.signalLineSeries = ChartManager.state.chart.addSeries(
+    //   window.LightweightCharts.LineSeries,
+    //   {
+    //     color: "#FF6D00",
+    //     lineWidth: 1,
+    //     priceLineVisible: false,
+    //     priceFormat: {
+    //       type: "price",
+    //       //precision: 5,
+    //       minMove: 0.00001,
+    //     },
+    //   },
+    //   2,
+    // );
+    // ChartManager.state.macdHistogramSeries = ChartManager.state.chart.addSeries(
+    //   window.LightweightCharts.HistogramSeries,
+    //   {
+    //     color: "rgba(76, 175, 80, 0.5)",
+    //     negativeColor: "rgba(255, 82, 82, 0.5)",
+    //     priceLineVisible: false,
+    //     priceFormat: {
+    //       type: "price",
+    //       //precision: 5,
+    //       minMove: 0.00001,
+    //     },
+    //   },
+    //   2,
+    // );
     ChartManager.state.chart
       .panes()[0]
       .setHeight(document.documentElement.scrollHeight - 300);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
+    ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
     //start WS
     this.initEventListeners();
     this.initWebSocket();
@@ -498,8 +565,14 @@ class ChartManager {
     }
   }
   defaultAlerts() {
-    ChartManager.state.linesSr[0].line.applyOptions({ color: "green" });
-    ChartManager.state.linesSr[1].line.applyOptions({ color: "red" });
+    const supportColor = ChartManager.state.linesSr[0].line.options().color;
+    const resistanceColor = ChartManager.state.linesSr[1].line.options().color;
+    if (supportColor !== "black") {
+      ChartManager.state.linesSr[0].line.applyOptions({ color: "green" });
+    }
+    if (resistanceColor !== "black") {
+      ChartManager.state.linesSr[1].line.applyOptions({ color: "red" });
+    }
     App.chartManager.container.style.cursor = "default";
     ChartManager.state.chart.applyOptions({
       handleScroll: true,
@@ -582,9 +655,9 @@ class ChartManager {
       ChartManager.state.candlestickSeries.setData([]);
       ChartManager.state.volumeSeries.setData([]);
       ChartManager.state.rsiSeries.setData([]);
-      ChartManager.state.macdLineSeries.setData([]);
-      ChartManager.state.signalLineSeries.setData([]);
-      ChartManager.state.macdHistogramSeries.setData([]);
+      // ChartManager.state.macdLineSeries.setData([]);
+      // ChartManager.state.signalLineSeries.setData([]);
+      // ChartManager.state.macdHistogramSeries.setData([]);
       await this.updateData(formattedData);
       this.updateWebsocketSymbol();
     } catch (error) {
@@ -657,6 +730,10 @@ class ChartManager {
       autoScale: true,
     });
     ChartManager.state.candlestickSeries.setData(history);
+    ChartManager.state.emaData9 = Indicators.calculateEMA(history, 9);
+    ChartManager.state.ema9Series.setData(ChartManager.state.emaData9);
+    ChartManager.state.emaData21 = Indicators.calculateEMA(history, 21);
+    ChartManager.state.ema21Series.setData(ChartManager.state.emaData21);
     ChartManager.state.volumeSeries.setData(
       history.map((c) => ({
         time: c.time,
@@ -666,19 +743,21 @@ class ChartManager {
     );
     // Рассчитываем и отображаем исторические индикаторы
     if (history.length > 14) {
-      const rsiData = Indicators.calculateRSI(history);
-      ChartManager.state.rsiSeries.setData(rsiData);
-      ChartManager.state.rsiEMA = Indicators.calculateEMA(rsiData, 10);
+      ChartManager.state.rsi = Indicators.calculateRSI(history);
+      ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
+      ChartManager.state.rsiEMA = Indicators.calculateEMA(
+        ChartManager.state.rsi,
+        14,
+      );
       ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
     }
 
-    if (history.length >= 35) {
-      const macdData = Indicators.calculateMACD(history);
-      console.log(macdData);
-      ChartManager.state.macdLineSeries.setData(macdData.macdLine);
-      ChartManager.state.signalLineSeries.setData(macdData.signalLine);
-      ChartManager.state.macdHistogramSeries.setData(macdData.histogram);
-    }
+    // if (history.length >= 35) {
+    //   const macdData = Indicators.calculateMACD(history);
+    //   ChartManager.state.macdLineSeries.setData(macdData.macdLine);
+    //   ChartManager.state.signalLineSeries.setData(macdData.signalLine);
+    //   ChartManager.state.macdHistogramSeries.setData(macdData.histogram);
+    // }
 
     //scroll chart
     ChartManager.state.chart.timeScale().scrollToPosition(8); //fitContent();//scrollToPosition(5);
@@ -708,6 +787,10 @@ class ChartManager {
         newCandle;
     }
     ChartManager.state.candlestickSeries.update(newCandle);
+    const ema9 = Indicators.calculateEMA(ChartManager.state.candles, 9);
+    const ema21 = Indicators.calculateEMA(ChartManager.state.candles, 21);
+    ChartManager.state.ema9Series.update(ema9[ema9.length - 1]);
+    ChartManager.state.ema21Series.update(ema21[ema21.length - 1]);
     ChartManager.state.volumeSeries.update({
       time: newCandle.time,
       value: newCandle.volume,
@@ -722,18 +805,27 @@ class ChartManager {
     }
 
     // // Расчет и обновление MACD
-    if (ChartManager.state.candles.length > 35) {
-      const macd = Indicators.calculateMACD(ChartManager.state.candles);
-      ChartManager.state.macdLineSeries.update(
-        macd.macdLine[macd.macdLine.length - 1],
-      );
-      ChartManager.state.signalLineSeries.update(
-        macd.signalLine[macd.signalLine.length - 1],
-      );
-      ChartManager.state.macdHistogramSeries.update(
-        macd.histogram[macd.histogram.length - 1],
-      );
-    }
+    // if (ChartManager.state.candles.length > 35) {
+    //   const macd = Indicators.calculateMACD(ChartManager.state.candles);
+    //   ChartManager.state.macdLineSeries.update(
+    //     macd.macdLine[macd.macdLine.length - 1],
+    //   );
+    //   ChartManager.state.signalLineSeries.update(
+    //     macd.signalLine[macd.signalLine.length - 1],
+    //   );
+    //   ChartManager.state.macdHistogramSeries.update(
+    //     macd.histogram[macd.histogram.length - 1],
+    //   );
+    // }
+  }
+  //dbl clicks
+  handleDblClick() {
+    ChartManager.state.ema9Series.applyOptions({
+      visible: !ChartManager.state.ema9Series.options().visible,
+    });
+    ChartManager.state.ema21Series.applyOptions({
+      visible: !ChartManager.state.ema21Series.options().visible,
+    });
   }
   //cross events
   handleCrosshairMove(param) {
@@ -911,7 +1003,42 @@ class App {
   static async renderChart() {
     await this.chartManager.loadChartData();
   }
+  // Функция для обработки нажатий клавиш
+  static handleKeyPress(event) {
+    // Проверяем, какая клавиша была нажата
+    switch (event.key) {
+      case "ArrowLeft":
+        // Действие при нажатии ←
+        ++Indicators.state.countLoads;
+        ChartManager.state.chart
+          .timeScale()
+          .scrollToPosition(-Indicators.state.countLoads + 10);
+        // Здесь можно добавить свою логику
+        break;
+      case "ArrowRight":
+        // Действие при нажатии →
+        if (Indicators.state.countLoads) {
+          --Indicators.state.countLoads;
+        }
+        ChartManager.state.chart
+          .timeScale()
+          .scrollToPosition(-Indicators.state.countLoads + 10);
+        // Здесь можно добавить свою логику
+        break;
+    }
+    Indicators.calculateLevels(ChartManager.state.candles);
+  }
   static initEventListeners() {
+    //arrows btn
+    // Добавляем слушатель события нажатия клавиш
+    document.addEventListener("keydown", this.handleKeyPress);
+    //move level
+    document.querySelectorAll(".level-move-btn").forEach((btn) => {
+      btn.addEventListener("click", async (event) => {
+        const { key } = event.target.dataset;
+        App.handleKeyPress({ key });
+      });
+    });
     //short tf
     document.querySelectorAll(".tf-btn").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
@@ -951,15 +1078,16 @@ class App {
       modalTitle.textContent = `Ticker ${symbol}`;
       modalBody.innerHTML = `
       <ul class="list-group">
+        <li class="list-group-item">EMA9 EMA21 RSI14/RSI-EMA14</li>
+        <li class="list-group-item">Level 24 candles 0.5 perc 5 touches</li>
         <li class="list-group-item">turnover24h ${(+ticker.turnover24h).toLocaleString("ru-Ru")}</li>
         <li class="list-group-item">volume24h ${(+ticker.volume24h).toLocaleString("ru-Ru")}</li>
       </ul>
       <div class="list-group">
-        <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/chart/8qtrvOgg/?symbol=BYBIT:${symbol}.P" target="_blank">📈 Tradingview chart</a>
+        <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P" target="_blank">📈 Tradingview chart</a>
         <a class="list-group-item list-group-item-action" href="https://www.coinglass.com/tv/ru/Bybit_${symbol}" target="_blank">📈 Coinglass chart</a>
         <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/symbols/${symbol}/ideas/" target="_blank">🔭 TV Idea</a>
         <a class="list-group-item list-group-item-action" href="https://bybit.onelink.me/EhY6?af_web_dp=https://www.bybit.com/trade/usdt/${symbol}&af_xp=custom&pid=tradegpt&c=tele_share&af_dp=bybitapp://open/home?tab=2&symbol=${symbol}&page=chart&type=usdt&&source=GPT&orderType=Limit&af_force_deeplink=true" target="_blank">📟 Bybit</a>
-        <a class="list-group-item list-group-item-action" href="https://t.me/WarsawDevBot?start=${symbol}" target="_blank">@Bot</a>
       </div>`;
     });
   }

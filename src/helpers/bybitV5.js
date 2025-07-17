@@ -5,6 +5,61 @@ const bybitClient = new RestClientV5({
   key: process.env.BYBIT_API_KEY,
   secret: process.env.BYBIT_API_SECRET,
 });
+//convert 30min candles to 1h
+const timeframeConfig = {
+  "1h": {
+    intervalMs: 3600000, // 1 час в миллисекундах
+    startOffsetUtcMs: 21 * 3600000, // Начало периода в UTC (21:00 UTC = 00:00 МСК)
+    description: "1-часовые свечи (00:00, 01:00... МСК)",
+    timezone: "Europe/Moscow",
+  },
+  "2h": {
+    intervalMs: 7200000, // 2 часа в миллисекундах
+    startOffsetUtcMs: 22 * 3600000, // Начало периода в UTC (22:00 UTC = 01:00 МСК)
+    description: "2-часовые свечи (01:00, 03:00... МСК)",
+    timezone: "Europe/Moscow",
+  },
+  "4h": {
+    intervalMs: 14400000, // 4 часа в миллисекундах
+    startOffsetUtcMs: 0, // Начало периода в UTC (00:00 UTC = 03:00 МСК)
+    description: "4-часовые свечи (03:00, 07:00... МСК)",
+    timezone: "Europe/Moscow",
+  },
+};
+
+export const convertCandles = (candles, timeframe) => {
+  const { intervalMs, startOffsetUtcMs } = timeframeConfig[timeframe];
+  const groups = new Map();
+
+  for (const candle of candles) {
+    // Вычисляем начало группы в UTC
+    const time = candle.time;
+    const diff = time - startOffsetUtcMs;
+    const groupTime =
+      startOffsetUtcMs + Math.floor(diff / intervalMs) * intervalMs;
+    // Пропускаем группы до начального смещения
+    if (groupTime < startOffsetUtcMs) continue;
+    // Добавляем свечу в группу
+    if (!groups.has(groupTime)) groups.set(groupTime, []);
+    groups.get(groupTime).push(candle);
+  }
+
+  // Формируем свечи старшего ТФ
+  return Array.from(groups.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, group]) => {
+      group.sort((a, b) => a.time - b.time);
+      return {
+        time,
+        open: group[0].open,
+        high: Math.max(...group.map((c) => c.high)),
+        low: Math.min(...group.map((c) => c.low)),
+        close: group[group.length - 1].close,
+        volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
+      };
+    });
+};
+
 // get closed positions history
 export const getClosedPositionsHistory = async (symbol, cursor) => {
   const params = {
@@ -201,7 +256,7 @@ export const getLimitOrders = async (cursor, limit = 10) => {
     }));
   return { orders, nextPageCursor: response.result.nextPageCursor };
 };
-//create order
+//create or edit order
 export const createLimitOrder = async (
   symbol,
   side,
@@ -209,14 +264,15 @@ export const createLimitOrder = async (
   MAX_POSITION,
   tpPercent,
   slPercent,
+  orderId,
 ) => {
   try {
     // 1. Получаем текущую рыночную цену
-    // const ticker = await bybitClient.getTickers({
-    //   category: "linear",
-    //   symbol,
-    // });
-    //const lastPrice = parseFloat(ticker.result.list[0].lastPrice);
+    const ticker = await bybitClient.getTickers({
+      category: "linear",
+      symbol,
+    });
+    const currentPrice = parseFloat(ticker.result.list[0].lastPrice);
     // 2. Проверяем логику цены
     // if (side === "Buy" && price >= lastPrice) {
     //   throw new Error(
@@ -275,8 +331,8 @@ export const createLimitOrder = async (
     };
     const triggerPrice =
       side === "Buy"
-        ? formatPrice(price * (1 + 0.002))
-        : formatPrice(price * (1 - 0.002));
+        ? formatPrice(price * (1 + 0.0015))
+        : formatPrice(price * (1 - 0.0015));
     const entryPrice =
       side === "Buy"
         ? formatPrice(triggerPrice * (1 + 0.001))
@@ -289,24 +345,47 @@ export const createLimitOrder = async (
       side === "Sell"
         ? formatPrice(entryPrice * (1 + slPercent / 100))
         : formatPrice(entryPrice * (1 - slPercent / 100));
-    const response = await bybitClient.submitOrder({
-      category: "linear",
-      symbol,
-      side,
-      orderType: "Limit",
-      qty: formattedQty,
-      triggerPrice,
-      price: entryPrice,
-      takeProfit,
-      stopLoss,
-      triggerDirection: side === "Sell" ? 2 : 1,
-      timeInForce: "GTC",
-      positionIdx: side === "Sell" ? 2 : 1,
-    });
-    if (response.retCode !== 0) {
-      throw new Error(`Order create Error: ${response.retMsg}`);
+    //edit order
+    if (orderId) {
+      const params = {
+        category: "linear",
+        symbol,
+        orderId,
+        price: entryPrice,
+        triggerPrice,
+        takeProfit,
+        stopLoss,
+        qty: formattedQty,
+      };
+
+      const response = await bybitClient.amendOrder(params);
+      if (response.retCode === 0) {
+        console.log("Ордер успешно изменен:", response.result);
+        return response.result;
+      } else {
+        throw new Error(`Ошибка ${response.retCode}: ${response.retMsg}`);
+      }
+    } else {
+      const response = await bybitClient.submitOrder({
+        category: "linear",
+        symbol,
+        side,
+        orderType: "Limit",
+        qty: formattedQty,
+        triggerPrice,
+        price: entryPrice,
+        takeProfit,
+        stopLoss,
+        //triggerDirection: side === "Sell" ? 2 : 1,
+        triggerDirection: triggerPrice > currentPrice ? 1 : 2,
+        timeInForce: "GTC",
+        positionIdx: side === "Sell" ? 2 : 1,
+      });
+      if (response.retCode !== 0) {
+        throw new Error(`Order create Error: ${response.retMsg}`);
+      }
+      return { orderId: response.result.orderId };
     }
-    return { orderId: response.result.orderId };
   } catch (error) {
     throw new Error(
       `${symbol} ${side} Order creation failed: ${error.message}`,

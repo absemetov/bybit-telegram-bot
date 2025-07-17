@@ -16,10 +16,14 @@ export const showScanEditPage = async (ctx, params) => {
 };
 // edit scan settings fields
 export const editScanField = async (ctx, params) => {
-  const { interval, field, value } = params;
+  const { interval, field, value, redirect } = params;
   if (field === "active" || field === "notify") {
     await Scan.updateField(interval, field, value);
-    await showScanEditPage(ctx, { interval });
+    if (redirect) {
+      await showAllScans(ctx, true);
+    } else {
+      await showScanEditPage(ctx, { interval });
+    }
     return;
   }
   const session = new Session(ctx.from.id);

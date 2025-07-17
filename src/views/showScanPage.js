@@ -6,7 +6,11 @@ export const viewScans = async (ctx, intervals, edit = false) => {
   for (const interval of intervals) {
     buttons.push([
       Markup.button.callback(
-        `${interval.active ? "🟢" : "🔴"} ${interval.notify ? "🔔" : "🔕"} ${interval.id} (${interval.schedule || "-"})`,
+        `${interval.active ? "🟢" : "🔴"}`,
+        `cron/${interval.id}/edit/active/${!interval.active}/redirect`,
+      ),
+      Markup.button.callback(
+        `${interval.notify ? "🔔" : "🔕"} ${interval.id} (${interval.schedule || "-"})`,
         `cron/${interval.id}`,
       ),
     ]);

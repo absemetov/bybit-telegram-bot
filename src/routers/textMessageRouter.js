@@ -32,6 +32,10 @@ const textMessageRouter = (bot) => {
   bot.command("tickers", async (ctx) => {
     await viewTickers(ctx, { edit: false, tab: "all" });
   });
+  //trading coins
+  bot.command("trading", async (ctx) => {
+    await viewTickers(ctx, { edit: false, tab: "trading" });
+  });
   //star coins
   bot.command("favorites", async (ctx) => {
     await viewTickers(ctx, { edit: false, tab: "favorites" });

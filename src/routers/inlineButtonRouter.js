@@ -6,7 +6,6 @@ import {
   editTicker,
   editTickerBool,
   deleteTicker,
-  tickerIndicators,
 } from "../actions/tickerActions.js";
 import {
   showAllScans,
@@ -29,10 +28,6 @@ const inlineButtonRouter = (ctx) => {
   // show coin page
   routes.action("show-ticker/:symbol{/:clear}", async (ctx, params) => {
     await showTicker(ctx, params);
-  });
-  //technicalindicators
-  routes.action("indicators/:symbol/:interval", async (ctx, params) => {
-    await tickerIndicators(ctx, params);
   });
   // edit ticker text field
   routes.action(
@@ -59,9 +54,12 @@ const inlineButtonRouter = (ctx) => {
   routes.action("cron/:interval", async (ctx, params) => {
     await showScanEditPage(ctx, params);
   });
-  routes.action("cron/:interval/edit/:field{/:value}", async (ctx, params) => {
-    await editScanField(ctx, params);
-  });
+  routes.action(
+    "cron/:interval/edit/:field{/:value}{/:redirect}",
+    async (ctx, params) => {
+      await editScanField(ctx, params);
+    },
+  );
 };
 
 export default inlineButtonRouter;

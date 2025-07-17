@@ -55,9 +55,7 @@ export const showTickerPage = async (
   TickersPreviousPage,
   editMessageText = true,
 ) => {
-  const message =
-    `${ticker.star ? "❤️" : "🖤"} ${ticker.alert ? "🔔" : "🔕"} <b>${symbol}</b>\n${ticker.message || ""}\n` +
-    `Patterns: <code>${ticker.patterns ? JSON.stringify(ticker.patterns) : "no"}</code>\n`;
+  const message = `${ticker.star ? "❤️" : "🖤"} ${ticker.alert ? "🔔" : "🔕"} <code>${symbol}</code> #${symbol}`;
   const buttons = [
     [Markup.button.callback("⤴️ <Back", TickersPreviousPage)],
     [
@@ -82,12 +80,6 @@ export const showTickerPage = async (
       Markup.button.callback(
         `${ticker.alert ? "🔔" : "🔕"}`,
         `edit-ticker-bool/${symbol}/alert/${!ticker.alert}`,
-      ),
-    ],
-    [
-      Markup.button.callback(
-        `📃 Edit patterns`,
-        `edit-ticker/${symbol}/patterns`,
       ),
     ],
     [
@@ -152,7 +144,7 @@ export const showTickersPage = async (
   tickers?.forEach((ticker) => {
     keyboardArray.push([
       Markup.button.callback(
-        `${ticker.trading ? "🟢" : "🔴"}${ticker.patterns ? "" : "No pattern"}`,
+        `${ticker.trading ? "🟢" : "🔴"}`,
         `edit-ticker-bool/${ticker.symbol}/trading/${!ticker.trading}/redirect`,
       ),
       Markup.button.callback(

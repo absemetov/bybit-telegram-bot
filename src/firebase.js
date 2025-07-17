@@ -1,5 +1,5 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 if (!getApps().length) {
   initializeApp({
@@ -10,4 +10,4 @@ if (!getApps().length) {
 }
 const db = getFirestore();
 
-export { db };
+export { db, FieldValue };

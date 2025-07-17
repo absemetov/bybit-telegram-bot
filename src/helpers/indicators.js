@@ -1,34 +1,102 @@
 class Indicators {
-  //levels
-  static calculateLevels(candles, tolerancePercent = 0.4, touchCount = 3) {
-    const highs = candles.map((c) => c.high).sort((a, b) => b - a);
-    const lows = candles.map((c) => c.low).sort((a, b) => a - b);
+  //atr
+  static calculateATR(data, period = 14) {
+    if (data.length < period + 1) return [];
+    const trValues = [];
+    const atrResults = [];
+    // Рассчитываем True Range (TR) для всех свечей
+    for (let i = 0; i < data.length; i++) {
+      if (i === 0) {
+        // Для первой свечи: TR = High - Low
+        trValues.push(data[i].high - data[i].low);
+      } else {
+        // Для последующих свечей:
+        const prevClose = data[i - 1].close;
+        const tr = Math.max(
+          data[i].high - data[i].low,
+          Math.abs(data[i].high - prevClose),
+          Math.abs(data[i].low - prevClose),
+        );
+        trValues.push(tr);
+      }
+    }
+    // Первое значение ATR - среднее за начальный период
+    let atrSum = 0;
+    for (let i = 0; i < period; i++) {
+      atrSum += trValues[i];
+    }
+    // Записываем первый результат ATR
+    atrResults.push({
+      time: data[period - 1].time,
+      value: atrSum / period,
+    });
+    // Рассчитываем последующие значения ATR
+    for (let i = period; i < data.length; i++) {
+      const atr =
+        (atrResults[atrResults.length - 1].value * (period - 1) + trValues[i]) /
+        period;
+      atrResults.push({
+        time: data[i].time,
+        value: atr,
+      });
+    }
+    return atrResults;
+  }
+  //levels New 14.07.2025
+  static findExtremeCandles(candles) {
+    if (candles.length === 0)
+      return { maxHighCandle: null, minLowCandle: null };
+
+    const initial = {
+      maxHighCandle: candles[0],
+      minLowCandle: candles[0],
+    };
+
+    return candles.reduce((acc, candle) => {
+      // Обновляем свечу с максимальным high
+      if (candle.high > acc.maxHighCandle.high) {
+        acc.maxHighCandle = candle;
+      }
+      // Обновляем свечу с минимальным low
+      if (candle.low < acc.minLowCandle.low) {
+        acc.minLowCandle = candle;
+      }
+      return acc;
+    }, initial);
+  }
+  static calculateLevels(candles, tolerancePercent = 1, touchCount = 4) {
+    const { maxHighCandle, minLowCandle } =
+      Indicators.findExtremeCandles(candles);
+    // const sortedByHigh = [...candles].sort((a, b) => b.high - a.high);
+    // const sortedByLow = [...candles].sort((a, b) => a.low - b.low);
     // Рассчитываем уровень сопротивления
     let resistance = 0;
-    //highs.slice(0, 2)
-    for (const high of highs) {
+    let checkPercent = 0;
+    do {
+      const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
       const touchesHigh = candles.filter(
-        (candle) =>
-          (Math.abs(candle.high - high) / high) * 100 <= tolerancePercent,
+        (candle) => lineCross <= candle.high,
       ).length;
       if (touchesHigh >= touchCount) {
-        resistance = high;
+        resistance = lineCross;
         break;
       }
-    }
+      checkPercent += 0.01;
+    } while (checkPercent <= tolerancePercent * 5);
     // Рассчитываем уровень поддержки
     let support = 0;
-    //lows.slice(0, 2)
-    for (const low of lows) {
+    checkPercent = 0;
+    do {
+      const lineCross = minLowCandle.low * (1 + checkPercent / 100);
       const touchesLow = candles.filter(
-        (candle) =>
-          (Math.abs(candle.low - low) / low) * 100 <= tolerancePercent,
+        (candle) => lineCross >= candle.low,
       ).length;
       if (touchesLow >= touchCount) {
-        support = low;
+        support = lineCross;
         break;
       }
-    }
+      checkPercent += 0.01;
+    } while (checkPercent <= tolerancePercent * 5);
     return {
       support,
       resistance,
@@ -81,7 +149,8 @@ class Indicators {
     return results;
   }
   // Вспомогательная функция для расчета EMA
-  static calculateEMA(candles, period = 10) {
+  static calculateEMA(candles, period = 14) {
+    if (candles.length < period + 1) return [];
     const k = 2 / (period + 1);
     const emaArray = [];
     let ema =

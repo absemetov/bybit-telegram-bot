@@ -1,4 +1,4 @@
-import { db } from "../firebase.js";
+import { db, FieldValue } from "../firebase.js";
 import Joi from "joi";
 import {
   getCandles,
@@ -53,6 +53,8 @@ class Ticker {
       priceScale,
     };
     await db.doc(`crypto/${symbol}`).set(newTickerData);
+    //create alerts
+    await Ticker.createAlerts(symbol);
   }
   static async find(ticker, getDoc = false) {
     if (ticker) {
@@ -68,27 +70,25 @@ class Ticker {
     return null;
   }
   //create default Alerts
-  static async createAlerts(symbol, alerts = null) {
-    if (alerts) {
-      await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
-    } else {
-      const kline = await getCandles(symbol, "1d", 1);
-      if (kline.length == 0) {
-        throw new Error(`Ticker ${symbol} not found in Bybit`);
-      }
-      // validate
-      const { close } = kline[0];
-      const step = 0.01;
-      const alerts = {
-        alert0: close * (1 - step * 3),
-        alert1: close * (1 - step * 2),
-        alert2: close * (1 - step),
-        alert3: close * (1 + step),
-        alert4: close * (1 + step * 2),
-        alert5: close * (1 + step * 3),
-      };
-      await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
+  static async createAlerts(symbol) {
+    const kline = await getCandles(symbol, "1d", 1);
+    if (kline.length == 0) {
+      throw new Error(`Ticker ${symbol} not found in Bybit`);
     }
+    // validate
+    const { close } = kline[0];
+    const step = 0.01;
+    const alerts = {
+      alert0: close * (1 - step * 3),
+      alert1: close * (1 - step * 2),
+      alert2: close * (1 - step),
+      alert3: close * (1 + step),
+      alert4: close * (1 + step * 2),
+      alert5: close * (1 + step * 3),
+      alert6: 35,
+      alert7: 70,
+    };
+    await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
   static async alertsExist(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
@@ -107,6 +107,7 @@ class Ticker {
             alertsDoc.data().alert4,
             alertsDoc.data().alert5,
             alertsDoc.data().alert6,
+            alertsDoc.data().alert7,
           ]
         : [],
     };
@@ -121,7 +122,6 @@ class Ticker {
     const orders = await getTickerOrders(symbol);
     const positions = await getTickerPositions(symbol);
     const closedPositions = await getClosedPositionsHistory(symbol);
-    console.log(closedPositions);
     return {
       alerts: alertsDoc.exists
         ? [
@@ -132,6 +132,7 @@ class Ticker {
             alertsDoc.data().alert4,
             alertsDoc.data().alert5,
             alertsDoc.data().alert6,
+            alertsDoc.data().alert7,
           ]
         : [],
       exists: symbolDoc.exists,
@@ -181,7 +182,9 @@ class Ticker {
         ? db.collection("crypto").where("star", "==", true)
         : tab === "alerts"
           ? db.collection("crypto").where("alert", "==", true)
-          : db.collection("crypto");
+          : tab === "trading"
+            ? db.collection("crypto").where("trading", "==", true)
+            : db.collection("crypto");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {
@@ -316,43 +319,17 @@ class Ticker {
     }
     await batch.commit();
   }
-  //TODO make new pump collection
-  static async saveLevelsBatch(batchArray) {
+  static async changeFields(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
-      const { symbol, timeframe, arrayNotify } = ticker;
-      for (const notify of arrayNotify) {
-        batch.set(
-          db.doc(`crypto/${symbol}/message-levels/${timeframe}_${notify.name}`),
-          notify,
-        );
+      const { symbol } = ticker;
+      if (symbol) {
+        batch.update(db.doc(`crypto/${symbol}`), {
+          field: FieldValue.delete(),
+        });
       }
     }
     await batch.commit();
-  }
-  static async saveLevelAlertBatch(batchArray) {
-    const batch = db.batch();
-    for (const ticker of batchArray) {
-      const { symbol, levelPrice, upPrice, side, lastNotified } = ticker;
-      batch.set(
-        db.doc(`crypto/${symbol}`),
-        {
-          levelPrice,
-          lastNotified,
-          upPrice,
-          side,
-        },
-        { merge: true },
-      );
-    }
-    await batch.commit();
-  }
-  //create Order
-  static async createOrder(symbol) {
-    await db.collection("crypto").doc(symbol).collection("orders").add({
-      name: "Tokyo",
-      country: "Japan",
-    });
   }
 }
 

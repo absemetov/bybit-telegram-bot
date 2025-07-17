@@ -167,13 +167,6 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { fieldName, fieldData } = req.body;
-    if (fieldName === "alert" && fieldData) {
-      //set default alerts
-      const alertsExist = await Ticker.alertsExist(symbol);
-      if (!alertsExist) {
-        await Ticker.createAlerts(symbol);
-      }
-    }
     await Ticker.updateField(symbol, fieldName, fieldData);
     return res.json({ ok: "ok" });
   } catch (error) {

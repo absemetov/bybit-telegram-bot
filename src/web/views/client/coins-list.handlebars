@@ -1,0 +1,36 @@
+<ul class="list-group">
+  {{#each coins}}
+  <div class="list-group-item cursor-pointer coin-item{{#if active}} list-group-item-primary{{/if}}" data-symbol="{{symbol}}">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <span class="coin-symbol">{{#if trading}}🟢{{/if}} {{symbol}} {{#if openLong}}↗️{{else}}↘️{{/if}}</span>
+        </div>
+        <div class="text-end">
+            <span class="coin-price"></span>
+            (<span class="coin-change"></span>)
+            <div class="btn-group" role="group" aria-label="Basic example">
+              {{#if exists}}
+                <button type="button" class="btn btn-sm btn-light star-btn"{{#if star}} data-star="true"{{/if}}>{{#if star}}❤️{{else}}🖤{{/if}}</button>
+                <button type="button" class="btn btn-sm btn-light alert-btn"{{#if alert}} data-alert="true"{{/if}}>{{#if alert}}🔔{{else}}🔕{{/if}}</button>
+                <button type="button" class="btn btn-sm btn-light add-btn" data-add="true">🗑</button>
+              {{else}}
+                <button type="button" class="btn btn-sm btn-light star-btn d-none"></button>
+                <button type="button" class="btn btn-sm btn-light alert-btn d-none"></button>
+                <button type="button" class="btn btn-sm btn-light add-btn" data-add="false">➕</button>
+              {{/if}}
+            </div>
+        </div>
+    </div>
+  </div>
+  {{/each}}
+</ul>
+<nav aria-label="Page navigation example">
+  <ul class="pagination mt-4 pagination-container">
+    <li class="page-item{{#if cursorPrev}} d-none{{/if}}">
+        <a href="#" class="page-link prev-btn">⏪ Prev Page</a>
+    </li>
+    <li class="page-item {{#if cursorNext}} d-none{{/if}}">
+        <a href="#" class="page-link next-btn">Next Page ⏩</a>
+    </li>
+  </ul>
+</nav>

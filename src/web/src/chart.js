@@ -402,6 +402,8 @@ class Order {
         avgPrice,
         size,
         side,
+        stopLoss,
+        takeProfit,
       });
       ChartManager.state.positions.push({
         name: "slLong",
@@ -447,6 +449,8 @@ class Order {
         avgPrice,
         size,
         side,
+        stopLoss,
+        takeProfit,
       });
       ChartManager.state.positions.push({
         name: "slShort",
@@ -480,10 +484,10 @@ class Order {
       ChartManager.state.candlestickSeries.removePriceLine(orderLine);
     }
     for (const limitOrder of orders) {
-      const { price, side, sum } = limitOrder;
+      const { triggerPrice, side, sum } = limitOrder;
       ChartManager.state.orders.push(
         ChartManager.state.candlestickSeries.createPriceLine({
-          price,
+          price: triggerPrice,
           color: side === "Sell" ? "red" : "green",
           lineWidth: 2,
           lineStyle: 2,
@@ -561,7 +565,7 @@ class Router {
       .on({
         "/chart": async () => this.defaultRoute(),
         "/chart/:symbol": ({ data }) => {
-          this.router.navigate(`/chart/${data.symbol}/30min`);
+          this.router.navigate(`/chart/${data.symbol}/1h`);
         },
         "/chart/:symbol/:timeframe": async ({ data, params }) =>
           await this.handleRoute(data, params),
@@ -614,11 +618,33 @@ class Indicators {
   static state = {
     countLoads: 0,
   };
+  static findExtremeCandles(candles) {
+    if (candles.length === 0)
+      return { maxHighCandle: null, minLowCandle: null };
+
+    const initial = {
+      maxHighCandle: candles[0],
+      minLowCandle: candles[0],
+    };
+
+    return candles.reduce((acc, candle) => {
+      // Обновляем свечу с максимальным high
+      if (candle.high > acc.maxHighCandle.high) {
+        acc.maxHighCandle = candle;
+      }
+      // Обновляем свечу с минимальным low
+      if (candle.low < acc.minLowCandle.low) {
+        acc.minLowCandle = candle;
+      }
+      return acc;
+    }, initial);
+  }
+
   static calculateLevels(
     candles,
-    candlesCount = 16,
-    tolerancePercent = 0.15,
-    touchCount = 4,
+    candlesCount = 24,
+    tolerancePercent = 0.5,
+    touchCount = 5,
   ) {
     if (ChartManager.state.hideSr) {
       for (const alert of ChartManager.state.linesSr) {
@@ -629,9 +655,6 @@ class Indicators {
       }
       return;
     }
-    if (candles.length < candlesCount) {
-      return;
-    }
     //set markers
     const step = 1;
     const lastIndex = candles.length - step * this.state.countLoads; //not included!!!+1
@@ -639,111 +662,106 @@ class Indicators {
     const firstIndex =
       candles.length - candlesCount - step * this.state.countLoads;
     const firstCandle = candles[firstIndex];
+    if (!firstCandle) {
+      return;
+    }
     const candlesSlice = candles.slice(firstIndex, lastIndex);
-    const highs = candlesSlice.map((c) => c.high).sort((a, b) => b - a);
-    const lows = candlesSlice.map((c) => c.low).sort((a, b) => a - b);
+    const { maxHighCandle, minLowCandle } =
+      Indicators.findExtremeCandles(candlesSlice);
     ChartManager.state.markerSeries.setMarkers([]);
     ChartManager.state.markLevels = [];
     // Рассчитываем уровень сопротивления
-    // analytics
-    let highAnalytics = 0;
-    let minHighPercent = 0;
-    do {
-      for (const high of highs) {
-        const touchesHigh = candlesSlice.filter(
-          (candle) =>
-            (Math.abs(candle.high - high) / high) * 100 <= minHighPercent,
-        ).length;
-        if (touchesHigh >= touchCount) {
-          highAnalytics = minHighPercent.toFixed(2);
-          minHighPercent = 1;
-          break;
-        } else {
-          minHighPercent = minHighPercent + 0.01;
-        }
-      }
-    } while (minHighPercent < 1);
-    // search
     let resistance = 0;
-    for (const high of highs) {
+    let checkPercent = 0;
+    do {
+      const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
       const touchesHigh = candlesSlice.filter(
-        (candle) =>
-          (Math.abs(candle.high - high) / high) * 100 <= tolerancePercent,
+        (candle) => lineCross <= candle.high,
       ).length;
       if (touchesHigh >= touchCount) {
-        resistance = high;
+        resistance = lineCross;
         break;
       }
-    }
+      checkPercent += 0.01;
+    } while (checkPercent < tolerancePercent * 5);
     // Рассчитываем уровень поддержки
-    // analytics
-    let lowAnalytics = 0;
-    let minLowPercent = 0;
+    let support = 0;
+    checkPercent = 0;
     do {
-      for (const low of lows) {
-        const touchesLow = candlesSlice.filter(
-          (candle) =>
-            (Math.abs(candle.low - low) / low) * 100 <= tolerancePercent,
-        ).length;
-        if (touchesLow >= touchCount) {
-          lowAnalytics = minLowPercent.toFixed(2);
-          minLowPercent = 1;
-          break;
-        } else {
-          minLowPercent = minLowPercent + 0.01;
-        }
+      const lineCross = minLowCandle.low * (1 + checkPercent / 100);
+      const touchesLow = candlesSlice.filter(
+        (candle) => lineCross >= candle.low,
+      ).length;
+      if (touchesLow >= touchCount) {
+        support = lineCross;
+        break;
       }
-    } while (minLowPercent < 1);
+      checkPercent += 0.01;
+    } while (checkPercent <= tolerancePercent * 5);
+    // const lastEma21 =
+    //   ChartManager.state.emaData21[
+    //     lastIndex -
+    //       (ChartManager.state.candles.length -
+    //         ChartManager.state.emaData21.length +
+    //         1)
+    //   ];
+    // const firstEma21 =
+    //   ChartManager.state.emaData21[
+    //     firstIndex -
+    //       (ChartManager.state.candles.length -
+    //         ChartManager.state.emaData21.length +
+    //         1)
+    //   ].value;
     ChartManager.state.markLevels.push({
       time: firstCandle.time,
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      text:
-        firstCandle.high > lastCandle.high
-          ? `${highAnalytics}`
-          : `${lowAnalytics}`,
+      //text: firstEma21.toFixed(App.state.priceScale),
     });
     ChartManager.state.markLevels.push({
       time: lastCandle.time,
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text:
-        firstCandle.high < lastCandle.high
-          ? `${highAnalytics}`
-          : `${lowAnalytics}`,
+      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
-    let support = 0;
-    for (const low of lows) {
-      const touchesLow = candlesSlice.filter(
-        (candle) =>
-          (Math.abs(candle.low - low) / low) * 100 <= tolerancePercent,
-      ).length;
-      if (touchesLow >= touchCount) {
-        support = low;
-        break;
-      }
-    }
+    ChartManager.state.markerRsi.setMarkers([]);
+    ChartManager.state.markRSI = [];
+    ChartManager.state.markRSI.push({
+      time: firstCandle.time,
+      position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
+    });
+    ChartManager.state.markRSI.push({
+      time: lastCandle.time,
+      position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}`,
+    });
+    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
+    const resistanceV = resistance || maxHighCandle.high;
     ChartManager.state.linesSr[1].line.applyOptions({
-      price: resistance || highs[0],
+      price: resistanceV,
       color: resistance ? "red" : "black",
       //lineStyle: resistance ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
     });
-    resistance = resistance || highs[0];
     //support line
-    const supportV = support || lows[0];
+    const supportV = support || minLowCandle.low;
     ChartManager.state.linesSr[0].line.applyOptions({
-      price: support || lows[0],
+      price: supportV,
       color: support ? "green" : "black",
       //lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
-      title: `${(((resistance - supportV) / supportV) * 100).toFixed(2)}%`,
+      title: `${(((resistanceV - supportV) / supportV) * 100).toFixed(2)}%`,
     });
     // const coordinateY = ChartManager.state.candlestickSeries.priceToCoordinate(
     //   Math.max(firstCandle.high, lastCandle.high),
@@ -751,31 +769,36 @@ class Indicators {
     // const coordinateX = ChartManager.state.chart
     //   .timeScale()
     //   .timeToCoordinate(firstCandle.time);
+    //Indicators.renderMarkersRSI(lastIndex);
+  }
+  //render markers bmw
+  static renderMarkersRSI(lastIndex) {
     const lastRsiEma =
       ChartManager.state.rsiEMA[lastIndex - 14 - ChartManager.state.rsiPeriod];
     const firstRsiEma =
-      ChartManager.state.rsiEMA[lastIndex - 16 - ChartManager.state.rsiPeriod];
-    // const ema10 = ChartManager.state.ema10[lastIndex - 10];
-    // const ema20 = ChartManager.state.ema20[lastIndex - 20];
+      ChartManager.state.rsiEMA[lastIndex - 14 - ChartManager.state.rsiPeriod];
+    const lastRsi = ChartManager.state.rsi[lastIndex - 14 - 1];
+    const firstRsi = ChartManager.state.rsi[lastIndex - 14 - 2];
+    //const currentPrice = ChartManager.state.candles[lastIndex - 1].close;
     //set markers to rsi ema
     ChartManager.state.markerRsi.setMarkers([]);
     ChartManager.state.markRSI = [];
-    if (firstRsiEma && lastRsiEma) {
+    //bmw series
+    if (firstRsiEma && lastRsiEma && firstRsi && lastRsi) {
+      // const rsiPercentFirst =
+      //   ((firstRsi.value - firstRsiEma.value) / firstRsiEma.value) * 100;
+      const rsiPercentLast =
+        ((lastRsi.value - lastRsiEma.value) / lastRsiEma.value) * 100;
+      const trend =
+        ((lastRsiEma.value - firstRsiEma.value) / firstRsiEma.value) * 100;
       ChartManager.state.markRSI.push({
-        time: firstRsiEma.time,
-        position:
-          firstRsiEma.value > lastRsiEma.value ? "aboveBar" : "belowBar",
+        price:
+          rsiPercentLast < 0 ? lastRsiEma.value * 1.1 : lastRsiEma.value * 0.9,
+        time: lastRsi.time,
+        position: rsiPercentLast > 0 ? "atPriceBottom" : "atPriceTop",
         color: "black",
-        shape: firstRsiEma.value > lastRsiEma.value ? "arrowDown" : "arrowUp",
-        text: `${firstRsiEma.value.toFixed(2)}%`,
-      });
-      ChartManager.state.markRSI.push({
-        time: lastRsiEma.time,
-        position:
-          firstRsiEma.value < lastRsiEma.value ? "aboveBar" : "belowBar",
-        color: "black",
-        shape: firstRsiEma.value < lastRsiEma.value ? "arrowDown" : "arrowUp",
-        text: `${lastRsiEma.value.toFixed(2)}%`,
+        shape: "circle",
+        text: `Trend ${trend.toFixed(2)}`,
       });
     }
     ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
@@ -828,6 +851,7 @@ class Indicators {
   }
   // Вспомогательная функция для расчета EMA
   static calculateEMA(candles, period) {
+    if (candles.length < period + 1) return [];
     const k = 2 / (period + 1);
     const emaArray = [];
     let ema =
@@ -855,6 +879,7 @@ class Indicators {
     longPeriod = 26,
     signalPeriod = 9,
   ) {
+    if (candles.length < longPeriod + signalPeriod) return [];
     // Рассчитываем EMA для короткого и длинного периодов
     const shortEMA = Indicators.calculateEMA(candles, shortPeriod);
     const longEMA = Indicators.calculateEMA(candles, longPeriod);
@@ -970,21 +995,21 @@ class ChartManager {
       },
       0,
     );
-    //ema 10 20
-    ChartManager.state.ema10Series = ChartManager.state.chart.addSeries(
+    //ema 9 21
+    ChartManager.state.ema9Series = ChartManager.state.chart.addSeries(
       window.LightweightCharts.LineSeries,
       {
-        color: "black",
-        lineWidth: 1,
+        color: "#FF6D00",
+        lineWidth: 1.5,
         priceLineVisible: false,
       },
       0,
     );
-    ChartManager.state.ema20Series = ChartManager.state.chart.addSeries(
+    ChartManager.state.ema21Series = ChartManager.state.chart.addSeries(
       window.LightweightCharts.LineSeries,
       {
         color: "blue",
-        lineWidth: 1,
+        lineWidth: 1.5,
         priceLineVisible: false,
       },
       0,
@@ -1052,32 +1077,21 @@ class ChartManager {
     ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
       window.LightweightCharts.LineSeries,
       {
-        color: "blue",
+        color: "green",
         lineWidth: 1,
         priceLineVisible: false,
       },
       1,
     );
     ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
-      ChartManager.state.rsiSeriesEMA,
+      ChartManager.state.rsiSeries,
     );
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 30,
-      color: "green",
-      lineWidth: 2,
-      lineStyle: 4,
-    });
     ChartManager.state.rsiSeries.createPriceLine({
       price: 50,
       color: "black",
       lineWidth: 2,
       lineStyle: 4,
-    });
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 70,
-      color: "red",
-      lineWidth: 2,
-      lineStyle: 4,
+      axisLabelVisible: false,
     });
     ChartManager.state.chart
       .panes()[0]
@@ -1112,6 +1126,7 @@ class ChartManager {
     ChartManager.state.isDroped = true;
     //save alert
     const alertName = ChartManager.state.selectedAlert;
+    ChartManager.state.selectedAlert = null;
     if (alertName) {
       //save alert
       for (const alert of ChartManager.state.alerts) {
@@ -1139,7 +1154,13 @@ class ChartManager {
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent < -1 && alertName === "slLong") {
+        if (pricePercent < -1.5 && alertName === "slLong") {
+          ChartManager.state.positions
+            .find((p) => p.name === "slLong")
+            .line.applyOptions({
+              price: stopLoss,
+              title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+            });
           return alert("SL Long > 1.5%!!!");
         }
         const params = { side };
@@ -1182,24 +1203,36 @@ class ChartManager {
         positionShort &&
         (alertName === "slShort" || alertName === "tpShort")
       ) {
-        const { avgPrice, side } = positionShort;
-        const stopLoss = ChartManager.state.positions
+        const { avgPrice, side, stopLoss, takeProfit } = positionShort;
+        const stopLossNew = ChartManager.state.positions
           .find((p) => p.name === "slShort")
           .line.options()
           .price.toFixed(App.state.priceScale);
-        const takeProfit = ChartManager.state.positions
+        const takeProfitNew = ChartManager.state.positions
           .find((p) => p.name === "tpShort")
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent > 1 && alertName === "slShort") {
+        if (pricePercent > 1.5 && alertName === "slShort") {
+          ChartManager.state.positions
+            .find((p) => p.name === "slShort")
+            .line.applyOptions({
+              price: stopLoss,
+              title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+            });
           return alert("SL Short > 1.5%!!!");
         }
         const params = { side };
         if (alertName === "slShort") {
-          params.stopLoss = stopLoss;
+          if (stopLossNew === stopLoss) {
+            return;
+          }
+          params.stopLoss = stopLossNew;
         } else {
-          params.takeProfit = takeProfit;
+          if (takeProfitNew === takeProfit) {
+            return;
+          }
+          params.takeProfit = takeProfitNew;
         }
         try {
           const response = await fetch(
@@ -1223,7 +1256,6 @@ class ChartManager {
       }
     }
     this.defaultAlerts();
-    ChartManager.state.selectedAlert = null;
   }
   initEventListeners() {
     let isMouseDown = false;
@@ -1336,10 +1368,11 @@ class ChartManager {
           App.state.timeframe === "1d" || App.state.timeframe === "1w"
             ? 1.5
             : App.state.timeframe === "2h" || App.state.timeframe === "4h"
-              ? 0.2
-              : 0.1;
+              ? 1
+              : 0.8;
         const isAlertHover =
           alert.name &&
+          alert.line.options().lineVisible &&
           alert.line.options().price &&
           Math.abs((alert.line.options().price - checkPrice) / checkPrice) *
             100 <=
@@ -1350,7 +1383,7 @@ class ChartManager {
             color: "orange",
           });
           this.container.style.cursor = "pointer";
-          return;
+          return true;
         }
       }
       this.defaultAlerts();
@@ -1464,6 +1497,13 @@ class ChartManager {
       }
       if (changeElem && close) {
         const change = parseFloat(((close - open) / open) * 100);
+        if (change > 0) {
+          changeElem.classList.remove("text-danger");
+          changeElem.classList.add("text-success");
+        } else {
+          changeElem.classList.remove("text-success");
+          changeElem.classList.add("text-danger");
+        }
         changeElem.textContent = `${change.toFixed(2)}%`;
       }
     }
@@ -1474,10 +1514,10 @@ class ChartManager {
       autoScale: true,
     });
     ChartManager.state.candlestickSeries.setData(history);
-    ChartManager.state.ema10 = Indicators.calculateEMA(history, 10);
-    ChartManager.state.ema10Series.setData(ChartManager.state.ema10);
-    ChartManager.state.ema20 = Indicators.calculateEMA(history, 20);
-    ChartManager.state.ema20Series.setData(ChartManager.state.ema20);
+    ChartManager.state.emaData9 = Indicators.calculateEMA(history, 9);
+    ChartManager.state.ema9Series.setData(ChartManager.state.emaData9);
+    ChartManager.state.emaData21 = Indicators.calculateEMA(history, 21);
+    ChartManager.state.ema21Series.setData(ChartManager.state.emaData21);
     ChartManager.state.volumeSeries.setData(
       history.map((c) => ({
         time: c.time,
@@ -1487,12 +1527,12 @@ class ChartManager {
     );
     // Рассчитываем и отображаем исторические индикаторы
     if (history.length > 14) {
-      const rsiData = Indicators.calculateRSI(history);
-      ChartManager.state.rsiSeries.setData(rsiData);
-      ChartManager.state.rsi = rsiData;
-      ChartManager.state.rsiPeriod = 7;
+      ChartManager.state.rsi = Indicators.calculateRSI(history);
+      //const adxData = Indicators.calculateBaseIndicators(history);
+      ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
+      ChartManager.state.rsiPeriod = 14;
       ChartManager.state.rsiEMA = Indicators.calculateEMA(
-        rsiData,
+        ChartManager.state.rsi,
         ChartManager.state.rsiPeriod,
       );
       ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
@@ -1517,10 +1557,10 @@ class ChartManager {
         newCandle;
     }
     ChartManager.state.candlestickSeries.update(newCandle);
-    const ema10 = Indicators.calculateEMA(ChartManager.state.candles, 10);
-    const ema20 = Indicators.calculateEMA(ChartManager.state.candles, 20);
-    ChartManager.state.ema10Series.update(ema10[ema10.length - 1]);
-    ChartManager.state.ema20Series.update(ema20[ema20.length - 1]);
+    const ema9 = Indicators.calculateEMA(ChartManager.state.candles, 9);
+    const ema21 = Indicators.calculateEMA(ChartManager.state.candles, 21);
+    ChartManager.state.ema9Series.update(ema9[ema9.length - 1]);
+    ChartManager.state.ema21Series.update(ema21[ema21.length - 1]);
     ChartManager.state.volumeSeries.update({
       time: newCandle.time,
       value: newCandle.volume,
@@ -1530,11 +1570,8 @@ class ChartManager {
     if (ChartManager.state.candles.length > 14) {
       const rsi = Indicators.calculateRSI(ChartManager.state.candles);
       ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
-      const rsiEma10 = Indicators.calculateEMA(
-        rsi,
-        ChartManager.state.rsiPeriod,
-      );
-      ChartManager.state.rsiSeriesEMA.update(rsiEma10[rsiEma10.length - 1]);
+      const rsiEma = Indicators.calculateEMA(rsi, ChartManager.state.rsiPeriod);
+      ChartManager.state.rsiSeriesEMA.update(rsiEma[rsiEma.length - 1]);
     }
     //positions
     const positionLong = ChartManager.state.positions.find(
@@ -1566,13 +1603,11 @@ class ChartManager {
   }
   //dbl clicks
   handleDblClick() {
-    const line10Visible = ChartManager.state.ema10Series.options().lineVisible;
-    const line20Visible = ChartManager.state.ema10Series.options().lineVisible;
-    ChartManager.state.ema10Series.applyOptions({
-      visible: !line10Visible,
+    ChartManager.state.ema9Series.applyOptions({
+      visible: !ChartManager.state.ema9Series.options().visible,
     });
-    ChartManager.state.ema20Series.applyOptions({
-      visible: !line20Visible,
+    ChartManager.state.ema21Series.applyOptions({
+      visible: !ChartManager.state.ema21Series.options().visible,
     });
   }
   //cross events
@@ -1583,7 +1618,6 @@ class ChartManager {
     }
     const candle = param.seriesData.get(ChartManager.state.candlestickSeries);
     if (candle) {
-      //const date = new Date(candle.time * 1000).toLocaleString("ru-RU");
       App.chartManager.candleContainer.textContent = `L${candle.low}$ H${candle.high}$ (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
     }
     //update volume
@@ -1596,33 +1630,35 @@ class ChartManager {
     //price lines
     if (ChartManager.state.candlestickSeries) {
       ChartManager.state.currentPriceMove =
-        ChartManager.state.candlestickSeries.coordinateToPrice(param.point.y);
-      if (App.state.hideAlerts && ChartManager.state.currentPriceMove > 0) {
-        App.chartManager.checkHover(
-          ChartManager.state.currentPriceMove,
-          ChartManager.state.alerts,
-        );
+        param.paneIndex === 0
+          ? ChartManager.state.candlestickSeries.coordinateToPrice(
+              param.point.y,
+            )
+          : ChartManager.state.rsiSeries.coordinateToPrice(param.point.y);
+      //App.state.hideAlerts
+      if (ChartManager.state.currentPriceMove > 0) {
+        App.chartManager.checkHover(ChartManager.state.currentPriceMove, [
+          ...ChartManager.state.alerts,
+          ...ChartManager.state.linesSr,
+          ...ChartManager.state.positions,
+        ]);
       }
-      if (
-        !ChartManager.state.hideSr &&
-        ChartManager.state.currentPriceMove > 0
-      ) {
-        App.chartManager.checkHover(
-          ChartManager.state.currentPriceMove,
-          ChartManager.state.linesSr,
-        );
-      }
+      //!ChartManager.state.hideSr
+      // if (!hoverFind && ChartManager.state.currentPriceMove > 0) {
+      //   App.chartManager.checkHover(
+      //     ChartManager.state.currentPriceMove,
+      //     ChartManager.state.linesSr,
+      //   );
+      // }
       //sl tp lines
-      if (
-        !App.state.hideAlerts &&
-        ChartManager.state.hideSr &&
-        ChartManager.state.currentPriceMove > 0
-      ) {
-        App.chartManager.checkHover(
-          ChartManager.state.currentPriceMove,
-          ChartManager.state.positions,
-        );
-      }
+      //!App.state.hideAlerts &&
+      //ChartManager.state.hideSr &&
+      // if (ChartManager.state.currentPriceMove > 0) {
+      //   App.chartManager.checkHover(
+      //     ChartManager.state.currentPriceMove,
+      //     ChartManager.state.positions,
+      //   );
+      // }
     }
     //drag effect
     if (ChartManager.state.isDroped) {
@@ -1726,7 +1762,11 @@ class ChartManager {
     for (const alert of ChartManager.state.alerts) {
       alert.line.applyOptions({
         color:
-          alert.name === "alert0" || alert.name === "alert5" ? "red" : "blue",
+          alert.name === "alert0" ||
+          alert.name === "alert5" ||
+          alert.name === "alert6"
+            ? "red"
+            : "blue",
       });
     }
     ChartManager.state.positions
@@ -1770,11 +1810,11 @@ class ChartManager {
 class App {
   static state = {
     symbol: "BTCUSDT",
-    timeframe: "30min",
+    timeframe: "1h",
     cursorPrev: null,
     cursorNext: null,
     coins: [],
-    activeTab: "favorites",
+    activeTab: "all",
     hideAlerts: false,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
   };
@@ -1963,45 +2003,8 @@ class App {
   }
   static renderCoinList() {
     const coinList = document.querySelector(".coin-list");
-    //TODO render handlebars
-    const templateHbs = window.Handlebars.compile(`
-    <ul class="list-group">
-      {{#each coins}}
-      <div class="list-group-item cursor-pointer coin-item{{#if active}} active{{/if}}{{#if loaded}} list-group-item-warning{{/if}}" data-symbol="{{symbol}}">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
-              <span class="coin-symbol">{{#if trading}}🟢{{else}}🔴{{/if}} {{symbol}}</span>
-            </div>
-            <div class="text-end">
-                <span class="coin-price"></span>
-                (<span class="coin-change"></span>)
-                <div class="btn-group" role="group" aria-label="Basic example">
-                  {{#if exists}}
-                    <button type="button" class="btn btn-sm btn-light star-btn"{{#if star}} data-star="true"{{/if}}>{{#if star}}❤️{{else}}🖤{{/if}}</button>
-                    <button type="button" class="btn btn-sm btn-light alert-btn"{{#if alert}} data-alert="true"{{/if}}>{{#if alert}}🔔{{else}}🔕{{/if}}</button>
-                    <button type="button" class="btn btn-sm btn-light add-btn" data-add="true">🗑</button>
-                  {{else}}
-                    <button type="button" class="btn btn-sm btn-light star-btn d-none"></button>
-                    <button type="button" class="btn btn-sm btn-light alert-btn d-none"></button>
-                    <button type="button" class="btn btn-sm btn-light add-btn" data-add="false">➕</button>
-                  {{/if}}
-                </div>
-            </div>
-        </div>
-      </div>
-      {{/each}}
-    </ul>
-    <nav aria-label="Page navigation example">
-      <ul class="pagination mt-4 pagination-container">
-        <li class="page-item{{#if cursorPrev}} d-none{{/if}}">
-            <a href="#" class="page-link prev-btn">⏪ Prev Page</a>
-        </li>
-        <li class="page-item {{#if cursorNext}} d-none{{/if}}">
-            <a href="#" class="page-link next-btn">Next Page ⏩</a>
-        </li>
-      </ul>
-    </nav>`);
     //set active coin
+    const templateHbs = window.Handlebars.templates["coins-list"];
     this.state.coins = this.state.coins.map((coin) => ({
       ...coin,
       active: this.state.symbol === coin.symbol,
@@ -2044,6 +2047,7 @@ class App {
     }
   }
   static async loadAlerts(defaultAlerts = false) {
+    Indicators.state.countLoads = 0;
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -2059,40 +2063,37 @@ class App {
       alert(alertsDataJson.message);
       return false;
     }
-    //symbol msg
-    // document.getElementById("messageSymbol").textContent =
-    //   alertsDataJson.message || "";
     //Level SR
-    App.state.patternLevel = alertsDataJson.patterns?.levels;
-    if (App.state.patternLevel) {
-      const { candlesCount, tolerancePercent, touchCount } =
-        App.state.patternLevel;
-      Indicators.calculateLevels(
-        ChartManager.state.candles,
-        candlesCount,
-        tolerancePercent,
-        touchCount,
-      );
-      const paramsSR = `${App.state.symbol} ${candlesCount}, ${tolerancePercent}, ${touchCount}`;
-      document.querySelector(".display-symbol").textContent = paramsSR;
-    } else {
-      //set default value levels pattern
-      App.state.patternLevel = {
-        candlesCount: 16,
-        tolerancePercent: 0.2,
-        touchCount: 4,
-      };
-      const { candlesCount, tolerancePercent, touchCount } =
-        App.state.patternLevel;
-      Indicators.calculateLevels(
-        ChartManager.state.candles,
-        candlesCount,
-        tolerancePercent,
-        touchCount,
-      );
-      document.querySelector(".display-symbol").textContent =
-        `${App.state.symbol} no levels pattern, default ${candlesCount}, ${tolerancePercent}, ${touchCount}`;
-    }
+    //App.state.patternLevel = alertsDataJson.patterns?.levels;
+    // if (App.state.patternLevel) {
+    //   const { candlesCount, tolerancePercent, touchCount } =
+    //     App.state.patternLevel;
+    //   Indicators.calculateLevels(
+    //     ChartManager.state.candles,
+    //     candlesCount,
+    //     tolerancePercent,
+    //     touchCount,
+    //   );
+    //   const paramsSR = `${App.state.symbol} ${candlesCount}, ${tolerancePercent}, ${touchCount}`;
+    //   document.querySelector(".display-symbol").textContent = paramsSR;
+    // } else {
+    //set default value levels pattern
+    App.state.patternLevel = {
+      candlesCount: 24,
+      tolerancePercent: 0.5,
+      touchCount: 5,
+    };
+    const { candlesCount, tolerancePercent, touchCount } =
+      App.state.patternLevel;
+    Indicators.calculateLevels(
+      ChartManager.state.candles,
+      candlesCount,
+      tolerancePercent,
+      touchCount,
+    );
+    document.querySelector(".display-symbol").textContent =
+      `${App.state.symbol} ${candlesCount}, ${tolerancePercent}, ${touchCount}`;
+    //}
     //event click coin then load data from alert endpoint
     if (App.state.item) {
       App.state.item.querySelector(".add-btn").classList.remove("d-none");
@@ -2125,9 +2126,6 @@ class App {
         //TODO show only one coin!!!
         const loadedCoin = {
           symbol: this.state.symbol,
-          // star: alertsDataJson.star,
-          // alert: alertsDataJson.alert,
-          // exists: alertsDataJson.exists,
           ...alertsDataJson,
           loaded: true,
         };
@@ -2136,27 +2134,9 @@ class App {
         } else {
           this.state.coins.unshift(loadedCoin);
         }
-      } else {
-        // const symbol = this.state.symbol;
-        // this.state.coins = this.state.coins.map((coin) => {
-        //   if (coin.symbol === symbol) {
-        //     return {
-        //       symbol,
-        //       ...alertsDataJson,
-        //       // star: alertsDataJson.star,
-        //       // alert: alertsDataJson.alert,
-        //       // exists: alertsDataJson.exists,
-        //     };
-        //   } else {
-        //     return coin;
-        //   }
-        // });
       }
-      //this.renderCoinList();
-      if (!App.state.alertBtn) {
-        this.renderCoinList();
-      }
-      App.state.alertBtn = false;
+      //render new data
+      this.renderCoinList();
     }
     App.state.item = false;
     //SHOW limit orders in chart
@@ -2165,31 +2145,50 @@ class App {
     Order.positionPriceLines(alertsDataJson.positions);
     //clear alerts
     if (ChartManager.state.alerts.length) {
-      for (const alert of ChartManager.state.alerts) {
-        ChartManager.state.candlestickSeries.removePriceLine(alert.line);
+      for (const [index, alert] of ChartManager.state.alerts.entries()) {
+        if (index <= 5) {
+          ChartManager.state.candlestickSeries.removePriceLine(alert.line);
+        } else {
+          ChartManager.state.rsiSeries.removePriceLine(alert.line);
+        }
       }
     }
     ChartManager.state.alerts = [];
     for (const [index, value] of alertsDataJson.alerts.entries()) {
-      ChartManager.state.alerts.push({
-        name: `alert${index}`,
-        line: ChartManager.state.candlestickSeries.createPriceLine({
-          price: value,
-          color: index === 0 || index === 5 ? "red" : "blue",
-          lineWidth: 2,
-          lineStyle: window.LightweightCharts.LineStyle.Dashed,
-          title: index + 1,
-          lineVisible: this.state.hideAlerts,
-          axisLabelVisible: this.state.hideAlerts,
-        }),
-      });
+      if (index <= 5) {
+        ChartManager.state.alerts.push({
+          name: `alert${index}`,
+          line: ChartManager.state.candlestickSeries.createPriceLine({
+            price: value,
+            color: index === 0 || index === 5 ? "red" : "blue",
+            lineWidth: 2,
+            lineStyle: window.LightweightCharts.LineStyle.Dashed,
+            title: index + 1,
+            lineVisible: this.state.hideAlerts,
+            axisLabelVisible: this.state.hideAlerts,
+          }),
+        });
+      } else {
+        ChartManager.state.alerts.push({
+          name: `alert${index}`,
+          line: ChartManager.state.rsiSeries.createPriceLine({
+            price: value,
+            color: index === 6 ? "red" : "blue",
+            lineWidth: 2,
+            lineStyle: window.LightweightCharts.LineStyle.Dashed,
+            title: index + 1,
+            lineVisible: this.state.hideAlerts,
+            axisLabelVisible: this.state.hideAlerts,
+          }),
+        });
+      }
     }
     document
       .querySelector(".reset-btn")
-      .classList.toggle("d-none", !ChartManager.state.alerts.length);
+      .classList.toggle("d-none", !alertsDataJson.exists);
     document
       .querySelector(".hide-btn")
-      .classList.toggle("d-none", !ChartManager.state.alerts.length);
+      .classList.toggle("d-none", !alertsDataJson.exists);
     this.state.bsOffcanvas.hide();
     //tf active
     document
@@ -2205,7 +2204,6 @@ class App {
       document.getElementById("closed-positions-list").innerHTML = template({
         positions,
         cursor,
-        test: "sdsd",
       });
     } else {
       document.getElementById("closed-positions-list").innerHTML = template();
@@ -2218,6 +2216,9 @@ class App {
       case "ArrowLeft":
         // Действие при нажатии ←
         ++Indicators.state.countLoads;
+        ChartManager.state.chart
+          .timeScale()
+          .scrollToPosition(-Indicators.state.countLoads + 10);
         // Здесь можно добавить свою логику
         break;
       case "ArrowRight":
@@ -2225,6 +2226,9 @@ class App {
         if (Indicators.state.countLoads) {
           --Indicators.state.countLoads;
         }
+        ChartManager.state.chart
+          .timeScale()
+          .scrollToPosition(-Indicators.state.countLoads + 10);
         // Здесь можно добавить свою логику
         break;
     }
@@ -2275,9 +2279,12 @@ class App {
           await this.loadCoins("next", this.state.cursorNext);
           return;
         }
+        const symbol = item.dataset.symbol;
+        const coinInList = this.state.coins.find(
+          (coin) => coin.symbol === symbol,
+        );
         //add ticker
         if (addBtn) {
-          const symbol = item.dataset.symbol;
           const { add } = addBtn.dataset;
           const fieldData = !(add === "true");
           const response = await fetch(`/add/${symbol}`, {
@@ -2303,6 +2310,10 @@ class App {
             item.querySelector(".alert-btn").classList.remove("d-none");
             item.querySelector(".alert-btn").textContent = "🔕";
             item.querySelector(".alert-btn").dataset.alert = false;
+            document.querySelector(".reset-btn").classList.remove("d-none");
+            document.querySelector(".hide-btn").classList.remove("d-none");
+            coinInList.exists = true;
+            await this.loadAlerts();
           } else {
             addBtn.textContent = "➕";
             addBtn.dataset.add = false;
@@ -2310,13 +2321,11 @@ class App {
             item.querySelector(".alert-btn").classList.add("d-none");
             document.querySelector(".reset-btn").classList.add("d-none");
             document.querySelector(".hide-btn").classList.add("d-none");
+            coinInList.exists = false;
           }
           return;
         }
         if (starBtn) {
-          //const starBtn = event.target;
-          //const symbol = starBtn.dataset.symbolTitle;
-          const symbol = item.dataset.symbol;
           const { star } = starBtn.dataset;
           const fieldData = !(star === "true");
           const response = await fetch(`/edit/${symbol}`, {
@@ -2335,13 +2344,11 @@ class App {
             return;
           }
           starBtn.dataset.star = fieldData;
+          coinInList.star = fieldData;
           starBtn.innerText = fieldData ? "❤️" : "🖤";
           return;
         }
         if (alertBtn) {
-          //const alertButton = event.target;
-          //const symbol = alertButton.dataset.symbolTitle;
-          const symbol = item.dataset.symbol;
           const { alert } = alertBtn.dataset;
           const fieldData = !(alert === "true");
           const response = await fetch(`/edit/${symbol}`, {
@@ -2360,18 +2367,21 @@ class App {
             return;
           }
           alertBtn.dataset.alert = fieldData;
+          coinInList.alert = fieldData;
           alertBtn.innerText = fieldData ? "🔔" : "🔕";
-          this.state.alertBtn = true;
-          await this.loadAlerts();
+          //this.state.alertBtn = true;???
+          if (fieldData && this.state.symbol === symbol) {
+            this.state.item = item;
+            //await this.loadAlerts();
+          }
           return;
         }
         if (item) {
-          const symbol = item.dataset.symbol;
           if (this.state.symbol !== symbol) {
             document
               .querySelectorAll(".coin-item")
-              .forEach((n) => n.classList.remove("active"));
-            item.classList.add("active");
+              .forEach((n) => n.classList.remove("list-group-item-primary"));
+            item.classList.add("list-group-item-primary");
             this.state.item = item;
             this.router.navigate(`/chart/${symbol}/${this.state.timeframe}`);
           }

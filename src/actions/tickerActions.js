@@ -5,23 +5,15 @@ import { getLimitOrders } from "../helpers/bybitV5.js";
 import {
   showTickerPage,
   showTickersPage,
-  showTickerIndicators,
   showLimitOrders,
 } from "../views/showTickersPage.js";
 import { sleep } from "../helpers/helpers.js";
-import { analyzeCoin } from "../helpers/checkPumpTickers.js";
 import { match } from "path-to-regexp";
 //show all limit ordes
 export const getAllOrders = async (ctx, params = {}) => {
   const { cursor, symbol, edit = true } = params;
   const { orders, nextPageCursor } = await getLimitOrders(cursor, 10, symbol);
   await showLimitOrders(ctx, orders, nextPageCursor, edit);
-};
-//TODO test technical indicators
-export const tickerIndicators = async (ctx, params) => {
-  const { symbol, interval } = params;
-  const indicators = await analyzeCoin(symbol, interval);
-  await showTickerIndicators(ctx, symbol, interval, indicators);
 };
 export const uploadTickersAction = async () => {
   const sheet = await googleSheet(
