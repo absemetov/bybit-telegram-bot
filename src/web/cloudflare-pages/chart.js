@@ -73,9 +73,9 @@ class Indicators {
   //levels
   static calculateLevels(
     candles,
-    candlesCount = 24,
-    tolerancePercent = 0.5,
-    touchCount = 5,
+    candlesCount = 16,
+    tolerancePercent = 1.5,
+    touchCount = 4,
   ) {
     if (ChartManager.state.hideSr) {
       for (const alert of ChartManager.state.linesSr) {
@@ -102,7 +102,7 @@ class Indicators {
     ChartManager.state.markerSeries.setMarkers([]);
     ChartManager.state.markLevels = [];
     // Рассчитываем уровень сопротивления
-    let resistance = 0;
+    App.state.resistance = 0;
     let checkPercent = 0;
     do {
       const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
@@ -110,13 +110,13 @@ class Indicators {
         (candle) => lineCross <= candle.high,
       ).length;
       if (touchesHigh >= touchCount) {
-        resistance = lineCross;
+        App.state.resistance = lineCross;
         break;
       }
       checkPercent += 0.01;
     } while (checkPercent < tolerancePercent * 5);
     // Рассчитываем уровень поддержки
-    let support = 0;
+    App.state.support = 0;
     checkPercent = 0;
     do {
       const lineCross = minLowCandle.low * (1 + checkPercent / 100);
@@ -124,7 +124,7 @@ class Indicators {
         (candle) => lineCross >= candle.low,
       ).length;
       if (touchesLow >= touchCount) {
-        support = lineCross;
+        App.state.support = lineCross;
         break;
       }
       checkPercent += 0.01;
@@ -141,7 +141,7 @@ class Indicators {
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      //text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
     ChartManager.state.markerRsi.setMarkers([]);
@@ -158,23 +158,23 @@ class Indicators {
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}`,
+      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}, ${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
     ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
-    const resistanceV = resistance || maxHighCandle.high;
+    const resistanceV = App.state.resistance || maxHighCandle.high;
     ChartManager.state.linesSr[1].line.applyOptions({
       price: resistanceV,
-      color: resistance ? "red" : "black",
+      color: App.state.resistance ? "red" : "black",
       //lineStyle: resistance ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
     });
     //support line
-    const supportV = support || minLowCandle.low;
+    const supportV = App.state.support || minLowCandle.low;
     ChartManager.state.linesSr[0].line.applyOptions({
       price: supportV,
-      color: support ? "green" : "black",
+      color: App.state.support ? "green" : "black",
       //lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
@@ -524,7 +524,7 @@ class ChartManager {
     // );
     ChartManager.state.chart
       .panes()[0]
-      .setHeight(document.documentElement.scrollHeight - 300);
+      .setHeight(document.documentElement.scrollHeight - 250);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
     //start WS
@@ -565,14 +565,12 @@ class ChartManager {
     }
   }
   defaultAlerts() {
-    const supportColor = ChartManager.state.linesSr[0].line.options().color;
-    const resistanceColor = ChartManager.state.linesSr[1].line.options().color;
-    if (supportColor !== "black") {
-      ChartManager.state.linesSr[0].line.applyOptions({ color: "green" });
-    }
-    if (resistanceColor !== "black") {
-      ChartManager.state.linesSr[1].line.applyOptions({ color: "red" });
-    }
+    ChartManager.state.linesSr[0].line.applyOptions({
+      color: App.state.support ? "green" : "black",
+    });
+    ChartManager.state.linesSr[1].line.applyOptions({
+      color: App.state.resistance ? "red" : "black",
+    });
     App.chartManager.container.style.cursor = "default";
     ChartManager.state.chart.applyOptions({
       handleScroll: true,
@@ -1012,7 +1010,7 @@ class App {
         ++Indicators.state.countLoads;
         ChartManager.state.chart
           .timeScale()
-          .scrollToPosition(-Indicators.state.countLoads + 10);
+          .scrollToPosition(-Indicators.state.countLoads + 15);
         // Здесь можно добавить свою логику
         break;
       case "ArrowRight":
@@ -1022,7 +1020,7 @@ class App {
         }
         ChartManager.state.chart
           .timeScale()
-          .scrollToPosition(-Indicators.state.countLoads + 10);
+          .scrollToPosition(-Indicators.state.countLoads + 15);
         // Здесь можно добавить свою логику
         break;
     }

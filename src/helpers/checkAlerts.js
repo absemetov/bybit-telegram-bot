@@ -42,11 +42,11 @@ export const checkAlerts = async (bot) => {
         //CHECK LEVELS, TODO create orders near level Buy stop and Sell stop!!!
         //calc Levels
         //const { candlesCount, tolerancePercent, touchCount } = patterns.levels;
-        const candlesLevelSlice = candles1h.slice(-24);
+        const candlesLevelSlice = candles1h.slice(-16);
         const { support, resistance } = Indicators.calculateLevels(
           candlesLevelSlice,
-          0.5,
-          5,
+          1.5,
+          4,
         );
         await checkLevels(
           ticker,
@@ -75,15 +75,15 @@ export const checkAlerts = async (bot) => {
           (Math.abs(priceLevel - resistance) / resistance) * 100 > 0.5;
         //support zone
         if (
-          Math.abs((currentPrice - support) / support) * 100 <= 0.3 &&
-          currentRsi < 55 &&
+          Math.abs((currentPrice - support) / support) * 100 <= 0.5 &&
+          currentRsi < 100 &&
           newPriceLevelSupport
         ) {
           //telegram bybit channel -1002687531775 absemetov 94899148
           await bot.telegram.sendMessage(
             "-1002687531775",
             `<code>${symbol.slice(0, -4)}</code> <b>[#SUPPORT ZONE] ${support.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(2)}% 1h</b>\n` +
-              `#${symbol.slice(0, -4)}`,
+              `#${symbol.slice(0, -4)} #${symbol}`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([
@@ -108,14 +108,14 @@ export const checkAlerts = async (bot) => {
         }
         //resistance
         if (
-          Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.3 &&
-          currentRsi > 55 &&
+          Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.5 &&
+          currentRsi > 0 &&
           newPriceLevelResistance
         ) {
           await bot.telegram.sendMessage(
             "-1002687531775",
             `<code>${symbol.slice(0, -4)}</code> <b>[#RESISTANCE ZONE] ${resistance.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(2)}% 1h</b>\n` +
-              `#${symbol.slice(0, -4)}`,
+              `#${symbol.slice(0, -4)} #${symbol}`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([

@@ -82,7 +82,7 @@ class Indicators {
         break;
       }
       checkPercent += 0.01;
-    } while (checkPercent <= tolerancePercent * 5);
+    } while (checkPercent <= tolerancePercent);
     // Рассчитываем уровень поддержки
     let support = 0;
     checkPercent = 0;
@@ -96,7 +96,7 @@ class Indicators {
         break;
       }
       checkPercent += 0.01;
-    } while (checkPercent <= tolerancePercent * 5);
+    } while (checkPercent <= tolerancePercent);
     return {
       support,
       resistance,
