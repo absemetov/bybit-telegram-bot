@@ -5,8 +5,115 @@ const bybitClient = new RestClientV5({
   key: process.env.BYBIT_API_KEY,
   secret: process.env.BYBIT_API_SECRET,
 });
+//win rate
+export const getDailyWinRate =  async (days = 7, symbol = null) => {
+  const dailyStats = [];
+  const currentDate = new Date();
+
+  for (let i = 0; i < days; i++) {
+    const targetDate = new Date(currentDate);
+    targetDate.setDate(targetDate.getDate() - i);
+    
+    const startOfDayMSK = new Date(targetDate);
+    startOfDayMSK.setHours(0, 0, 0, 0);
+    
+    const endOfDayMSK = new Date(targetDate);
+    endOfDayMSK.setHours(23, 59, 59, 999);
+
+    const startTime = startOfDayMSK.getTime();
+    const endTime = endOfDayMSK.getTime();
+
+    let allTrades = [];
+    let cursor;
+    let page = 0;
+    const maxPages = 20;
+
+    const dateKey = startOfDayMSK.toLocaleDateString('ru-RU');
+
+    try {
+      do {
+        // Формируем параметры запроса с учетом символа
+        const params = {
+          category: 'linear',
+          startTime: startTime,
+          endTime: endTime,
+          limit: 100,
+          cursor: cursor,
+        };
+        
+        // Добавляем символ в запрос, если он указан
+        if (symbol) params.symbol = symbol;
+
+        const response = await bybitClient.getClosedPnL(params);
+
+        if (response.retCode !== 0) {
+          console.error(`Ошибка для ${dateKey}:`, response.retMsg);
+          break;
+        }
+
+        allTrades = [...allTrades, ...response.result.list];
+        cursor = response.result.nextPageCursor;
+        page++;
+
+        if (!cursor || page >= maxPages) break;
+      } while (true);
+      
+      if (allTrades.length > 0) {
+        // Фильтруем по символу, если нужно (дополнительная фильтрация)
+        // if (symbol) {
+        //   allTrades = allTrades.filter(trade => trade.symbol === symbol);
+        // }
+
+        const profitableTrades = allTrades.filter(trade => 
+          parseFloat(trade.closedPnl) > 0
+        );
+        
+        const lossTrades = allTrades.filter(trade => 
+          parseFloat(trade.closedPnl) < 0
+        );
+        
+        const strictWinRate = (profitableTrades.length / allTrades.length * 100).toFixed(2);
+        
+        dailyStats.push({
+          dateKey,
+          strictWinRate: `${strictWinRate}%`,
+          totalTrades: allTrades.length,
+          profitable: profitableTrades.length,
+          loss: lossTrades.length,
+          totalPnl: allTrades.reduce((sum, trade) => sum + parseFloat(trade.closedPnl), 0).toFixed(4),
+          symbol: symbol || 'ALL' // Указываем для какой монеты статистика
+        });
+      } else {
+        dailyStats.push({
+          dateKey,
+          strictWinRate: '0.00%',
+          totalTrades: 0,
+          profitable: 0,
+          loss: 0,
+          totalPnl: 0,
+          message: symbol ? `Нет сделок по ${symbol}` : 'Нет сделок за этот день',
+          symbol: symbol || 'ALL'
+        });
+      }
+    } catch (error) {
+      console.error(`Ошибка для дня ${dateKey}:`, error.message);
+      dailyStats.push({
+        error: error.message,
+        symbol: symbol || 'ALL'
+      });
+    }
+  }
+
+  return dailyStats;
+};
 //convert 30min candles to 1h
 const timeframeConfig = {
+  "30min": {
+    intervalMs: 1800000, // 30 мин в миллисекундах
+    startOffsetUtcMs: 21 * 3600000, // Начало периода в UTC (21:00 UTC = 00:00 МСК)
+    description: "30-минутные свечи (00:00, 00:30... МСК)",
+    timezone: "Europe/Moscow",
+  },
   "1h": {
     intervalMs: 3600000, // 1 час в миллисекундах
     startOffsetUtcMs: 21 * 3600000, // Начало периода в UTC (21:00 UTC = 00:00 МСК)
@@ -61,13 +168,15 @@ export const convertCandles = (candles, timeframe) => {
 };
 
 // get closed positions history
-export const getClosedPositionsHistory = async (symbol, cursor) => {
+export const getClosedPositionsHistory = async (symbol, cursor, allCoins) => {
   const params = {
     category: "linear",
-    symbol,
     limit: 10,
     cursor,
   };
+  if (!allCoins) {
+    params.symbol = symbol;
+  }
   const response = await bybitClient.getClosedPnL(params);
   if (response.retCode !== 0) {
     throw new Error(`Error API: ${response.retMsg}`);
@@ -164,28 +273,15 @@ export const getPositions = async (cursor, limit = 10) => {
     limit,
     cursor,
   };
-  // if (symbol) {
-  //   params.symbol = symbol;
-  // }
   const response = await bybitClient.getPositionInfo(params);
   if (response.retCode !== 0) {
     throw new Error(`Error API: ${response.retMsg}`);
   }
-  const positions = response.result.list
-    .filter((item) => item.size > 0)
-    .map((order) => ({
-      symbol: order.symbol,
-      localTime: new Date(parseInt(order.updatedTime)).toLocaleString("ru-RU"),
-      side: order.side,
-      avgPrice: parseFloat(order.avgPrice),
-      markPrice: parseFloat(order.markPrice),
-      takeProfit: parseFloat(order.takeProfit),
-      stopLoss: parseFloat(order.stopLoss),
-      positionValue: parseFloat(order.positionValue).toFixed(2),
-      size: parseFloat(order.size),
-      unrealisedPnl: parseFloat(order.unrealisedPnl).toFixed(2),
-    }));
-  return { positions, nextPageCursor: response.result.nextPageCursor, balance };
+  return {
+    positions: response.result.list,
+    nextPageCursor: response.result.nextPageCursor,
+    balance,
+  };
 };
 
 //cancel order
@@ -230,31 +326,19 @@ export const getLimitOrders = async (cursor, limit = 10) => {
   const params = {
     category: "linear",
     settleCoin: "USDT",
-    //openOnly: 0,
-    //orderFilter: "Order",
+    //openOnly: 2,
+    //orderFilter: "StopOrder",
     limit,
     cursor,
   };
-  // if (symbol) {
-  //   params.symbol = symbol;
-  // }
   const response = await bybitClient.getActiveOrders(params);
   if (response.retCode !== 0) {
     throw new Error(`Error API: ${response.retMsg}`);
   }
-  const orders = response.result.list
-    .filter((order) => order.orderType === "Limit")
-    .map((order) => ({
-      orderId: order.orderId,
-      symbol: order.symbol,
-      localTime: new Date(parseInt(order.createdTime)).toLocaleString("ru-RU"),
-      side: order.side,
-      price: parseFloat(order.price),
-      qty: parseFloat(order.qty),
-      sum: (order.qty * order.price).toFixed(2),
-      triggerPrice: parseFloat(order.triggerPrice),
-    }));
-  return { orders, nextPageCursor: response.result.nextPageCursor };
+  return {
+    orders: response.result.list,
+    nextPageCursor: response.result.nextPageCursor,
+  };
 };
 //create or edit order
 export const createLimitOrder = async (

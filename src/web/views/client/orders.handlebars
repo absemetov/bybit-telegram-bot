@@ -1,0 +1,74 @@
+<ul class="nav nav-pills mb-2">
+  <li class="nav-item">
+    <a class="nav-link active order-item get-orders" aria-current="page" href="#">Orders</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link position-item get-positions" href="#">Positions</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link history-item load-more" href="#">History</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link history-item load-more all" href="#">All</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link win-item load-more" href="#">W/R</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link win-item load-more all" href="#">W/R All</a>
+  </li>
+</ul>
+<div class="row">
+  <div class="col-12">
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Date</th>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Size</th>
+            <th>triggerPrice</th>
+            <th>price</th>
+            <th>Del</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each orders}}
+            <tr class="order-item cursor-pointer" data-symbol="{{symbol}}">
+              <td>{{formatDate createdTime}}</td>
+              <td>{{symbol}}</td>
+              <td class="{{#if (eq side 'Buy')}}text-success{{else}}text-danger{{/if}}">
+                {{#if (eq side 'Buy')}}Long{{else}}Short{{/if}} {{#if (eq price '0')}}TP/SL{{/if}}
+              </td>
+              <td>{{multiply qty price}}$</td>
+              <td>
+                {{triggerPrice}}$
+              </td>
+              <td>
+                {{price}}$
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{price}}" data-side="{{side}}">🗑</button>
+              </td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="12" class="text-center">No orders found</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row my-2">
+  <div class="col-12 text-center">
+    {{#if cursor}}
+    <button class="btn btn-primary order-item get-orders" data-cursor="{{cursor}}">
+      Load More Orders
+    </button>
+    {{/if}}
+  </div>
+</div>

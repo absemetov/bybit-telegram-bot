@@ -30,10 +30,11 @@ export const checkAlerts = async (bot) => {
           continue;
         }
         const currentPrice = candlesArray[candlesArray.length - 1].close;
+        const candles30min = convertCandles(candlesArray, "30min");
         const candles1h = convertCandles(candlesArray, "1h");
         const rsiData = Indicators.calculateRSI(candles1h);
         // const ema9Data = Indicators.calculateEMA(candles1h, 9);
-        // const ema21Data = Indicators.calculateEMA(candles1h, 21);
+        const ema21Data = Indicators.calculateEMA(candles1h, 21);
         const currentRsi = rsiData[rsiData.length - 1].value;
         // const currentEma9 = ema9Data[ema9Data.length - 1].value;
         // const currentEma21 = ema21Data[ema21Data.length - 1].value;
@@ -42,10 +43,18 @@ export const checkAlerts = async (bot) => {
         //CHECK LEVELS, TODO create orders near level Buy stop and Sell stop!!!
         //calc Levels
         //const { candlesCount, tolerancePercent, touchCount } = patterns.levels;
-        const candlesLevelSlice = candles1h.slice(-16);
+        const analysis = Indicators.analyzeMarketWithRegression(
+          ema21Data.map((v) => v.value),
+          {
+            lookbackPeriod: 6,
+            volatilityThreshold: 0.6,
+            trendSlopeThreshold: 0.4,
+          },
+        );
+        const candlesLevelSlice = candles30min.slice(-18);
         const { support, resistance } = Indicators.calculateLevels(
           candlesLevelSlice,
-          1.5,
+          1,
           4,
         );
         await checkLevels(
@@ -60,30 +69,23 @@ export const checkAlerts = async (bot) => {
         const {
           lastNotified = null,
           alertIndex = null,
-          priceLevel = 0,
+          priceLevel,
         } = await Ticker.getAlertMessage(symbol);
         const { high, low, localTime } = candlesArray[candlesArray.length - 1];
         const alerts = await Ticker.getOnlyAlerts(symbol);
         const timestampSeconds = Math.round(Date.now() / 1000);
         const silent10min =
           !lastNotified || timestampSeconds - lastNotified._seconds >= 60 * 20;
-        const newPriceLevelSupport =
-          (!priceLevel && !support) ||
-          (Math.abs(priceLevel - support) / support) * 100 > 0.5;
-        const newPriceLevelResistance =
-          (!priceLevel && !support) ||
-          (Math.abs(priceLevel - resistance) / resistance) * 100 > 0.5;
         //support zone
         if (
           Math.abs((currentPrice - support) / support) * 100 <= 0.5 &&
-          currentRsi < 100 &&
-          newPriceLevelSupport
+          Math.abs((priceLevel - support) / support) * 100 >= 0.3
         ) {
           //telegram bybit channel -1002687531775 absemetov 94899148
           await bot.telegram.sendMessage(
             "-1002687531775",
             `<code>${symbol.slice(0, -4)}</code> <b>[#SUPPORT ZONE] ${support.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(2)}% 1h</b>\n` +
-              `#${symbol.slice(0, -4)} #${symbol}`,
+              `#${symbol.slice(0, -4)} #${symbol} 20 1 4 1h Slope (10 0.4 0.6) Ema21 ${analysis.marketCondition} (${analysis.strength})`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([
@@ -91,7 +93,7 @@ export const checkAlerts = async (bot) => {
                 [
                   Markup.button.url(
                     `${symbol} chart`,
-                    `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+                    `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
                   ),
                 ],
               ]),
@@ -109,13 +111,12 @@ export const checkAlerts = async (bot) => {
         //resistance
         if (
           Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.5 &&
-          currentRsi > 0 &&
-          newPriceLevelResistance
+          Math.abs((priceLevel - resistance) / resistance) * 100 >= 0.3
         ) {
           await bot.telegram.sendMessage(
             "-1002687531775",
             `<code>${symbol.slice(0, -4)}</code> <b>[#RESISTANCE ZONE] ${resistance.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(2)}% 1h</b>\n` +
-              `#${symbol.slice(0, -4)} #${symbol}`,
+              `#${symbol.slice(0, -4)} #${symbol} 20 1 4 1h Slope (6 0.2 0.2) Ema21 ${analysis.marketCondition} (${analysis.strength})`,
             {
               parse_mode: "HTML",
               ...Markup.inlineKeyboard([
@@ -123,7 +124,7 @@ export const checkAlerts = async (bot) => {
                 [
                   Markup.button.url(
                     `${symbol} chart`,
-                    `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+                    `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
                   ),
                 ],
               ]),
@@ -262,10 +263,9 @@ export const checkAlerts = async (bot) => {
       `[${new Date().toISOString()}] Error in cron job checkAlerts:`,
       error.message,
     );
-    console.log(error);
     await bot.telegram.sendMessage(
       94899148,
-      `Error in Check Alerts and Levels ${error}`,
+      `Error in Check Alerts and Levels ${error.message}`,
       {
         parse_mode: "HTML",
       },

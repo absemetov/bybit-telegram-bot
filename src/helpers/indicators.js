@@ -1,4 +1,72 @@
 class Indicators {
+  //detect trend
+  static analyzeMarketWithRegression(emaValues, options = {}) {
+    const {
+      lookbackPeriod = 14, // Количество свечей для анализа
+      volatilityThreshold = 1.5, // Порог волатильности для боковика (%)
+      trendSlopeThreshold = 0.15, // Порог наклона тренда (% за период)
+    } = options;
+
+    const data = emaValues.slice(-lookbackPeriod);
+    // Линейная регрессия
+    const xValues = Array.from({ length: lookbackPeriod }, (_, i) => i);
+    const sumX = xValues.reduce((a, b) => a + b, 0);
+    const sumY = data.reduce((a, b) => a + b, 0);
+    const sumXY = xValues.reduce((a, x, i) => a + x * data[i], 0);
+    const sumXX = xValues.reduce((a, x) => a + x * x, 0);
+    const slope =
+      (lookbackPeriod * sumXY - sumX * sumY) /
+      (lookbackPeriod * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / lookbackPeriod;
+    // Рассчитываем относительный наклон (% за период)
+    const firstValue = intercept; // Значение линии регрессии в начале периода
+    const lastValue = intercept + slope * (lookbackPeriod - 1);
+    const relativeSlope = ((lastValue - firstValue) / firstValue) * 100;
+    // Рассчитываем волатильность
+    const minValue = Math.min(...data);
+    const maxValue = Math.max(...data);
+    const volatility = ((maxValue - minValue) / minValue) * 100;
+    // Рассчитываем угол наклона в градусах (для визуализации)
+    //const angleRad = Math.atan(slope);
+    //const angleDeg = angleRad * (180 / Math.PI);
+    // Определяем состояние рынка
+    let marketCondition;
+    if (
+      Math.abs(relativeSlope) < trendSlopeThreshold &&
+      volatility < volatilityThreshold
+    ) {
+      marketCondition = "flat";
+    } else if (relativeSlope > 0) {
+      marketCondition = "uptrend";
+    } else {
+      marketCondition = "downtrend";
+    }
+    // Сила тренда/флэта
+    let strength;
+    if (marketCondition === "flat") {
+      strength = volatility < volatilityThreshold / 2 ? "strong" : "moderate";
+    } else {
+      const absSlope = Math.abs(relativeSlope);
+      if (absSlope > trendSlopeThreshold * 3) strength = "strong";
+      else if (absSlope > trendSlopeThreshold * 1.5) strength = "moderate";
+      else strength = "weak";
+    }
+
+    return {
+      marketCondition,
+      strength,
+      regressionSlope: slope,
+      relativeSlope: parseFloat(relativeSlope.toFixed(3)),
+      volatility: parseFloat(volatility.toFixed(3)),
+      lookbackPeriod,
+      trendSlopeThreshold,
+      firstRegressionValue: firstValue,
+      lastRegressionValue: lastValue,
+      actualFirstValue: data[0],
+      actualLastValue: data[data.length - 1],
+      regressionValues: xValues.map((x) => intercept + slope * x),
+    };
+  }
   //atr
   static calculateATR(data, period = 14) {
     if (data.length < period + 1) return [];

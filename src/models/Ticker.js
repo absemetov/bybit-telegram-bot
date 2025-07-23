@@ -77,7 +77,7 @@ class Ticker {
     }
     // validate
     const { close } = kline[0];
-    const step = 0.025;
+    const step = 0.02;
     const alerts = {
       alert0: close * (1 - step * 3),
       alert1: close * (1 - step * 2),

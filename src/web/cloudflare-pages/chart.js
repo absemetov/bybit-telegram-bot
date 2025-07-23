@@ -74,7 +74,7 @@ class Indicators {
   static calculateLevels(
     candles,
     candlesCount = 16,
-    tolerancePercent = 1.5,
+    tolerancePercent = 0.9,
     touchCount = 4,
   ) {
     if (ChartManager.state.hideSr) {
@@ -141,7 +141,7 @@ class Indicators {
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      //text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
     ChartManager.state.markerRsi.setMarkers([]);
@@ -149,18 +149,18 @@ class Indicators {
     ChartManager.state.markRSI.push({
       time: firstCandle.time,
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
-      color: "black",
+      color: "blue",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
     });
     ChartManager.state.markRSI.push({
       time: lastCandle.time,
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
-      color: "black",
+      color: "blue",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}, ${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
-    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     const resistanceV = App.state.resistance || maxHighCandle.high;
     ChartManager.state.linesSr[1].line.applyOptions({
@@ -455,7 +455,7 @@ class ChartManager {
       window.LightweightCharts.LineSeries,
       {
         color: "blue",
-        lineWidth: 1,
+        lineWidth: 2,
         priceLineVisible: false,
       },
       1,
@@ -464,21 +464,21 @@ class ChartManager {
       price: 30,
       color: "green",
       lineWidth: 2,
-      lineStyle: 4,
+      lineStyle: 1,
       axisLabelVisible: false,
     });
     ChartManager.state.rsiSeries.createPriceLine({
       price: 50,
       color: "black",
       lineWidth: 2,
-      lineStyle: 4,
+      lineStyle: 1,
       axisLabelVisible: false,
     });
     ChartManager.state.rsiSeries.createPriceLine({
       price: 70,
       color: "red",
       lineWidth: 2,
-      lineStyle: 4,
+      lineStyle: 1,
       axisLabelVisible: false,
     });
     // ChartManager.state.macdLineSeries = ChartManager.state.chart.addSeries(
@@ -524,7 +524,7 @@ class ChartManager {
     // );
     ChartManager.state.chart
       .panes()[0]
-      .setHeight(document.documentElement.scrollHeight - 250);
+      .setHeight(document.documentElement.scrollHeight - 300);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
     //start WS
@@ -1077,7 +1077,7 @@ class App {
       modalBody.innerHTML = `
       <ul class="list-group">
         <li class="list-group-item">EMA9 EMA21 RSI14/RSI-EMA14</li>
-        <li class="list-group-item">Level 24 candles 0.5 perc 5 touches</li>
+        <li class="list-group-item">Level 16 candles 1 perc 4 touches</li>
         <li class="list-group-item">turnover24h ${(+ticker.turnover24h).toLocaleString("ru-Ru")}</li>
         <li class="list-group-item">volume24h ${(+ticker.volume24h).toLocaleString("ru-Ru")}</li>
       </ul>

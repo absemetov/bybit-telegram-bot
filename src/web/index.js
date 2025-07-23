@@ -13,6 +13,8 @@ import {
   closePosition,
   editStopLoss,
   editTakeProfit,
+  getClosedPositionsHistory,
+  getDailyWinRate,
 } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -20,9 +22,6 @@ dotenv.config();
 const app = express();
 // Use CORS middleware
 app.use(cors());
-// GET /foo.js etc
-//app.use(express.static("./src/web/src"));
-//app.use(express.static("./src/web/cloudflare-pages"));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.json());
@@ -73,7 +72,27 @@ app.get("/chart/:symbol?/:timeframe?/:tab?", protectPage, async (req, res) => {
   const title = "Bybit terminal";
   res.render("ticker", { title, user: req.user });
 });
-
+//get PnL
+app.post("/positions-history/:symbol?", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { cursor } = req.body;
+    const closedPositions = await getClosedPositionsHistory(symbol, cursor);
+    return res.json({ closedPositions });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
+//win rate
+app.post("/win-rate/:symbol?", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const winRate = await getDailyWinRate(10, symbol);
+    return res.json({ winRate });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 app.get("/api/tickers", protectPage, async (req, res) => {
   const { direction, lastVisibleId, tab, timeframe } = req.query;
   const paginate = await Ticker.paginate(

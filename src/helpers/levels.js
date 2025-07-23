@@ -17,8 +17,8 @@ export const checkLevels = async (
   //get positions
   const balance = await getBybitBalance();
   const MAX_POSITION_USDT = balance / 5;
-  const TAKE_PROFIT = 7.5;
-  const STOP_LOSS = 2;
+  const TAKE_PROFIT = 6;
+  const STOP_LOSS = 1.5;
   const positions = await getTickerPositions(symbol);
   const orders = await getTickerOrders(symbol);
   const currentPrice = candles[candles.length - 1].close;
@@ -46,7 +46,7 @@ export const checkLevels = async (
         );
       }
       //breakeven 40%
-      if (pnlPersent < -5) {
+      if (pnlPersent < -3) {
         const newStopLoss = avgPrice * (1 + (pnlPersent * 0.4) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.1) {
           await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
@@ -95,7 +95,7 @@ export const checkLevels = async (
         );
       }
       //breakeven 40%
-      if (pnlPersent > 5) {
+      if (pnlPersent > 3) {
         const newStopLoss = avgPrice * (1 + (pnlPersent * 0.4) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 > 0.1) {
           await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
@@ -136,7 +136,7 @@ export const checkLevels = async (
   const shortOrder = orders.find((p) => p.side === "Sell");
   //Support Zone
   if (
-    Math.abs((currentPrice - support) / support) * 100 <= 0.5 &&
+    Math.abs((currentPrice - support) / support) * 100 <= 0.2 &&
     trading &&
     currentRsi < 55
   ) {
@@ -191,7 +191,7 @@ export const checkLevels = async (
   }
   //Resistance Zone
   if (
-    Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.5 &&
+    Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.2 &&
     trading &&
     currentRsi > 55
   ) {

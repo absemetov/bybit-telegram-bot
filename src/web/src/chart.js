@@ -50,60 +50,13 @@ class ModalManager {
             </div>
         </div>
         <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-{{buttonType}}">{{buttonText}}</button>
+          <button type="submit" class="btn btn-{{#if (eq orderType 'long')}}success{{else}}danger{{/if}}">{{buttonText}}</button>
         </div>
       </form>`),
-      orders: window.Handlebars.compile(`
-      <a href="#" class="order-item get-orders">
-        Update
-      </a>
-      <div class="list-group">
-        {{#each orders}}
-          <div class="list-group-item list-group-item-{{color}} order-item cursor-pointer" data-symbol="{{symbol}}">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                  {{localTime}} {{symbol}} {{side}} {{price}}$ = Sum {{sum}}$
-                </div>
-                <div class="text-end">
-                  <div class="btn-group" role="group" aria-label="Basic example">
-                    <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{price}}" data-side="{{side}}">🗑</button>
-                  </div>
-                </div>
-            </div>
-          </div>
-        {{/each}}
-      </div>
-        {{#if cursor}}
-          <a href="#" class="order-item get-orders" data-cursor="{{cursor}}">
-            Next
-          </a>
-        {{/if}}`),
-      positions: window.Handlebars.compile(`
-        <a href="#" class="position-item get-positions">
-          Update
-        </a>
-        <div class="list-group">
-          {{#each positions}}
-            <div class="list-group-item list-group-item-{{color}} position-item cursor-pointer" data-symbol="{{symbol}}">
-              <div class="d-flex w-100 justify-content-between align-items-center">
-                  <div class="d-flex align-items-center">
-                    {{localTime}} {{size}} {{symbol}} {{side}}
-                    Pos {{positionValue}}$ avgPrice {{avgPrice}} markPrice {{markPrice}} <b>Pnl {{unrealisedPnl}}$</b>
-                  </div>
-                  <div class="text-end">
-                    <div class="btn-group" role="group" aria-label="Basic example">
-                      <button type="button" class="btn btn-sm btn-light cancel-position" data-side="{{side}}" data-qty="{{size}}">🗑</button>
-                    </div>
-                  </div>
-              </div>
-            </div>
-          {{/each}}
-        </div>
-        {{#if cursor}}
-          <a href="#" class="position-item get-positions" data-cursor="{{cursor}}">
-            Next
-          </a>
-        {{/if}}`),
+      win: window.Handlebars.templates["win-rate"],
+      orders: window.Handlebars.templates["orders"],
+      positions: window.Handlebars.templates["positions"],
+      history: window.Handlebars.templates["history-positions"],
     };
 
     // Делегирование событий
@@ -127,14 +80,10 @@ class ModalManager {
       case "links":
         return this.templates.links({
           links: config.data,
-          // links: config.data.map((link) => ({
-          //   ...link,
-          //   icon: this._getIcon(link.type),
-          // })),
         });
       case "order-form":
         return this.templates.orderForm({
-          buttonType: config.orderType === "long" ? "success" : "danger",
+          orderType: config.orderType,
           buttonText: config.orderType.toUpperCase(),
           price: Order.state.price.toFixed(5),
           stopLoss: Order.state.STOP_LOSS,
@@ -143,19 +92,24 @@ class ModalManager {
         });
       case "orders":
         return this.templates.orders({
-          orders: config.orders.map((order) => ({
-            ...order,
-            color: order.side === "Buy" ? "success" : "danger",
-          })),
+          orders: config.orders,
           cursor: config.cursor,
         });
       case "positions":
         return this.templates.positions({
-          positions: config.positions.map((position) => ({
-            ...position,
-            color: position.unrealisedPnl > 0 ? "success" : "danger",
-          })),
+          positions: config.positions,
           cursor: config.cursor,
+        });
+      case "history":
+        return this.templates.history({
+          positions: config.positions,
+          cursor: config.cursor,
+          all: config.allCoins,
+        });
+      case "win":
+        return this.templates.win({
+          winRate: config.winRate,
+          all: config.allCoins,
         });
       case "custom":
         return config.html;
@@ -179,6 +133,16 @@ class ModalManager {
   }
 
   async handleClick(e) {
+    // const clickedLink = e.target.closest('a.nav-link');
+    // if (!clickedLink) return; // Если клик не по ссылке - выходим
+    // // Находим контейнер меню (ближайший ul с классом nav)
+    // const navContainer = clickedLink.closest('ul.nav');
+    // // Находим все ссылки в текущем меню
+    // const allLinks = navContainer.querySelectorAll('a.nav-link');
+    // // Удаляем active у всех ссылок
+    // allLinks.forEach(link => link.classList.remove('active'));
+    // // Добавляем active кликнутой ссылке
+    // clickedLink.classList.add('active');
     const orderElement = e.target.closest(".order-item");
     if (orderElement) {
       this._handleOrderClick(orderElement, e);
@@ -187,6 +151,98 @@ class ModalManager {
     if (positionElement) {
       this._handlePositionClick(positionElement, e);
     }
+    const historyElement = e.target.closest(".history-item");
+    if (historyElement) {
+      this._handleHistoryClick(historyElement, e);
+    }
+    const winElement = e.target.closest(".win-item");
+    if (winElement) {
+      this._handleWinClick(winElement, e);
+    }
+  }
+  async _handleWinClick(item, e) {
+    const loadMore = e.target.closest(".load-more");
+    if (loadMore) {
+      const allCoins = e.target.closest(".all");
+      const cursor = loadMore.dataset.cursor;
+      await Order.fetchWin(cursor, allCoins);
+      return;
+    }
+  }
+  async _handleHistoryClick(item, e) {
+    const loadMore = e.target.closest(".load-more");
+    if (loadMore) {
+      const allCoins = e.target.closest(".all");
+      const cursor = loadMore.dataset.cursor;
+      await Order.fetchHistory(cursor, allCoins);
+      return;
+    }
+    const symbol = item.dataset.symbol;
+    const updatedTime = item.dataset.updatedTime / 1000;
+    const exitPrice = +item.dataset.exitPrice;
+    const entryPrice = +item.dataset.entryPrice;
+    const closedPnl = item.dataset.closedPnl;
+    const side = item.dataset.side;
+    // Обработка кнопок внутри строки
+    // if (e.target.classList.contains('btn-edit')) {
+    //   handleEdit(itemId);
+    // } else if (e.target.classList.contains('btn-delete')) {
+    //   handleDelete(itemId);
+    // }
+    // Клик по всей строке
+    if (symbol !== App.state.symbol) {
+      App.router.navigate(`/chart/${symbol}/${App.state.timeframe}`);
+    }
+    document
+      .querySelectorAll(".history-item")
+      .forEach((n) => n.classList.remove("table-info"));
+    item.classList.add("table-info");
+    if (e.target.tagName === "TD") {
+      this.showHistoryPriceLines(
+        updatedTime,
+        entryPrice,
+        exitPrice,
+        side,
+        closedPnl,
+      );
+    }
+  }
+  showHistoryPriceLines(updatedTime, entryPrice, exitPrice, side, closedPnl) {
+    ChartManager.state.markerSeries.setMarkers([]);
+    ChartManager.state.markLevels = [];
+    ChartManager.state.markLevels.push({
+      time: updatedTime,
+      position: side === "Sell" ? "aboveBar" : "belowBar",
+      color: "black",
+      shape: side === "Sell" ? "arrowDown" : "arrowUp",
+      text: `${side} PnL ${closedPnl}$`,
+    });
+    if (side === "Sell") {
+      ChartManager.state.linesSr[0].line.applyOptions({
+        price: exitPrice,
+        lineVisible: true,
+        axisLabelVisible: true,
+        title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
+      });
+      ChartManager.state.linesSr[1].line.applyOptions({
+        price: entryPrice,
+        lineVisible: true,
+        axisLabelVisible: true,
+      });
+    } else {
+      ChartManager.state.linesSr[0].line.applyOptions({
+        price: entryPrice,
+        lineVisible: true,
+        axisLabelVisible: true,
+        title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
+      });
+      ChartManager.state.linesSr[1].line.applyOptions({
+        price: exitPrice,
+        lineVisible: true,
+        axisLabelVisible: true,
+      });
+    }
+    ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
   }
   async _handleOrderClick(item, e) {
     const symbol = item.dataset.symbol;
@@ -224,7 +280,7 @@ class ModalManager {
             title: "Limit orders",
             orders: resJson.orders,
             cursor: resJson.nextPageCursor,
-            //size: "lg",
+            size: "lg",
           });
           Order.orderPriceLines(resJson.orders);
           App.state.bsOffcanvas.hide();
@@ -310,14 +366,12 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      //alert(`Order created ${resJson.orderId}`);
-      //this.modal.hide();
       this.render({
         type: "orders",
         title: "Limit orders",
         orders: resJson.orders,
         cursor: resJson.nextPageCursor,
-        //size: "lg",
+        size: "lg",
       });
       Order.orderPriceLines(resJson.orders);
       //TODO
@@ -519,7 +573,7 @@ class Order {
         title: "Limit orders",
         orders: resJson.orders,
         cursor: resJson.nextPageCursor,
-        //size: "lg",
+        size: "lg",
       });
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -546,8 +600,63 @@ class Order {
         title: `Positions, Balance ${resJson.balance.toFixed(2)}$`,
         positions: resJson.positions,
         cursor: resJson.nextPageCursor,
-        //size: "lg",
+        size: "lg",
       });
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
+  static async fetchWin(cursorLink = "", allCoins = null) {
+    try {
+      const response = await fetch(`/win-rate/${allCoins ? "" : App.state.symbol}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const resJson = await response.json();
+      if (!response.ok) {
+        alert(resJson.message);
+        return false;
+      }
+      const { winRate } = resJson;
+      App.modal.render({
+        type: "win",
+        title: `Win rate ${allCoins ? "" : App.state.symbol}`,
+        size: "lg",
+        winRate,
+        allCoins,
+      });
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
+  static async fetchHistory(cursorLink = "", allCoins = null) {
+    try {
+      const response = await fetch(`/positions-history/${allCoins ? "" : App.state.symbol}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cursor: cursorLink,
+        }),
+      });
+      const resJson = await response.json();
+      if (!response.ok) {
+        alert(resJson.message);
+        return false;
+      }
+      const { positions, cursor } = resJson.closedPositions;
+      App.modal.render({
+        type: "history",
+        title: `Positions history ${allCoins ? "" : App.state.symbol}`,
+        size: "lg",
+        positions,
+        cursor,
+        allCoins,
+      });
+      
     } catch (error) {
       alert(`Error: ${error.message}`);
     }
@@ -618,6 +727,73 @@ class Indicators {
   static state = {
     countLoads: 0,
   };
+  static analyzeMarketWithRegression(emaValues, options = {}) {
+    const {
+      lookbackPeriod = 6, // Количество свечей для анализа
+      volatilityThreshold = 1.5, // Порог волатильности для боковика (%)
+      trendSlopeThreshold = 0.2, // Порог наклона тренда (% за период)
+    } = options;
+
+    const data = emaValues.slice(-lookbackPeriod);
+    // Линейная регрессия
+    const xValues = Array.from({ length: lookbackPeriod }, (_, i) => i);
+    const sumX = xValues.reduce((a, b) => a + b, 0);
+    const sumY = data.reduce((a, b) => a + b, 0);
+    const sumXY = xValues.reduce((a, x, i) => a + x * data[i], 0);
+    const sumXX = xValues.reduce((a, x) => a + x * x, 0);
+    const slope =
+      (lookbackPeriod * sumXY - sumX * sumY) /
+      (lookbackPeriod * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / lookbackPeriod;
+    // Рассчитываем относительный наклон (% за период)
+    const firstValue = intercept; // Значение линии регрессии в начале периода
+    const lastValue = intercept + slope * (lookbackPeriod - 1);
+    const relativeSlope = ((lastValue - firstValue) / firstValue) * 100;
+    // Рассчитываем волатильность
+    const minValue = Math.min(...data);
+    const maxValue = Math.max(...data);
+    const volatility = ((maxValue - minValue) / minValue) * 100;
+    // Рассчитываем угол наклона в градусах (для визуализации)
+    //const angleRad = Math.atan(slope);
+    //const angleDeg = angleRad * (180 / Math.PI);
+    // Определяем состояние рынка
+    let marketCondition;
+    if (
+      Math.abs(relativeSlope) < trendSlopeThreshold &&
+      volatility < volatilityThreshold
+    ) {
+      marketCondition = "flat";
+    } else if (relativeSlope > 0) {
+      marketCondition = "uptrend";
+    } else {
+      marketCondition = "downtrend";
+    }
+    // Сила тренда/флэта
+    let strength;
+    if (marketCondition === "flat") {
+      strength = volatility < volatilityThreshold / 2 ? "strong" : "moderate";
+    } else {
+      const absSlope = Math.abs(relativeSlope);
+      if (absSlope > trendSlopeThreshold * 3) strength = "strong";
+      else if (absSlope > trendSlopeThreshold * 1.5) strength = "moderate";
+      else strength = "weak";
+    }
+
+    return {
+      marketCondition,
+      strength,
+      regressionSlope: slope,
+      relativeSlope: parseFloat(relativeSlope.toFixed(3)),
+      volatility: parseFloat(volatility.toFixed(3)),
+      lookbackPeriod,
+      trendSlopeThreshold,
+      firstRegressionValue: firstValue,
+      lastRegressionValue: lastValue,
+      actualFirstValue: data[0],
+      actualLastValue: data[data.length - 1],
+      regressionValues: xValues.map((x) => intercept + slope * x),
+    };
+  }
   static findExtremeCandles(candles) {
     if (candles.length === 0)
       return { maxHighCandle: null, minLowCandle: null };
@@ -698,33 +874,40 @@ class Indicators {
       }
       checkPercent += 0.01;
     } while (checkPercent <= tolerancePercent);
-    // const lastEma21 =
-    //   ChartManager.state.emaData21[
-    //     lastIndex -
-    //       (ChartManager.state.candles.length -
-    //         ChartManager.state.emaData21.length +
-    //         1)
-    //   ];
-    // const firstEma21 =
-    //   ChartManager.state.emaData21[
-    //     firstIndex -
-    //       (ChartManager.state.candles.length -
-    //         ChartManager.state.emaData21.length +
-    //         1)
-    //   ].value;
+    const firstEma21 =
+      firstIndex -
+      (ChartManager.state.candles.length -
+        ChartManager.state.emaData21.length +
+        1);
+    const lastEma21 =
+      lastIndex -
+      (ChartManager.state.candles.length -
+        ChartManager.state.emaData21.length +
+        1);
+    const ema21Slice = ChartManager.state.emaData21
+      .slice(firstEma21, lastEma21)
+      .map((v) => v.value);
+    const analysis = Indicators.analyzeMarketWithRegression(ema21Slice, {
+      lookbackPeriod: 6,
+      volatilityThreshold: 0.6,
+      trendSlopeThreshold: 0.4,
+    });
+    App.chartManager.levelInfoContainer.textContent =
+      `${analysis.marketCondition} (${analysis.strength}) ` +
+      `6 0.6 0.4 Slope ${analysis.relativeSlope}% Volat ${analysis.volatility}%`;
     ChartManager.state.markLevels.push({
       time: firstCandle.time,
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      //text: firstEma21.toFixed(App.state.priceScale),
+      //text: `${analysis.marketCondition} (${analysis.strength})`,
     });
     ChartManager.state.markLevels.push({
       time: lastCandle.time,
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      //text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
     ChartManager.state.markerRsi.setMarkers([]);
@@ -732,18 +915,18 @@ class Indicators {
     ChartManager.state.markRSI.push({
       time: firstCandle.time,
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
-      color: "black",
+      color: "blue",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
     });
     ChartManager.state.markRSI.push({
       time: lastCandle.time,
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
-      color: "black",
+      color: "blue",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}, ${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
     });
-    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     const resistanceV = App.state.resistance || maxHighCandle.high;
     ChartManager.state.linesSr[1].line.applyOptions({
@@ -947,6 +1130,7 @@ class ChartManager {
     this.container = document.getElementById("chart");
     this.volumeContainer = document.getElementById("volumeEl");
     this.candleContainer = document.getElementById("candleEl");
+    this.levelInfoContainer = document.getElementById("levelEl");
     this.prevSymbolKlineTopic = null;
     this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
     this.activeSubscriptions = new Set();
@@ -957,7 +1141,7 @@ class ChartManager {
       this.container,
       {
         //width: this.container.offsetWidth,
-        height: document.documentElement.scrollHeight - 100,
+        height: document.documentElement.scrollHeight - 110,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },
@@ -1078,7 +1262,7 @@ class ChartManager {
       window.LightweightCharts.LineSeries,
       {
         color: "green",
-        lineWidth: 1,
+        lineWidth: 2,
         priceLineVisible: false,
       },
       1,
@@ -1087,15 +1271,29 @@ class ChartManager {
       ChartManager.state.rsiSeries,
     );
     ChartManager.state.rsiSeries.createPriceLine({
+      price: 30,
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
+      axisLabelVisible: false,
+    });
+    ChartManager.state.rsiSeries.createPriceLine({
       price: 50,
       color: "black",
       lineWidth: 2,
-      lineStyle: 4,
+      lineStyle: 1,
+      axisLabelVisible: false,
+    });
+    ChartManager.state.rsiSeries.createPriceLine({
+      price: 70,
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
       axisLabelVisible: false,
     });
     ChartManager.state.chart
       .panes()[0]
-      .setHeight(document.documentElement.scrollHeight - 250);
+      .setHeight(document.documentElement.scrollHeight - 300);
     ChartManager.state.chart.subscribeClick(this.defaultAlerts);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
@@ -1368,8 +1566,8 @@ class ChartManager {
           App.state.timeframe === "1d" || App.state.timeframe === "1w"
             ? 1.5
             : App.state.timeframe === "2h" || App.state.timeframe === "4h"
-              ? 1
-              : 0.8;
+              ? 1.2
+              : 1;
         const isAlertHover =
           alert.name &&
           alert.line.options().lineVisible &&
@@ -1829,6 +2027,14 @@ class App {
     this.modal = new ModalManager();
     this.order = new Order();
     // Помощники Handlebars
+    window.Handlebars.registerHelper("multiply", function (a, b) {
+      return (a * b).toFixed(2);
+    });
+
+    window.Handlebars.registerHelper("changepercent", function (a, b) {
+      return (((a - b) / b) * 100).toFixed(2);
+    });
+
     window.Handlebars.registerHelper("formatPrice", function (a) {
       return (+a).toFixed(2);
     });
@@ -1848,7 +2054,7 @@ class App {
     window.Handlebars.registerHelper("formatDate", function (dateString) {
       if (!dateString) return "";
       const date = new Date(+dateString);
-      return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+      return date.toLocaleString("ru-RU");
     });
   }
   static initAutocomplete() {
@@ -2079,8 +2285,8 @@ class App {
     // } else {
     //set default value levels pattern
     App.state.patternLevel = {
-      candlesCount: 16,
-      tolerancePercent: 1.5,
+      candlesCount: 18,
+      tolerancePercent: 1,
       touchCount: 4,
     };
     const { candlesCount, tolerancePercent, touchCount } =
@@ -2197,17 +2403,6 @@ class App {
     document
       .querySelector(`[data-tf="${App.state.timeframe}"]`)
       ?.classList.add("bg-primary");
-    //!!!render closed and opened positions!!!
-    const template = window.Handlebars.templates["history-positions"];
-    if (alertsDataJson.closedPositions.positions.length) {
-      const { positions, cursor } = alertsDataJson.closedPositions;
-      document.getElementById("closed-positions-list").innerHTML = template({
-        positions,
-        cursor,
-      });
-    } else {
-      document.getElementById("closed-positions-list").innerHTML = template();
-    }
   }
   // Функция для обработки нажатий клавиш
   static handleKeyPress(event) {
@@ -2459,6 +2654,13 @@ class App {
         event.preventDefault();
         await Order.fetchPositions();
       });
+    //show history
+    document
+      .querySelector(".show-history")
+      .addEventListener("click", async (event) => {
+        event.preventDefault();
+        await Order.fetchHistory();
+      });
     //reset hide info btns
     document.querySelector(".reset-btn").addEventListener("click", async () => {
       await this.loadAlerts(true);
@@ -2466,70 +2668,6 @@ class App {
     document.querySelector(".hide-btn").addEventListener("click", async () => {
       this.hideAlerts();
     });
-    //show history positions in chart
-    document
-      .getElementById("closed-positions-list")
-      .addEventListener("click", (e) => {
-        const row = e.target.closest(".item-row");
-        if (!row) return;
-        const updatedTime = row.dataset.updatedTime / 1000;
-        const exitPrice = +row.dataset.exitPrice;
-        const entryPrice = +row.dataset.entryPrice;
-        const closedPnl = row.dataset.closedPnl;
-        const side = row.dataset.side;
-        // Обработка кнопок внутри строки
-        // if (e.target.classList.contains('btn-edit')) {
-        //   handleEdit(itemId);
-        // } else if (e.target.classList.contains('btn-delete')) {
-        //   handleDelete(itemId);
-        // }
-        // Клик по всей строке
-        document
-          .querySelectorAll(".item-row")
-          .forEach((n) => n.classList.remove("table-info"));
-        row.classList.add("table-info");
-        if (e.target.tagName === "TD") {
-          selectItem(updatedTime, entryPrice, exitPrice, side, closedPnl);
-        }
-      });
-    //select position
-    function selectItem(updatedTime, entryPrice, exitPrice, side, closedPnl) {
-      ChartManager.state.markerSeries.setMarkers([]);
-      ChartManager.state.markLevels = [];
-      ChartManager.state.markLevels.push({
-        time: updatedTime,
-        position: side === "Sell" ? "aboveBar" : "belowBar",
-        color: "black",
-        shape: side === "Sell" ? "arrowDown" : "arrowUp",
-        text: `${side} PnL ${closedPnl}$`,
-      });
-      if (side === "Sell") {
-        ChartManager.state.linesSr[0].line.applyOptions({
-          price: exitPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
-          title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
-        });
-        ChartManager.state.linesSr[1].line.applyOptions({
-          price: entryPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
-        });
-      } else {
-        ChartManager.state.linesSr[0].line.applyOptions({
-          price: entryPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
-          title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
-        });
-        ChartManager.state.linesSr[1].line.applyOptions({
-          price: exitPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
-        });
-      }
-      ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
-    }
     document.querySelector(".info-btn").addEventListener("click", async () => {
       const symbol = this.state.symbol;
       //GET /v5/market/tickers

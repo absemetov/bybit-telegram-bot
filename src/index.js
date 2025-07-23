@@ -33,7 +33,6 @@ bot.on("callback_query", (ctx) => {
 });
 textMessageRouter(bot);
 bot.catch(async (error) => {
-  console.log("Catch error:" + error);
   await bot.telegram.sendMessage(
     94899148,
     `Error in Dev bot ${error.message}`,
