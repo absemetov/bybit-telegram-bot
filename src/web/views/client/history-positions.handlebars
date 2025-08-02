@@ -48,8 +48,8 @@
               <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{formatPrice closedPnl}}$
               </td>
-              <td>{{avgEntryPrice}}$</td>
-              <td>{{avgExitPrice}}$</td>
+              <td>{{formatPrice avgEntryPrice 4}}$</td>
+              <td>{{formatPrice avgExitPrice 4}}$</td>
               <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{changepercent avgExitPrice avgEntryPrice}}%
               </td>

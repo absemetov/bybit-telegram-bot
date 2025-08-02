@@ -29,6 +29,8 @@
             <th>loss</th>
             <th>profitable</th>
             <th>totalTrades</th>
+            <th>lossPrcnt</th>
+            <th>profPrcnt</th>
             <th>totalPnl</th>
             <th>WinRate</th>
           </tr>
@@ -45,8 +47,10 @@
                 {{profitable}}
               </td>
               <td>{{totalTrades}}</td>
+              <td class="{{#if (gt totalPnl 0)}}text-danger{{else}}text-success{{/if}}">{{formatPrice lossPrcnt}}</td>
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">{{formatPrice profPrcnt}}</td>
               <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
-                {{formatPrice totalPnl}}$
+                {{formatPrice totalPnl}}
               </td>
               <td>{{strictWinRate}}</td>
             </tr>

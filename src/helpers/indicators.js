@@ -110,7 +110,6 @@ class Indicators {
     }
     return atrResults;
   }
-  //levels New 14.07.2025
   static findExtremeCandles(candles) {
     if (candles.length === 0)
       return { maxHighCandle: null, minLowCandle: null };
@@ -132,42 +131,43 @@ class Indicators {
       return acc;
     }, initial);
   }
-  static calculateLevels(candles, tolerancePercent = 1, touchCount = 4) {
-    const { maxHighCandle, minLowCandle } =
-      Indicators.findExtremeCandles(candles);
-    // const sortedByHigh = [...candles].sort((a, b) => b.high - a.high);
-    // const sortedByLow = [...candles].sort((a, b) => a.low - b.low);
-    // Рассчитываем уровень сопротивления
-    let resistance = 0;
+  //levels
+  static calculateLevels(candles, touchCount = 4) {
+    const max = Math.max(...candles.map((c) => c.high));
+    const min = Math.min(...candles.map((c) => c.low));
+    const rangePercent = ((max - min) / min) * 5;
     let checkPercent = 0;
+    const levels = [];
+    let crossLine = min;
     do {
-      const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
-      const touchesHigh = candles.filter(
-        (candle) => lineCross <= candle.high,
-      ).length;
-      if (touchesHigh >= touchCount) {
-        resistance = lineCross;
-        break;
-      }
-      checkPercent += 0.01;
-    } while (checkPercent <= tolerancePercent);
-    // Рассчитываем уровень поддержки
-    let support = 0;
-    checkPercent = 0;
-    do {
-      const lineCross = minLowCandle.low * (1 + checkPercent / 100);
+      crossLine = crossLine * (1 + checkPercent / 100);
       const touchesLow = candles.filter(
-        (candle) => lineCross >= candle.low,
+        (candle) =>
+          crossLine >= candle.low &&
+          crossLine <= candle.low * (1 + rangePercent / 100),
       ).length;
-      if (touchesLow >= touchCount) {
-        support = lineCross;
-        break;
+      const touchesHigh = candles.filter(
+        (candle) =>
+          crossLine <= candle.high &&
+          crossLine >= candle.high * (1 - rangePercent / 100),
+      ).length;
+      const totalTouches = touchesLow + touchesHigh;
+      if (totalTouches >= touchCount) {
+        levels.push({
+          crossLine,
+          totalTouches,
+        });
       }
       checkPercent += 0.01;
-    } while (checkPercent <= tolerancePercent);
+    } while (crossLine <= max);
+    const support =
+      levels.length > 0 ? Math.min(...levels.map((l) => l.crossLine)) : 0;
+    const resistance =
+      levels.length > 0 ? Math.max(...levels.map((l) => l.crossLine)) : 0;
     return {
       support,
       resistance,
+      rangePercent,
     };
   }
   // RSI для всех свечей

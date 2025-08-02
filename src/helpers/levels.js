@@ -7,21 +7,21 @@ import {
 } from "../helpers/bybitV5.js";
 export const checkLevels = async (
   ticker,
-  candles,
+  currentPrice,
   bot,
-  support,
-  resistance,
-  currentRsi,
+  support = 0,
+  resistance = 0,
+  orderSide,
 ) => {
-  const { symbol, priceScale, trading, openLong } = ticker;
+  //openLong
+  const { symbol, priceScale, trading } = ticker;
   //get positions
   const balance = await getBybitBalance();
-  const MAX_POSITION_USDT = balance / 5;
+  const MAX_POSITION_USDT = balance / 10;
   const TAKE_PROFIT = 6;
-  const STOP_LOSS = 1.5;
+  const STOP_LOSS = 2;
   const positions = await getTickerPositions(symbol);
   const orders = await getTickerOrders(symbol);
-  const currentPrice = candles[candles.length - 1].close;
   //calculate indicators levels, rsi, rsiEma 1h timeframe!!!
   //TODO detect trend
   //edit TP, SL set breakeven
@@ -33,8 +33,9 @@ export const checkLevels = async (
       //set default sl
       const newStopLoss = avgPrice * (1 + STOP_LOSS / 100);
       if (
-        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
-        slPersent > 0
+        !stopLoss ||
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
+          slPersent > 0)
       ) {
         await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
         await bot.telegram.sendMessage(
@@ -82,8 +83,9 @@ export const checkLevels = async (
       //set default SL
       const newStopLoss = avgPrice * (1 - STOP_LOSS / 100);
       if (
-        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
-        slPersent < 0
+        !stopLoss ||
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
+          slPersent < 0)
       ) {
         await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
         await bot.telegram.sendMessage(
@@ -136,17 +138,17 @@ export const checkLevels = async (
   const shortOrder = orders.find((p) => p.side === "Sell");
   //Support Zone
   if (
-    Math.abs((currentPrice - support) / support) * 100 <= 0.2 &&
+    Math.abs((currentPrice - support) / support) * 100 <= 0.1 &&
     trading &&
-    currentRsi < 55
+    orderSide === "long"
   ) {
     //cancel all old orders
     // for (const order of orders) {
     //   await cancelOrder(symbol, order.orderId);
     // }
     //TODO edit stop limit order!!!
-    //open Long
-    if (!longPosition && openLong) {
+    //open Long && openLong
+    if (!longPosition) {
       if (longOrder) {
         const triggerPrice = currentPrice * (1 + 0.0015);
         const percentChangeTrigger =
@@ -191,16 +193,16 @@ export const checkLevels = async (
   }
   //Resistance Zone
   if (
-    Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.2 &&
+    Math.abs((currentPrice - resistance) / resistance) * 100 <= 0.1 &&
     trading &&
-    currentRsi > 55
+    orderSide === "short"
   ) {
     //cancel all old orders
     // for (const order of orders) {
     //   await cancelOrder(symbol, order.orderId);
     // }
-    //open Short
-    if (!shortPosition && !openLong) {
+    //open Short && !openLong
+    if (!shortPosition) {
       if (shortOrder) {
         const triggerPrice = currentPrice * (1 - 0.0015);
         const percentChangeTrigger =

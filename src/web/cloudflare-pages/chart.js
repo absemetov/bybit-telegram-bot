@@ -136,31 +136,36 @@ class Indicators {
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
       //text: firstEma21.toFixed(App.state.priceScale),
     });
+    const currentTime = new Date(lastCandle.time * 1000);
     ChartManager.state.markLevels.push({
       time: lastCandle.time,
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      text: `${currentTime.getDate()}, ${currentTime.toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
     ChartManager.state.markerRsi.setMarkers([]);
     ChartManager.state.markRSI = [];
     ChartManager.state.markRSI.push({
       time: firstCandle.time,
-      position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      position: "inBar",
+      shape: "circle",
       color: "blue",
-      shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+      //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
     });
     ChartManager.state.markRSI.push({
       time: lastCandle.time,
-      position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      position: "inBar",
+      shape: "circle",
       color: "blue",
-      shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}, ${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}`,
     });
-    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     const resistanceV = App.state.resistance || maxHighCandle.high;
     ChartManager.state.linesSr[1].line.applyOptions({

@@ -49,7 +49,9 @@
                 {{price}}$
               </td>
               <td>
-                <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{price}}" data-side="{{side}}">🗑</button>
+                {{#if (gt price 0)}}
+                  <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{price}}" data-side="{{side}}">🗑</button>
+                {{/if}}
               </td>
             </tr>
           {{else}}

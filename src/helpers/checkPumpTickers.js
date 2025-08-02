@@ -3,7 +3,7 @@ import { getActiveSymbols } from "../helpers/bybitV5.js";
 import { uploadDataToAlgolia } from "../helpers/algoliaIndex.js";
 import Ticker from "../models/Ticker.js";
 //import Scan from "../models/Scan.js";
-//import { Markup } from "telegraf";
+import { Markup } from "telegraf";
 
 import { getCandles } from "../helpers/bybitV5.js";
 // Основная функция сканирования
@@ -86,8 +86,8 @@ async function processBatch(tickers, timeframe, bot) {
   for (const ticker of tickers) {
     try {
       const { symbol } = ticker;
-      const candles = await getCandles(symbol, timeframe, 200);
-      await analyze(symbol, candles, timeframe, bot);
+      const candles = await getCandles(symbol, timeframe, 300);
+      await analyze(ticker, candles, timeframe, bot);
       await new Promise((resolve) => setTimeout(resolve, 1000)); // 1second pause
     } catch (error) {
       console.error(`Error processing ${ticker.symbol}:`, error.message);
@@ -95,91 +95,62 @@ async function processBatch(tickers, timeframe, bot) {
   }
   return { count, rsiSymbols };
 }
-export const analyze = async (symbol, candles, timeframe, bot) => {
+export const analyze = async (ticker, candles, timeframe, bot) => {
   try {
+    const { symbol, priceScale } = ticker;
     //calculate indicators levels, rsi, rsiEma
-    const currentPrice = candles[candles.length - 1].close;
+    const { close } = candles[candles.length - 1];
+    const arrayNotify = [];
+    //scan timeframe array
     const rsiData = Indicators.calculateRSI(candles);
-    const rsiEmaData = Indicators.calculateEMA(rsiData);
-    const ema9Data = Indicators.calculateEMA(candles, 9);
-    const ema21Data = Indicators.calculateEMA(candles, 21);
-    const candlesLevelSlice = candles.slice(-24);
-    const { support, resistance } = Indicators.calculateLevels(
-      candlesLevelSlice,
-      1,
-      5,
-    );
-    const currentEma9 = ema9Data[ema9Data.length - 1].value;
-    const currentEma21 = ema21Data[ema21Data.length - 1].value;
-    const currentEma9Prev = ema9Data[ema9Data.length - 2].value;
-    const currentEma21Prev = ema21Data[ema21Data.length - 2].value;
     const currentRsi = rsiData[rsiData.length - 1].value;
-    const currentRsiPrev = rsiData[rsiData.length - 2].value;
-    const currentRsiEma = rsiEmaData[rsiEmaData.length - 1].value;
-    const currentRsiEmaPrev = rsiEmaData[rsiEmaData.length - 2].value;
-    //support
-    if (Math.abs((currentPrice - support) / support) * 100 <= 4) {
-      //telegram bybit channel -1002687531775 absemetov 94899148
-      await bot.telegram.sendMessage(
-        "-1002687531775",
-        `<code>${symbol.slice(0, -4)}</code><b> [SIGNAL SUPPORT ZONE ${currentPrice}$ RSI ${currentRsi.toFixed(2)}% 1d]</b>\n` +
-          `#${symbol.slice(0, -4)} #1d_${symbol.slice(0, -4)}`,
-        {
-          parse_mode: "HTML",
-        },
-      );
+    const { support, resistance, rangePercent } = Indicators.calculateLevels(
+      candles.slice(-36),
+      6,
+    );
+    //const ema21Data = Indicators.calculateEMA(candles1h, 21);
+    //const currentEma21 = ema21Data[ema21Data.length - 1].value;
+    //ema21 cross price
+    //const ema21cross =
+    //  Math.abs((currentEma21 - close) / close) * 100 <= 0.1;
+    //if (ema21cross) {
+    //  arrayNotify.push({
+    //    tf: `ema21cross ${close}$`,
+    //  });
+    //}
+    //support zone
+    const supportZone =
+      Math.abs((close - support) / support) * 100 <= rangePercent;
+    if (supportZone && currentRsi < 55) {
+      arrayNotify.push({
+        tf: `Support zone ${timeframe} ${support.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(1)}`,
+      });
     }
     //resistance
-    if (Math.abs((currentPrice - resistance) / resistance) * 100 <= 4) {
-      await bot.telegram.sendMessage(
-        "-1002687531775",
-        `<code>${symbol.slice(0, -4)}</code><b> [SIGNAL RESISTANCE ZONE ${currentPrice}$ RSI ${currentRsi.toFixed(2)}% 1d]</b>\n` +
-          `#${symbol.slice(0, -4)} #1d_${symbol.slice(0, -4)}`,
-        {
-          parse_mode: "HTML",
-        },
-      );
+    const resistanceZone =
+      Math.abs((close - resistance) / resistance) * 100 < rangePercent;
+    if (resistanceZone && currentRsi > 55) {
+      arrayNotify.push({
+        tf: `Resistance Zone ${timeframe} ${resistance.toFixed(priceScale)}$ RSI ${currentRsi.toFixed(1)}`,
+      });
     }
-    //rsi
-    if (currentRsiEmaPrev < currentRsiPrev && currentRsiEma > currentRsi) {
+    if (arrayNotify.length > 0) {
       //telegram bybit channel -1002687531775 absemetov 94899148
+      const info = arrayNotify.map((obj) => Object.values(obj)).join();
       await bot.telegram.sendMessage(
         "-1002687531775",
-        `<code>${symbol}</code> ${currentPrice}$ Long Signal ${timeframe} RSI14/RSI_EMA14\n` +
-          `#${symbol} #1D_${symbol}`,
+        `<code>${symbol.slice(0, -4)}</code> <b>[#INFO ${info}]</b>\n` +
+          `#${symbol.slice(0, -4)} #${symbol}`,
         {
           parse_mode: "HTML",
-        },
-      );
-    }
-    if (currentRsiEmaPrev > currentRsiPrev && currentRsiEma < currentRsi) {
-      //telegram bybit channel -1002687531775 absemetov 94899148
-      await bot.telegram.sendMessage(
-        "-1002687531775",
-        `<code>${symbol}</code> ${currentPrice}$ Short Signal ${timeframe} RSI14/RSI_EMA14\n` +
-          `#${symbol} #1D_${symbol}`,
-        {
-          parse_mode: "HTML",
-        },
-      );
-    }
-    if (currentEma9Prev < currentEma21Prev && currentEma9 > currentEma21) {
-      //telegram bybit channel -1002687531775 absemetov 94899148
-      await bot.telegram.sendMessage(
-        "-1002687531775",
-        `<code>${symbol}</code> ${currentPrice}$ Long Signal ${timeframe} EMA9/EMA21 #${symbol}`,
-        {
-          parse_mode: "HTML",
-        },
-      );
-    }
-    if (currentEma9Prev > currentEma21Prev && currentEma9 < currentEma21) {
-      //telegram bybit channel -1002687531775 absemetov 94899148
-      await bot.telegram.sendMessage(
-        "-1002687531775",
-        `<code>${symbol}</code> ${currentPrice}$ Short Signal ${timeframe} EMA9/EMA21 #${symbol}`,
-        {
-          parse_mode: "HTML",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.url(
+                `${symbol} chart`,
+                `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+              ),
+            ],
+          ]),
         },
       );
     }

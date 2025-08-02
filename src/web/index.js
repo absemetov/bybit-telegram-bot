@@ -15,6 +15,7 @@ import {
   editTakeProfit,
   getClosedPositionsHistory,
   getDailyWinRate,
+  getTickerOrders,
 } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -87,7 +88,7 @@ app.post("/positions-history/:symbol?", protectPage, async (req, res) => {
 app.post("/win-rate/:symbol?", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const winRate = await getDailyWinRate(10, symbol);
+    const winRate = await getDailyWinRate(7, symbol);
     return res.json({ winRate });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -197,16 +198,29 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { price, side, tpPercent, slPercent, MAX_POSITION } = req.body;
-    const response = await createLimitOrder(
-      symbol,
-      side,
-      price,
-      MAX_POSITION,
-      tpPercent,
-      slPercent,
-    );
-    const getOrders = await getLimitOrders();
-    return res.json({ orderId: response.orderId, orders: getOrders.orders });
+    //first delete old orders
+    const ordersOld = await getTickerOrders(symbol);
+    for (const order of ordersOld) {
+      await cancelOrder(symbol, order.orderId);
+    }
+    //grid orders
+    let newPrice = price;
+    for (const step of [0.1, 0.4, 0.4, 0.4]) {
+      newPrice =
+        side === "Buy"
+          ? newPrice * (1 - step / 100)
+          : newPrice * (1 + step / 100);
+      await createLimitOrder(
+        symbol,
+        side,
+        newPrice,
+        MAX_POSITION,
+        tpPercent,
+        slPercent,
+      );
+    }
+    const orders = await getTickerOrders(symbol);
+    return res.json({ orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }

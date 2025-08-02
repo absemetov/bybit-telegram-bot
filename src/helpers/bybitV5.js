@@ -6,17 +6,15 @@ const bybitClient = new RestClientV5({
   secret: process.env.BYBIT_API_SECRET,
 });
 //win rate
-export const getDailyWinRate =  async (days = 7, symbol = null) => {
+export const getDailyWinRate = async (days = 7, symbol = null) => {
   const dailyStats = [];
   const currentDate = new Date();
 
-  for (let i = 0; i < days; i++) {
+  for (let i = days - 1; i >= 0; i--) {
     const targetDate = new Date(currentDate);
     targetDate.setDate(targetDate.getDate() - i);
-    
     const startOfDayMSK = new Date(targetDate);
     startOfDayMSK.setHours(0, 0, 0, 0);
-    
     const endOfDayMSK = new Date(targetDate);
     endOfDayMSK.setHours(23, 59, 59, 999);
 
@@ -28,22 +26,19 @@ export const getDailyWinRate =  async (days = 7, symbol = null) => {
     let page = 0;
     const maxPages = 20;
 
-    const dateKey = startOfDayMSK.toLocaleDateString('ru-RU');
+    const dateKey = startOfDayMSK.toLocaleDateString("ru-RU");
 
     try {
-      do {
-        // Формируем параметры запроса с учетом символа
+      let hasMorePages = true;
+      while (hasMorePages) {
         const params = {
-          category: 'linear',
+          category: "linear",
           startTime: startTime,
           endTime: endTime,
           limit: 100,
           cursor: cursor,
         };
-        
-        // Добавляем символ в запрос, если он указан
         if (symbol) params.symbol = symbol;
-
         const response = await bybitClient.getClosedPnL(params);
 
         if (response.retCode !== 0) {
@@ -51,62 +46,86 @@ export const getDailyWinRate =  async (days = 7, symbol = null) => {
           break;
         }
 
+        // Добавляем новые сделки
         allTrades = [...allTrades, ...response.result.list];
+        // Обновляем курсор для следующей страницы
         cursor = response.result.nextPageCursor;
         page++;
 
-        if (!cursor || page >= maxPages) break;
-      } while (true);
-      
+        // Условия завершения цикла:
+        // 1. Нет следующей страницы (cursor пустой)
+        // 2. Достигли лимита страниц
+        // 3. Нет данных в ответе
+        hasMorePages =
+          !!cursor && page < maxPages && response.result.list.length > 0;
+      }
       if (allTrades.length > 0) {
         // Фильтруем по символу, если нужно (дополнительная фильтрация)
         // if (symbol) {
         //   allTrades = allTrades.filter(trade => trade.symbol === symbol);
         // }
-
-        const profitableTrades = allTrades.filter(trade => 
-          parseFloat(trade.closedPnl) > 0
+        const profitableTrades = allTrades.filter(
+          (trade) => parseFloat(trade.closedPnl) > 0,
         );
-        
-        const lossTrades = allTrades.filter(trade => 
-          parseFloat(trade.closedPnl) < 0
+        const lossTrades = allTrades.filter(
+          (trade) => parseFloat(trade.closedPnl) < 0,
         );
-        
-        const strictWinRate = (profitableTrades.length / allTrades.length * 100).toFixed(2);
-        
+        const strictWinRate = (
+          (profitableTrades.length / allTrades.length) *
+          100
+        ).toFixed(2);
+        const total = {
+          pnl: 0,
+          lossPrcnt: 0,
+          profPrcnt: 0,
+        };
+        const totalR = allTrades.reduce((acc, trade) => {
+          acc.pnl = acc.pnl + +trade.closedPnl;
+          const changePrcnt =
+            Math.abs(
+              (trade.avgExitPrice - trade.avgEntryPrice) / trade.avgEntryPrice,
+            ) * 100;
+          if (trade.closedPnl > 0) {
+            acc.profPrcnt += changePrcnt;
+          } else {
+            acc.lossPrcnt = acc.lossPrcnt + changePrcnt;
+          }
+          return acc;
+        }, total);
         dailyStats.push({
           dateKey,
           strictWinRate: `${strictWinRate}%`,
           totalTrades: allTrades.length,
           profitable: profitableTrades.length,
           loss: lossTrades.length,
-          totalPnl: allTrades.reduce((sum, trade) => sum + parseFloat(trade.closedPnl), 0).toFixed(4),
-          symbol: symbol || 'ALL' // Указываем для какой монеты статистика
+          totalPnl: totalR.pnl,
+          lossPrcnt: totalR.lossPrcnt,
+          profPrcnt: totalR.profPrcnt,
+          symbol: symbol || "ALL", // Указываем для какой монеты статистика
         });
       } else {
         dailyStats.push({
           dateKey,
-          strictWinRate: '0.00%',
+          strictWinRate: "0.00%",
           totalTrades: 0,
           profitable: 0,
           loss: 0,
           totalPnl: 0,
-          message: symbol ? `Нет сделок по ${symbol}` : 'Нет сделок за этот день',
-          symbol: symbol || 'ALL'
+          symbol: symbol || "ALL",
         });
       }
     } catch (error) {
       console.error(`Ошибка для дня ${dateKey}:`, error.message);
       dailyStats.push({
         error: error.message,
-        symbol: symbol || 'ALL'
+        symbol: symbol || "ALL",
       });
     }
   }
-
+  console.log(dailyStats);
   return dailyStats;
 };
-//convert 30min candles to 1h
+//convert 15min candles to 1h
 const timeframeConfig = {
   "30min": {
     intervalMs: 1800000, // 30 мин в миллисекундах
@@ -168,13 +187,13 @@ export const convertCandles = (candles, timeframe) => {
 };
 
 // get closed positions history
-export const getClosedPositionsHistory = async (symbol, cursor, allCoins) => {
+export const getClosedPositionsHistory = async (symbol = null, cursor) => {
   const params = {
     category: "linear",
     limit: 10,
     cursor,
   };
-  if (!allCoins) {
+  if (symbol) {
     params.symbol = symbol;
   }
   const response = await bybitClient.getClosedPnL(params);
@@ -309,7 +328,7 @@ export const getTickerOrders = async (symbol) => {
     throw new Error(`Error API: ${response.retMsg}`);
   }
   return response.result.list
-    .filter((order) => order.orderType === "Limit")
+    .filter((o) => o.price > 0)
     .map((order) => ({
       orderId: order.orderId,
       symbol: order.symbol,

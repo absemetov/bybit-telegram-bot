@@ -164,8 +164,7 @@ class ModalManager {
     const loadMore = e.target.closest(".load-more");
     if (loadMore) {
       const allCoins = e.target.closest(".all");
-      const cursor = loadMore.dataset.cursor;
-      await Order.fetchWin(cursor, allCoins);
+      await Order.fetchWin(allCoins);
       return;
     }
   }
@@ -222,24 +221,30 @@ class ModalManager {
         price: exitPrice,
         lineVisible: true,
         axisLabelVisible: true,
+        color: exitPrice < entryPrice ? "red" : "black",
         title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
       });
       ChartManager.state.linesSr[1].line.applyOptions({
         price: entryPrice,
         lineVisible: true,
+        color: "red",
         axisLabelVisible: true,
+        title: "Short",
       });
     } else {
       ChartManager.state.linesSr[0].line.applyOptions({
         price: entryPrice,
         lineVisible: true,
+        color: "green",
         axisLabelVisible: true,
-        title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
+        title: "Long",
       });
       ChartManager.state.linesSr[1].line.applyOptions({
         price: exitPrice,
         lineVisible: true,
+        color: exitPrice > entryPrice ? "green" : "black",
         axisLabelVisible: true,
+        title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
       });
     }
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
@@ -327,10 +332,10 @@ class ModalManager {
           }
           this.render({
             type: "positions",
-            title: `Positions, Balance ${resJson.balance}$`,
+            title: `Positions, Balance ${resJson.balance.toFixed(2).replace(/\./g, ",")}`,
             positions: resJson.positions,
             cursor: resJson.nextPageCursor,
-            //size: "lg",
+            size: "lg",
           });
           App.state.bsOffcanvas.hide();
           return;
@@ -366,14 +371,15 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      this.render({
-        type: "orders",
-        title: "Limit orders",
-        orders: resJson.orders,
-        cursor: resJson.nextPageCursor,
-        size: "lg",
-      });
+      // this.render({
+      //   type: "orders",
+      //   title: "Limit orders",
+      //   orders: resJson.orders,
+      //   cursor: resJson.nextPageCursor,
+      //   size: "lg",
+      // });
       Order.orderPriceLines(resJson.orders);
+      this.modal.hide();
       //TODO
       //fetchOrders();
     } catch (error) {
@@ -597,7 +603,7 @@ class Order {
       }
       App.modal.render({
         type: "positions",
-        title: `Positions, Balance ${resJson.balance.toFixed(2)}$`,
+        title: `Positions, Balance ${resJson.balance.toFixed(2).replace(/\./g, ",")}`,
         positions: resJson.positions,
         cursor: resJson.nextPageCursor,
         size: "lg",
@@ -606,14 +612,17 @@ class Order {
       alert(`Error: ${error.message}`);
     }
   }
-  static async fetchWin(cursorLink = "", allCoins = null) {
+  static async fetchWin(allCoins = null) {
     try {
-      const response = await fetch(`/win-rate/${allCoins ? "" : App.state.symbol}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/win-rate/${allCoins ? "" : App.state.symbol}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
       const resJson = await response.json();
       if (!response.ok) {
         alert(resJson.message);
@@ -633,15 +642,18 @@ class Order {
   }
   static async fetchHistory(cursorLink = "", allCoins = null) {
     try {
-      const response = await fetch(`/positions-history/${allCoins ? "" : App.state.symbol}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/positions-history/${allCoins ? "" : App.state.symbol}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cursor: cursorLink,
+          }),
         },
-        body: JSON.stringify({
-          cursor: cursorLink,
-        }),
-      });
+      );
       const resJson = await response.json();
       if (!response.ok) {
         alert(resJson.message);
@@ -656,7 +668,6 @@ class Order {
         cursor,
         allCoins,
       });
-      
     } catch (error) {
       alert(`Error: ${error.message}`);
     }
@@ -727,101 +738,8 @@ class Indicators {
   static state = {
     countLoads: 0,
   };
-  static analyzeMarketWithRegression(emaValues, options = {}) {
-    const {
-      lookbackPeriod = 6, // Количество свечей для анализа
-      volatilityThreshold = 1.5, // Порог волатильности для боковика (%)
-      trendSlopeThreshold = 0.2, // Порог наклона тренда (% за период)
-    } = options;
 
-    const data = emaValues.slice(-lookbackPeriod);
-    // Линейная регрессия
-    const xValues = Array.from({ length: lookbackPeriod }, (_, i) => i);
-    const sumX = xValues.reduce((a, b) => a + b, 0);
-    const sumY = data.reduce((a, b) => a + b, 0);
-    const sumXY = xValues.reduce((a, x, i) => a + x * data[i], 0);
-    const sumXX = xValues.reduce((a, x) => a + x * x, 0);
-    const slope =
-      (lookbackPeriod * sumXY - sumX * sumY) /
-      (lookbackPeriod * sumXX - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / lookbackPeriod;
-    // Рассчитываем относительный наклон (% за период)
-    const firstValue = intercept; // Значение линии регрессии в начале периода
-    const lastValue = intercept + slope * (lookbackPeriod - 1);
-    const relativeSlope = ((lastValue - firstValue) / firstValue) * 100;
-    // Рассчитываем волатильность
-    const minValue = Math.min(...data);
-    const maxValue = Math.max(...data);
-    const volatility = ((maxValue - minValue) / minValue) * 100;
-    // Рассчитываем угол наклона в градусах (для визуализации)
-    //const angleRad = Math.atan(slope);
-    //const angleDeg = angleRad * (180 / Math.PI);
-    // Определяем состояние рынка
-    let marketCondition;
-    if (
-      Math.abs(relativeSlope) < trendSlopeThreshold &&
-      volatility < volatilityThreshold
-    ) {
-      marketCondition = "flat";
-    } else if (relativeSlope > 0) {
-      marketCondition = "uptrend";
-    } else {
-      marketCondition = "downtrend";
-    }
-    // Сила тренда/флэта
-    let strength;
-    if (marketCondition === "flat") {
-      strength = volatility < volatilityThreshold / 2 ? "strong" : "moderate";
-    } else {
-      const absSlope = Math.abs(relativeSlope);
-      if (absSlope > trendSlopeThreshold * 3) strength = "strong";
-      else if (absSlope > trendSlopeThreshold * 1.5) strength = "moderate";
-      else strength = "weak";
-    }
-
-    return {
-      marketCondition,
-      strength,
-      regressionSlope: slope,
-      relativeSlope: parseFloat(relativeSlope.toFixed(3)),
-      volatility: parseFloat(volatility.toFixed(3)),
-      lookbackPeriod,
-      trendSlopeThreshold,
-      firstRegressionValue: firstValue,
-      lastRegressionValue: lastValue,
-      actualFirstValue: data[0],
-      actualLastValue: data[data.length - 1],
-      regressionValues: xValues.map((x) => intercept + slope * x),
-    };
-  }
-  static findExtremeCandles(candles) {
-    if (candles.length === 0)
-      return { maxHighCandle: null, minLowCandle: null };
-
-    const initial = {
-      maxHighCandle: candles[0],
-      minLowCandle: candles[0],
-    };
-
-    return candles.reduce((acc, candle) => {
-      // Обновляем свечу с максимальным high
-      if (candle.high > acc.maxHighCandle.high) {
-        acc.maxHighCandle = candle;
-      }
-      // Обновляем свечу с минимальным low
-      if (candle.low < acc.minLowCandle.low) {
-        acc.minLowCandle = candle;
-      }
-      return acc;
-    }, initial);
-  }
-
-  static calculateLevels(
-    candles,
-    candlesCount = 24,
-    tolerancePercent = 1,
-    touchCount = 5,
-  ) {
+  static calculateLevels(candles, candlesCount = 40, touchCount = 5) {
     if (ChartManager.state.hideSr) {
       for (const alert of ChartManager.state.linesSr) {
         alert.line.applyOptions({
@@ -842,59 +760,41 @@ class Indicators {
       return;
     }
     const candlesSlice = candles.slice(firstIndex, lastIndex);
-    const { maxHighCandle, minLowCandle } =
-      Indicators.findExtremeCandles(candlesSlice);
     ChartManager.state.markerSeries.setMarkers([]);
     ChartManager.state.markLevels = [];
-    // Рассчитываем уровень сопротивления
-    App.state.resistance = 0;
+    const max = Math.max(...candlesSlice.map((c) => c.high));
+    const min = Math.min(...candlesSlice.map((c) => c.low));
+    const rangePercent = ((max - min) / min) * 5;
     let checkPercent = 0;
+    const levels = [];
+    let crossLine = min;
     do {
-      const lineCross = maxHighCandle.high * (1 - checkPercent / 100);
-      const touchesHigh = candlesSlice.filter(
-        (candle) => lineCross <= candle.high,
-      ).length;
-      if (touchesHigh >= touchCount) {
-        App.state.resistance = lineCross;
-        break;
-      }
-      checkPercent += 0.01;
-    } while (checkPercent < tolerancePercent);
-    // Рассчитываем уровень поддержки
-    App.state.support = 0;
-    checkPercent = 0;
-    do {
-      const lineCross = minLowCandle.low * (1 + checkPercent / 100);
+      crossLine = crossLine * (1 + checkPercent / 100);
       const touchesLow = candlesSlice.filter(
-        (candle) => lineCross >= candle.low,
+        (candle) =>
+          crossLine >= candle.low &&
+          crossLine <= candle.low * (1 + rangePercent / 100),
       ).length;
-      if (touchesLow >= touchCount) {
-        App.state.support = lineCross;
-        break;
+      const touchesHigh = candlesSlice.filter(
+        (candle) =>
+          crossLine <= candle.high &&
+          crossLine >= candle.high * (1 - rangePercent / 100),
+      ).length;
+      const totalTouches = touchesLow + touchesHigh;
+      if (totalTouches >= touchCount) {
+        levels.push({
+          crossLine,
+          totalTouches,
+        });
       }
       checkPercent += 0.01;
-    } while (checkPercent <= tolerancePercent);
-    const firstEma21 =
-      firstIndex -
-      (ChartManager.state.candles.length -
-        ChartManager.state.emaData21.length +
-        1);
-    const lastEma21 =
-      lastIndex -
-      (ChartManager.state.candles.length -
-        ChartManager.state.emaData21.length +
-        1);
-    const ema21Slice = ChartManager.state.emaData21
-      .slice(firstEma21, lastEma21)
-      .map((v) => v.value);
-    const analysis = Indicators.analyzeMarketWithRegression(ema21Slice, {
-      lookbackPeriod: 6,
-      volatilityThreshold: 0.6,
-      trendSlopeThreshold: 0.4,
-    });
-    App.chartManager.levelInfoContainer.textContent =
-      `${analysis.marketCondition} (${analysis.strength}) ` +
-      `6 0.6 0.4 Slope ${analysis.relativeSlope}% Volat ${analysis.volatility}%`;
+    } while (crossLine <= max);
+    App.state.support =
+      levels.length > 0 ? Math.min(...levels.map((l) => l.crossLine)) : 0;
+    App.state.resistance =
+      levels.length > 0 ? Math.max(...levels.map((l) => l.crossLine)) : 0;
+    console.log(levels);
+    const currentTime = new Date(lastCandle.time * 1000);
     ChartManager.state.markLevels.push({
       time: firstCandle.time,
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
@@ -907,28 +807,32 @@ class Indicators {
       position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      text: `${currentTime.getDate()}, ${currentTime.toLocaleTimeString()}`,
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
     ChartManager.state.markerRsi.setMarkers([]);
     ChartManager.state.markRSI = [];
     ChartManager.state.markRSI.push({
       time: firstCandle.time,
-      position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+      position: "inBar",
       color: "blue",
-      shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${ChartManager.state.rsi[firstIndex - 14].value.toFixed(1)}`,
+      //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+      shape: "circle",
+      text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
     });
     ChartManager.state.markRSI.push({
       time: lastCandle.time,
-      position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+      position: "inBar",
       color: "blue",
-      shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${ChartManager.state.rsi[lastIndex - 14 - 1].value.toFixed(1)}, ${new Date(lastCandle.time * 1000).toLocaleTimeString()}`,
+      //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+      shape: "circle",
+      text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
     });
-    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
-    const resistanceV = App.state.resistance || maxHighCandle.high;
+    const resistanceV = App.state.resistance || max;
     ChartManager.state.linesSr[1].line.applyOptions({
       price: resistanceV,
       color: App.state.resistance ? "red" : "black",
@@ -937,7 +841,7 @@ class Indicators {
       axisLabelVisible: true,
     });
     //support line
-    const supportV = App.state.support || minLowCandle.low;
+    const supportV = App.state.support || min;
     ChartManager.state.linesSr[0].line.applyOptions({
       price: supportV,
       color: App.state.support ? "green" : "black",
@@ -1567,7 +1471,7 @@ class ChartManager {
             ? 1.5
             : App.state.timeframe === "2h" || App.state.timeframe === "4h"
               ? 1.2
-              : 1;
+              : 0.2;
         const isAlertHover =
           alert.name &&
           alert.line.options().lineVisible &&
@@ -1995,6 +1899,7 @@ class ChartManager {
     });
     ChartManager.state.linesSr[1].line.applyOptions({
       color: App.state.resistance ? "red" : "black",
+      title: "Short",
     });
     App.chartManager.container.style.cursor = "default";
     ChartManager.state.chart.applyOptions({
@@ -2012,7 +1917,7 @@ class App {
     cursorPrev: null,
     cursorNext: null,
     coins: [],
-    activeTab: "all",
+    activeTab: "favorites",
     hideAlerts: false,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
   };
@@ -2035,8 +1940,10 @@ class App {
       return (((a - b) / b) * 100).toFixed(2);
     });
 
-    window.Handlebars.registerHelper("formatPrice", function (a) {
-      return (+a).toFixed(2);
+    window.Handlebars.registerHelper("formatPrice", function (value, decimals) {
+      const precision = typeof decimals === "number" ? decimals : 2;
+      const str = (+value).toFixed(precision);
+      return str.replace(/\./g, ",");
     });
 
     window.Handlebars.registerHelper("eq", function (a, b) {
@@ -2284,21 +2191,28 @@ class App {
     //   document.querySelector(".display-symbol").textContent = paramsSR;
     // } else {
     //set default value levels pattern
-    App.state.patternLevel = {
-      candlesCount: 18,
-      tolerancePercent: 1,
-      touchCount: 4,
+    const tfConfig = {
+      "15min": [36, 7],
+      "30min": [36, 7],
+      "1h": [40, 5],
+      "2h": [36, 7],
+      "4h": [36, 7],
+      "1d": [36, 7],
+      "1w": [36, 7],
     };
-    const { candlesCount, tolerancePercent, touchCount } =
-      App.state.patternLevel;
+
+    App.state.patternLevel = {
+      candlesCount: tfConfig[App.state.timeframe][0],
+      touchCount: tfConfig[App.state.timeframe][1],
+    };
+    const { candlesCount, touchCount } = App.state.patternLevel;
     Indicators.calculateLevels(
       ChartManager.state.candles,
       candlesCount,
-      tolerancePercent,
       touchCount,
     );
     document.querySelector(".display-symbol").textContent =
-      `${App.state.symbol} ${candlesCount}, ${tolerancePercent}, ${touchCount}`;
+      `${App.state.symbol} ${candlesCount}, ${touchCount}`;
     //}
     //event click coin then load data from alert endpoint
     if (App.state.item) {
@@ -2428,12 +2342,10 @@ class App {
         break;
     }
     if (App.state.patternLevel) {
-      const { candlesCount, tolerancePercent, touchCount } =
-        App.state.patternLevel;
+      const { candlesCount, touchCount } = App.state.patternLevel;
       Indicators.calculateLevels(
         ChartManager.state.candles,
         candlesCount,
-        tolerancePercent,
         touchCount,
       );
     }
@@ -2630,12 +2542,10 @@ class App {
           });
         }
         if (App.state.patternLevel) {
-          const { candlesCount, tolerancePercent, touchCount } =
-            App.state.patternLevel;
+          const { candlesCount, touchCount } = App.state.patternLevel;
           Indicators.calculateLevels(
             ChartManager.state.candles,
             candlesCount,
-            tolerancePercent,
             touchCount,
           );
         }
