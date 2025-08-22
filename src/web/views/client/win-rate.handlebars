@@ -26,13 +26,11 @@
           <tr>
             <th>Date</th>
             <th>Symbol</th>
-            <th>loss</th>
-            <th>profitable</th>
-            <th>totalTrades</th>
-            <th>lossPrcnt</th>
-            <th>profPrcnt</th>
-            <th>totalPnl</th>
-            <th>WinRate</th>
+            <th>Trades</th>
+            <th>lossPrcnt, %</th>
+            <th>profPrcnt, %</th>
+            <th>totalPrcnt, %</th>
+            <th>totalPnl, $</th>
           </tr>
         </thead>
         <tbody>
@@ -40,19 +38,21 @@
             <tr class="win-item cursor-pointer" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
               <td>{{dateKey}}</td>
               <td>{{symbol}}</td>
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{totalTrades}} (+{{profitable}}; -{{loss}})
+              </td>
               <td class="text-danger">
-                {{loss}}
+                -{{formatPrice lossPrcnt}}
               </td>
               <td class="text-success">
-                {{profitable}}
+                +{{formatPrice profPrcnt}}
               </td>
-              <td>{{totalTrades}}</td>
-              <td class="{{#if (gt totalPnl 0)}}text-danger{{else}}text-success{{/if}}">{{formatPrice lossPrcnt}}</td>
-              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">{{formatPrice profPrcnt}}</td>
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice totalPrcnt}}
+              </td>
               <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{formatPrice totalPnl}}
               </td>
-              <td>{{strictWinRate}}</td>
             </tr>
           {{/each}}
         </tbody>

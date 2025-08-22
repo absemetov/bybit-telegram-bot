@@ -29,6 +29,7 @@
             <th>Side</th>
             <th>Size</th>
             <th>unrealisedPnl</th>
+            <th>avgPrice</th>
             <th>Changes</th>
             <th>Del</th>
           </tr>
@@ -46,6 +47,9 @@
               </td>
               <td class="{{#if (gt unrealisedPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{formatPrice unrealisedPnl}}$
+              </td>
+              <td>
+                {{formatPrice avgPrice 4}}$
               </td>
               <td class="{{#if (gt unrealisedPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{changepercent markPrice avgPrice}}%

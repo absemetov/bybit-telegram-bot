@@ -66,7 +66,7 @@ export const showTickerPage = async (
     ],
     [
       Markup.button.callback(
-        `${ticker.openLong ? "↗️ Long side" : "↘️ Short side"}`,
+        `${ticker.openLong ? "↗️  Long side" : "↘️  Short side"}`,
         `edit-ticker-bool/${symbol}/openLong/${!ticker.openLong}`,
       ),
     ],

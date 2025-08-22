@@ -11,12 +11,7 @@ class Scan {
       .collection("scanner");
   }
   static scanFields() {
-    return [
-      { name: "active" },
-      { name: "notify" },
-      { name: "schedule" },
-      { name: "patterns" },
-    ];
+    return [{ name: "active" }, { name: "schedule" }];
   }
   //new scan config
   static async getConfig(timeframe) {

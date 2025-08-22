@@ -101,6 +101,7 @@ export const getDailyWinRate = async (days = 7, symbol = null) => {
           totalPnl: totalR.pnl,
           lossPrcnt: totalR.lossPrcnt,
           profPrcnt: totalR.profPrcnt,
+          totalPrcnt: totalR.profPrcnt - total.lossPrcnt,
           symbol: symbol || "ALL", // Указываем для какой монеты статистика
         });
       } else {
@@ -122,7 +123,6 @@ export const getDailyWinRate = async (days = 7, symbol = null) => {
       });
     }
   }
-  console.log(dailyStats);
   return dailyStats;
 };
 //convert 15min candles to 1h
@@ -303,6 +303,14 @@ export const getPositions = async (cursor, limit = 10) => {
   };
 };
 
+//cancel ALL order
+export const cancelAllOrders = async (symbol) => {
+  const orders = await getTickerOrders(symbol);
+  for (const order of orders) {
+    await cancelOrder(symbol, order.orderId);
+  }
+};
+
 //cancel order
 export const cancelOrder = async (symbol, orderId) => {
   const response = await bybitClient.cancelOrder({
@@ -370,23 +378,24 @@ export const createLimitOrder = async (
   orderId,
 ) => {
   try {
+    //TODO check position size!!
     // 1. Получаем текущую рыночную цену
     const ticker = await bybitClient.getTickers({
       category: "linear",
       symbol,
     });
-    const currentPrice = parseFloat(ticker.result.list[0].lastPrice);
+    const lastPrice = parseFloat(ticker.result.list[0].lastPrice);
     // 2. Проверяем логику цены
-    // if (side === "Buy" && price >= lastPrice) {
-    //   throw new Error(
-    //     `Для Buy цена ордера (${price}) должна быть ниже текущей (${lastPrice})`,
-    //   );
-    // }
-    // if (side === "Sell" && price <= lastPrice) {
-    //   throw new Error(
-    //     `Для Sell цена ордера (${price}) должна быть выше текущей (${lastPrice})`,
-    //   );
-    // }
+    if (side === "Buy" && price >= lastPrice) {
+      throw new Error(
+        `Для Buy цена ордера (${price}) должна быть ниже текущей (${lastPrice})`,
+      );
+    }
+    if (side === "Sell" && price <= lastPrice) {
+      throw new Error(
+        `Для Sell цена ордера (${price}) должна быть выше текущей (${lastPrice})`,
+      );
+    }
     // 1. Получаем параметры символа
     const { result } = await bybitClient.getInstrumentsInfo({
       category: "linear",
@@ -432,14 +441,11 @@ export const createLimitOrder = async (
     const formatPrice = (value) => {
       return value.toFixed(priceScale);
     };
-    const triggerPrice =
-      side === "Buy"
-        ? formatPrice(price * (1 + 0.0015))
-        : formatPrice(price * (1 - 0.0015));
-    const entryPrice =
-      side === "Buy"
-        ? formatPrice(triggerPrice * (1 + 0.001))
-        : formatPrice(triggerPrice * (1 - 0.001));
+    //const triggerPrice =
+    //  side === "Buy"
+    //    ? formatPrice(price * (1 - 0.0015))
+    //    : formatPrice(price * (1 + 0.0015));
+    const entryPrice = formatPrice(price);
     const takeProfit =
       side === "Sell"
         ? formatPrice(entryPrice * (1 - tpPercent / 100))
@@ -455,7 +461,7 @@ export const createLimitOrder = async (
         symbol,
         orderId,
         price: entryPrice,
-        triggerPrice,
+        //triggerPrice,
         takeProfit,
         stopLoss,
         qty: formattedQty,
@@ -475,12 +481,12 @@ export const createLimitOrder = async (
         side,
         orderType: "Limit",
         qty: formattedQty,
-        triggerPrice,
+        //triggerPrice,
         price: entryPrice,
         takeProfit,
         stopLoss,
         //triggerDirection: side === "Sell" ? 2 : 1,
-        triggerDirection: triggerPrice > currentPrice ? 1 : 2,
+        //triggerDirection: triggerPrice > currentPrice ? 1 : 2,
         timeInForce: "GTC",
         positionIdx: side === "Sell" ? 2 : 1,
       });
@@ -581,14 +587,12 @@ export const getActiveSymbols = async (cursor, limit = 30) => {
       return [];
     }
     const STABLECOINS = ["USDE", "USDC"];
-    const symbols = response.result.list
-      .filter((symbol) => {
-        if (STABLECOINS.includes(symbol.baseCoin)) return false;
-        return symbol.status === "Trading" && symbol.symbol.endsWith("USDT");
-      })
-      .map((s) => s.symbol);
+    const tickers = response.result.list.filter((symbol) => {
+      if (STABLECOINS.includes(symbol.baseCoin)) return false;
+      return symbol.status === "Trading" && symbol.symbol.endsWith("USDT");
+    });
 
-    return { symbols, nextCursor: response.result.nextPageCursor };
+    return { tickers, nextCursor: response.result.nextPageCursor };
   } catch (error) {
     console.error("Error in getActiveSymbols:", error.message);
     return { symbols: [], nextCursor: null };

@@ -43,10 +43,10 @@
                 {{#if (eq side 'Buy')}}Short{{else}}Long{{/if}}
               </td>
               <td>
-                {{formatPrice cumExitValue}}$
+                {{formatPrice cumExitValue}}
               </td>
               <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
-                {{formatPrice closedPnl}}$
+                {{formatPrice closedPnl}}
               </td>
               <td>{{formatPrice avgEntryPrice 4}}$</td>
               <td>{{formatPrice avgExitPrice 4}}$</td>

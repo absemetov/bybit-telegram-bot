@@ -32,11 +32,11 @@ templates['history-positions'] = template({"1":function(container,depth0,helpers
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(lookupProperty(helpers,"eq")||(depth0 && lookupProperty(depth0,"eq"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"side") : depth0),"Buy",{"name":"eq","hash":{},"data":data,"loc":{"start":{"line":43,"column":22},"end":{"line":43,"column":37}}}),{"name":"if","hash":{},"fn":container.program(12, data, 0),"inverse":container.program(14, data, 0),"data":data,"loc":{"start":{"line":43,"column":16},"end":{"line":43,"column":63}}})) != null ? stack1 : "")
     + "\n              </td>\n              <td>\n                "
     + alias4((lookupProperty(helpers,"formatPrice")||(depth0 && lookupProperty(depth0,"formatPrice"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"cumExitValue") : depth0),{"name":"formatPrice","hash":{},"data":data,"loc":{"start":{"line":46,"column":16},"end":{"line":46,"column":44}}}))
-    + "$\n              </td>\n              <td class=\""
+    + "\n              </td>\n              <td class=\""
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(lookupProperty(helpers,"gt")||(depth0 && lookupProperty(depth0,"gt"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"closedPnl") : depth0),0,{"name":"gt","hash":{},"data":data,"loc":{"start":{"line":48,"column":31},"end":{"line":48,"column":47}}}),{"name":"if","hash":{},"fn":container.program(10, data, 0),"inverse":container.program(8, data, 0),"data":data,"loc":{"start":{"line":48,"column":25},"end":{"line":48,"column":87}}})) != null ? stack1 : "")
     + "\">\n                "
     + alias4((lookupProperty(helpers,"formatPrice")||(depth0 && lookupProperty(depth0,"formatPrice"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"closedPnl") : depth0),{"name":"formatPrice","hash":{},"data":data,"loc":{"start":{"line":49,"column":16},"end":{"line":49,"column":41}}}))
-    + "$\n              </td>\n              <td>"
+    + "\n              </td>\n              <td>"
     + alias4((lookupProperty(helpers,"formatPrice")||(depth0 && lookupProperty(depth0,"formatPrice"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"avgEntryPrice") : depth0),4,{"name":"formatPrice","hash":{},"data":data,"loc":{"start":{"line":51,"column":18},"end":{"line":51,"column":49}}}))
     + "$</td>\n              <td>"
     + alias4((lookupProperty(helpers,"formatPrice")||(depth0 && lookupProperty(depth0,"formatPrice"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"avgExitPrice") : depth0),4,{"name":"formatPrice","hash":{},"data":data,"loc":{"start":{"line":52,"column":18},"end":{"line":52,"column":48}}}))
@@ -90,6 +90,6 @@ templates['history-positions'] = template({"1":function(container,depth0,helpers
     + ((stack1 = lookupProperty(helpers,"each").call(alias1,(depth0 != null ? lookupProperty(depth0,"positions") : depth0),{"name":"each","hash":{},"fn":container.program(3, data, 0),"inverse":container.program(16, data, 0),"data":data,"loc":{"start":{"line":38,"column":10},"end":{"line":61,"column":19}}})) != null ? stack1 : "")
     + "        </tbody>\n      </table>\n    </div>\n  </div>\n</div>\n\n<div class=\"row my-2\">\n  <div class=\"col-12 text-center\">\n"
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"cursor") : depth0),{"name":"if","hash":{},"fn":container.program(18, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":70,"column":4},"end":{"line":74,"column":11}}})) != null ? stack1 : "")
-    + "  </div>\n</div>";
+    + "  </div>\n</div>\n";
 },"useData":true});
 })();

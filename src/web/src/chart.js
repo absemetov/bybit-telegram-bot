@@ -253,11 +253,42 @@ class ModalManager {
     const symbol = item.dataset.symbol;
     const getOrders = e.target.closest(".get-orders");
     const cancelOrder = e.target.closest(".cancel-order");
+    const cancelAllOrder = e.target.closest(".cancel-all-orders");
     //open orders
     if (getOrders) {
       const cursor = getOrders.dataset.cursor;
       await Order.fetchOrders(cursor);
       return;
+    }
+    //cancel all orders
+    if (cancelAllOrder) {
+      if (confirm(`Delete all order ${symbol}?`)) {
+        try {
+          const response = await fetch(`/order/cancel-all/${symbol}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          const resJson = await response.json();
+          if (!response.ok) {
+            alert(resJson.message);
+            return false;
+          }
+          this.render({
+            type: "orders",
+            title: "Limit orders",
+            orders: resJson.orders,
+            cursor: resJson.nextPageCursor,
+            size: "lg",
+          });
+          Order.orderPriceLines(resJson.orders);
+          App.state.bsOffcanvas.hide();
+          return;
+        } catch (error) {
+          alert(`Error: ${error.message}`);
+        }
+      }
     }
     //cancel orders
     if (cancelOrder) {
@@ -391,9 +422,9 @@ class ModalManager {
 //Orders
 class Order {
   static state = {
-    TAKE_PROFIT: 6,
-    STOP_LOSS: 1.2,
-    MAX_POSITION: 50,
+    TAKE_PROFIT: 7,
+    STOP_LOSS: 2,
+    MAX_POSITION: 60,
   };
   constructor() {
     this.initEventListeners();
@@ -544,10 +575,10 @@ class Order {
       ChartManager.state.candlestickSeries.removePriceLine(orderLine);
     }
     for (const limitOrder of orders) {
-      const { triggerPrice, side, sum } = limitOrder;
+      const { price, side, sum } = limitOrder;
       ChartManager.state.orders.push(
         ChartManager.state.candlestickSeries.createPriceLine({
-          price: triggerPrice,
+          price,
           color: side === "Sell" ? "red" : "green",
           lineWidth: 2,
           lineStyle: 2,
@@ -764,36 +795,58 @@ class Indicators {
     ChartManager.state.markLevels = [];
     const max = Math.max(...candlesSlice.map((c) => c.high));
     const min = Math.min(...candlesSlice.map((c) => c.low));
-    const rangePercent = ((max - min) / min) * 5;
     let checkPercent = 0;
-    const levels = [];
+    const levelsHigh = [];
+    const levelsLow = [];
     let crossLine = min;
     do {
       crossLine = crossLine * (1 + checkPercent / 100);
+      const rangeCandle = 4;
+      //short touches
+      const touchesShortLow = candlesSlice
+        .slice(-3)
+        .filter(
+          (candle) =>
+            crossLine >= candle.low &&
+            crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
+        ).length;
+      const touchesShortHigh = candlesSlice
+        .slice(-3)
+        .filter(
+          (candle) =>
+            crossLine <= candle.high &&
+            crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
+        ).length;
       const touchesLow = candlesSlice.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= candle.low * (1 + rangePercent / 100),
+          crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
       ).length;
       const touchesHigh = candlesSlice.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= candle.high * (1 - rangePercent / 100),
+          crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
       ).length;
-      const totalTouches = touchesLow + touchesHigh;
-      if (totalTouches >= touchCount) {
-        levels.push({
+      if (touchesLow >= touchCount && touchesShortLow >= 2) {
+        levelsLow.push({
           crossLine,
-          totalTouches,
+          touchesLow,
         });
       }
-      checkPercent += 0.01;
+      if (touchesHigh >= touchCount && touchesShortHigh >= 2) {
+        levelsHigh.push({
+          crossLine,
+          touchesHigh,
+        });
+      }
+      checkPercent += 0.001;
     } while (crossLine <= max);
     App.state.support =
-      levels.length > 0 ? Math.min(...levels.map((l) => l.crossLine)) : 0;
+      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
     App.state.resistance =
-      levels.length > 0 ? Math.max(...levels.map((l) => l.crossLine)) : 0;
-    console.log(levels);
+      levelsHigh.length > 0
+        ? Math.max(...levelsHigh.map((l) => l.crossLine))
+        : 0;
     const currentTime = new Date(lastCandle.time * 1000);
     ChartManager.state.markLevels.push({
       time: firstCandle.time,
@@ -1940,11 +1993,14 @@ class App {
       return (((a - b) / b) * 100).toFixed(2);
     });
 
-    window.Handlebars.registerHelper("formatPrice", function (value, decimals) {
-      const precision = typeof decimals === "number" ? decimals : 2;
-      const str = (+value).toFixed(precision);
-      return str.replace(/\./g, ",");
-    });
+    window.Handlebars.registerHelper(
+      "formatPrice",
+      function (value = 0, decimals) {
+        const precision = typeof decimals === "number" ? decimals : 2;
+        const str = (+value).toFixed(precision);
+        return str.replace(/\./g, ",");
+      },
+    );
 
     window.Handlebars.registerHelper("eq", function (a, b) {
       return a === b;
@@ -2149,6 +2205,12 @@ class App {
         axisLabelVisible: !this.state.hideAlerts,
       });
     }
+    for (const alert of ChartManager.state.orders) {
+      alert.applyOptions({
+        lineVisible: !this.state.hideAlerts,
+        axisLabelVisible: !this.state.hideAlerts,
+      });
+    }
     document.querySelector(".hide-btn").textContent = this.state.hideAlerts
       ? "📝"
       : "🔏";
@@ -2192,13 +2254,13 @@ class App {
     // } else {
     //set default value levels pattern
     const tfConfig = {
-      "15min": [36, 7],
-      "30min": [36, 7],
-      "1h": [40, 5],
-      "2h": [36, 7],
-      "4h": [36, 7],
-      "1d": [36, 7],
-      "1w": [36, 7],
+      "15min": [24, 4],
+      "30min": [24, 4],
+      "1h": [12, 4],
+      "2h": [24, 4],
+      "4h": [24, 4],
+      "1d": [12, 4],
+      "1w": [24, 4],
     };
 
     App.state.patternLevel = {
@@ -2537,6 +2599,12 @@ class App {
         //hide positions
         for (const alert of ChartManager.state.positions) {
           alert.line.applyOptions({
+            lineVisible: ChartManager.state.hideSr,
+            axisLabelVisible: ChartManager.state.hideSr,
+          });
+        }
+        for (const alert of ChartManager.state.orders) {
+          alert.applyOptions({
             lineVisible: ChartManager.state.hideSr,
             axisLabelVisible: ChartManager.state.hideSr,
           });

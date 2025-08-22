@@ -9,6 +9,7 @@ import {
   createLimitOrder,
   getLimitOrders,
   cancelOrder,
+  cancelAllOrders,
   getPositions,
   closePosition,
   editStopLoss,
@@ -200,12 +201,12 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
     const { price, side, tpPercent, slPercent, MAX_POSITION } = req.body;
     //first delete old orders
     const ordersOld = await getTickerOrders(symbol);
-    for (const order of ordersOld) {
+    for (const order of ordersOld.filter((o) => o.side === side)) {
       await cancelOrder(symbol, order.orderId);
     }
     //grid orders
     let newPrice = price;
-    for (const step of [0.1, 0.4, 0.4, 0.4]) {
+    for (const step of [0.2, 0.2, 0.2]) {
       newPrice =
         side === "Buy"
           ? newPrice * (1 - step / 100)
@@ -236,14 +237,25 @@ app.post("/order/list", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
+//cancel all order
+app.post("/order/cancel-all/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    await cancelAllOrders(symbol);
+    const response = await getLimitOrders();
+    return res.json(response);
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 //cancel order
 app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { orderId } = req.body;
     await cancelOrder(symbol, orderId);
-    const response = await getLimitOrders();
-    return res.json(response);
+    const orders = await getTickerOrders(symbol);
+    return res.json({ orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }

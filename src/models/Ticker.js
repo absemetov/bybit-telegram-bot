@@ -322,11 +322,12 @@ class Ticker {
   static async changeFields(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
-      const { symbol } = ticker;
+      const { symbol, data } = ticker;
       if (symbol) {
-        batch.update(db.doc(`crypto/${symbol}`), {
-          field: FieldValue.delete(),
-        });
+        batch.update(db.doc(`crypto/${symbol}`), data);
+        //batch.update(db.doc(`crypto/${symbol}`), {
+        //  field: FieldValue.delete(),
+        //});
       }
     }
     await batch.commit();

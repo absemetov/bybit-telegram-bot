@@ -135,35 +135,60 @@ class Indicators {
   static calculateLevels(candles, touchCount = 4) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
-    const rangePercent = ((max - min) / min) * 5;
     let checkPercent = 0;
-    const levels = [];
+    const levelsLow = [];
+    const levelsHigh = [];
     let crossLine = min;
+    const rangeCandle = 4;
     do {
       crossLine = crossLine * (1 + checkPercent / 100);
+      //short touches
+      const touchesShortLow = candles
+        .slice(-3)
+        .filter(
+          (candle) =>
+            crossLine >= candle.low &&
+            crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
+        ).length;
+      const touchesShortHigh = candles
+        .slice(-3)
+        .filter(
+          (candle) =>
+            crossLine <= candle.high &&
+            crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
+        ).length;
       const touchesLow = candles.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= candle.low * (1 + rangePercent / 100),
+          crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
       ).length;
       const touchesHigh = candles.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= candle.high * (1 - rangePercent / 100),
+          crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
       ).length;
-      const totalTouches = touchesLow + touchesHigh;
-      if (totalTouches >= touchCount) {
-        levels.push({
+      if (touchesLow >= touchCount && touchesShortLow >= 2) {
+        levelsLow.push({
           crossLine,
-          totalTouches,
+          touchesLow,
         });
       }
-      checkPercent += 0.01;
+      if (touchesHigh >= touchCount && touchesShortHigh >= 2) {
+        levelsHigh.push({
+          crossLine,
+          touchesHigh,
+        });
+      }
+      checkPercent += 0.001;
     } while (crossLine <= max);
     const support =
-      levels.length > 0 ? Math.min(...levels.map((l) => l.crossLine)) : 0;
+      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
     const resistance =
-      levels.length > 0 ? Math.max(...levels.map((l) => l.crossLine)) : 0;
+      levelsHigh.length > 0
+        ? Math.max(...levelsHigh.map((l) => l.crossLine))
+        : 0;
+    const rangePercent =
+      (((resistance || max) - (support || min)) / (support || min)) * 10;
     return {
       support,
       resistance,
