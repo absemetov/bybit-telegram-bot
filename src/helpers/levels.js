@@ -8,19 +8,14 @@ import {
   cancelOrder,
 } from "../helpers/bybitV5.js";
 const balance = await getBybitBalance();
-const MAX_POSITION_USDT = balance / 8;
-const TAKE_PROFIT = 8;
+const MAX_POSITION_USDT = balance / 1;
+const TAKE_PROFIT = 6;
 const STOP_LOSS = 2;
 //check TP SL set default values
-export const checkPositions = async (
-  ticker,
-  currentPrice,
-  bot,
-  support,
-  resistance,
-) => {
+export const checkPositions = async (ticker, currentPrice, bot) => {
   //openLong
-  const { symbol, priceScale, trading, flat } = ticker;
+  const { symbol, priceScale, tradingType, sl } = ticker;
+  const tickerStopLoss = sl || STOP_LOSS;
   //get positions
   const positions = await getTickerPositions(symbol);
   const orders = await getTickerOrders(symbol);
@@ -37,14 +32,14 @@ export const checkPositions = async (
       }
       await bot.telegram.sendMessage(
         94899148,
-        `<b>[Worning positions size increase ${MAX_POSITION_USDT}$ ${positionValue}$] <code>${symbol.slice(0, -4)}</code></b>` +
+        `<b>[Worning positions size increase ${MAX_POSITION_USDT}$ ${positionValue}$] <code>${symbol.slice(0, -4)}</code></b>\n` +
           `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
         { parse_mode: "HTML" },
       );
     }
     if (side === "Sell") {
       //set default sl
-      const newStopLoss = avgPrice * (1 + STOP_LOSS / 100);
+      const newStopLoss = avgPrice * (1 + tickerStopLoss / 100);
       if (
         !stopLoss ||
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
@@ -53,35 +48,35 @@ export const checkPositions = async (
         await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
         await bot.telegram.sendMessage(
           94899148,
-          `<b>[Set default SL ${STOP_LOSS}% 🔴 Short] <code>${symbol.slice(0, -4)}</code> slPersent before ${slPersent.toFixed(2)}%\n` +
+          `<b>[Set default SL ${tickerStopLoss}% 🔴 Short] <code>${symbol.slice(0, -4)}</code> slPersent before ${slPersent.toFixed(2)}%\n` +
             `${stopLoss} => ${newStopLoss.toFixed(priceScale)}</b>` +
             `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
           { parse_mode: "HTML" },
         );
       }
-      //breakeven 20%
-      if (pnlPersent < -2) {
-        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.2) / 100);
+      //breakeven 50%
+      if (pnlPersent < -3) {
+        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.5) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.1) {
           await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
           await bot.telegram.sendMessage(
             94899148,
-            `<b>[Breakeven 20% 🔴 Short pnl > 5%] <code>${symbol.slice(0, -4)}</code> pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+            `<b>[Breakeven 50% 🔴 Short pnl > 3%] <code>${symbol.slice(0, -4)}</code> pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `${stopLoss} => ${newStopLoss.toFixed(priceScale)}</b>\n` +
               `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
             { parse_mode: "HTML" },
           );
         }
       }
-      //set TP in support zone if Algotrading
-      if (trading && flat) {
-        const tpPercent = support
-          ? ((support - avgPrice) / avgPrice) * 100
+      //set TP in support zone if Algotrading disabled
+      if (tradingType === 5) {
+        const tpPercent = currentPrice
+          ? ((currentPrice - avgPrice) / avgPrice) * 100
           : -TAKE_PROFIT;
         const newTakeProfit = avgPrice * (1 + tpPercent / 100);
         if (
           (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.1 &&
-          tpPercent < -1
+          tpPercent < -3
         ) {
           await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
           await bot.telegram.sendMessage(
@@ -96,7 +91,7 @@ export const checkPositions = async (
     }
     if (side === "Buy") {
       //set default SL
-      const newStopLoss = avgPrice * (1 - STOP_LOSS / 100);
+      const newStopLoss = avgPrice * (1 - tickerStopLoss / 100);
       if (
         !stopLoss ||
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
@@ -105,35 +100,35 @@ export const checkPositions = async (
         await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
         await bot.telegram.sendMessage(
           94899148,
-          `<b>[Set default SL ${STOP_LOSS}% 🟢 Long] <code>${symbol.slice(0, -4)}</code> slPersent before ${slPersent.toFixed(2)}%\n` +
+          `<b>[Set default SL ${tickerStopLoss}% 🟢 Long] <code>${symbol.slice(0, -4)}</code> slPersent before ${slPersent.toFixed(2)}%\n` +
             `${stopLoss} => ${newStopLoss.toFixed(priceScale)}</b>\n` +
             `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
           { parse_mode: "HTML" },
         );
       }
-      //breakeven 20%
-      if (pnlPersent > 2) {
-        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.2) / 100);
+      //breakeven 50%
+      if (pnlPersent > 3) {
+        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.5) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 > 0.1) {
           await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
           await bot.telegram.sendMessage(
             94899148,
-            `<b>[Breakeven 20% 🟢 Long pnl >2%] <code>${symbol.slice(0, -4)}</code> pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+            `<b>[Breakeven 50% 🟢 Long pnl >3%] <code>${symbol.slice(0, -4)}</code> pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `${stopLoss} => ${newStopLoss.toFixed(priceScale)}</b>\n` +
               `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
             { parse_mode: "HTML" },
           );
         }
       }
-      //TODO Change TP to support zone or default value!!!
-      if (trading && flat) {
-        const tpPercent = resistance
-          ? ((resistance - avgPrice) / avgPrice) * 100
+      //TODO Change TP to support zone or default value!!! disabled
+      if (tradingType === 5) {
+        const tpPercent = currentPrice
+          ? ((currentPrice - avgPrice) / avgPrice) * 100
           : TAKE_PROFIT;
         const newTakeProfit = avgPrice * (1 + tpPercent / 100);
         if (
           (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.1 &&
-          tpPercent > 1
+          tpPercent > 3
         ) {
           await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
           await bot.telegram.sendMessage(
@@ -150,60 +145,148 @@ export const checkPositions = async (
   //check levels create stop orders
   //get Long Short positions
 };
-//create Long order
-export const createLongOrder = async (symbol, price, bot) => {
-  //Support Zone
+//Algo Trading 15.09.2025
+export const algoTrading = async (
+  ticker,
+  longLevels,
+  shortLevels,
+  price,
+  bot,
+) => {
+  const { symbol, tradingType, size, sl, tp } = ticker;
+  //get limit orders
+  const orders = await getTickerOrders(symbol);
+  const longOrders = orders.filter((o) => o.side === "Buy");
+  const shortOrders = orders.filter((o) => o.side === "Sell");
   const positions = await getTickerPositions(symbol);
   const longPosition = positions.find((p) => p.side === "Buy");
-  //open Long && openLong
-  if (!longPosition || longPosition.positionValue < MAX_POSITION_USDT) {
-    //cancel all old orders
-    const orders = await getTickerOrders(symbol);
-    for (const order of orders) {
-      await cancelOrder(symbol, order.orderId);
+  const shortPosition = positions.find((p) => p.side === "Sell");
+  //create LONG orders
+  if (
+    longLevels.support > 0 &&
+    shortLevels.support > 0 &&
+    [2, 4].includes(tradingType) &&
+    longOrders.length === 0 &&
+    !longPosition
+  ) {
+    if (Math.abs(longLevels.support - price) / price <= 0.7 / 100) {
+      for (const step of [0.2, 0.4, 0.6]) {
+        await createLimitOrder(
+          symbol,
+          "Buy",
+          price * (1 - step / 100),
+          size / 3,
+          tp,
+          sl,
+        );
+      }
+      await bot.telegram.sendMessage(
+        94899148,
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🟢 Long on Support Zone]\n` +
+          `Price ${price}$ Size ${size}$</b>\n` +
+          `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        { parse_mode: "HTML" },
+      );
     }
-    await createLimitOrder(
-      symbol,
-      "Buy",
-      price,
-      MAX_POSITION_USDT / 3,
-      TAKE_PROFIT,
-      STOP_LOSS,
-    );
-    await bot.telegram.sendMessage(
-      94899148,
-      `<b><code>${symbol.slice(0, -4)}</code> [Created orders grid 🟢 Long on Support Zone]\n` +
-        `Price ${price}$ Max position / 3 ${MAX_POSITION_USDT.toFixed(2)}$</b>\n` +
-        `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
-      { parse_mode: "HTML" },
-    );
+  }
+  //create SHORT orders
+  if (
+    longLevels.resistance > 0 &&
+    shortLevels.resistance > 0 &&
+    [3, 4].includes(tradingType) &&
+    shortOrders.length === 0 &&
+    !shortPosition
+  ) {
+    if (Math.abs(longLevels.resistance - price) / price <= 0.7 / 100) {
+      for (const step of [0.2, 0.4, 0.6]) {
+        await createLimitOrder(
+          symbol,
+          "Sell",
+          price * (1 + step / 100),
+          size / 3,
+          tp || TAKE_PROFIT,
+          sl || STOP_LOSS,
+        );
+      }
+      await bot.telegram.sendMessage(
+        94899148,
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🔴 Short on Resistance Zone]\n` +
+          `Price ${price}$ Size ${size}$</b>\n` +
+          `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        { parse_mode: "HTML" },
+      );
+    }
+  }
+};
+//create Long order
+export const createLongOrder = async (symbol, price, bot, tp, sl, size) => {
+  const orders = await getTickerOrders(symbol);
+  if (orders.length === 0) {
+    const positions = await getTickerPositions(symbol);
+    const longPosition = positions.find((p) => p.side === "Buy");
+    let posSize = size;
+    //open Long && openLong
+    if (!longPosition || longPosition.positionValue < posSize) {
+      if (longPosition) {
+        posSize =
+          longPosition.positionValue < posSize
+            ? posSize - longPosition.positionValue
+            : posSize;
+      }
+      if (posSize < 50) {
+        return;
+      }
+      await createLimitOrder(
+        symbol,
+        "Buy",
+        price,
+        posSize,
+        tp || TAKE_PROFIT,
+        sl || STOP_LOSS,
+      );
+      await bot.telegram.sendMessage(
+        94899148,
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🟢 Long on Support Zone]\n` +
+          `Price ${price}$ Max position ${posSize.toFixed(2)}$</b>\n` +
+          `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        { parse_mode: "HTML" },
+      );
+    }
   }
 };
 //create Short order
-export const createShortOrder = async (symbol, price, bot) => {
-  //Resistance Zone
-  const positions = await getTickerPositions(symbol);
-  const shortPosition = positions.find((p) => p.side === "Sell");
-  //open Short && !openLong
-  if (!shortPosition || shortPosition.positionValue < MAX_POSITION_USDT) {
-    const orders = await getTickerOrders(symbol);
-    for (const order of orders) {
-      await cancelOrder(symbol, order.orderId);
+export const createShortOrder = async (symbol, price, bot, tp, sl, size) => {
+  const orders = await getTickerOrders(symbol);
+  if (orders.length === 0) {
+    const positions = await getTickerPositions(symbol);
+    const shortPosition = positions.find((p) => p.side === "Sell");
+    let posSize = size;
+    //open Short && !openLong
+    if (!shortPosition || shortPosition.positionValue < posSize) {
+      if (shortPosition) {
+        posSize =
+          shortPosition.positionValue < posSize
+            ? posSize - shortPosition.positionValue
+            : posSize;
+      }
+      if (posSize < 50) {
+        return;
+      }
+      await createLimitOrder(
+        symbol,
+        "Sell",
+        price,
+        posSize,
+        tp || TAKE_PROFIT,
+        sl || STOP_LOSS,
+      );
+      await bot.telegram.sendMessage(
+        94899148,
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🔴 Short on Resistance Zone]\n` +
+          `Price ${price}$ Map position ${posSize.toFixed(2)}$</b>\n` +
+          `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        { parse_mode: "HTML" },
+      );
     }
-    await createLimitOrder(
-      symbol,
-      "Sell",
-      price,
-      MAX_POSITION_USDT / 3,
-      TAKE_PROFIT,
-      STOP_LOSS,
-    );
-    await bot.telegram.sendMessage(
-      94899148,
-      `<b><code>${symbol.slice(0, -4)}</code> [Created order 🔴 Short on Resistance Zone]\n` +
-        `Price ${price}$ Map position / 3 ${MAX_POSITION_USDT.toFixed(2)}$</b>\n` +
-        `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
-      { parse_mode: "HTML" },
-    );
   }
 };

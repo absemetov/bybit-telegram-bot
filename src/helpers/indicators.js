@@ -139,41 +139,25 @@ class Indicators {
     const levelsLow = [];
     const levelsHigh = [];
     let crossLine = min;
-    const rangeCandle = 4;
     do {
       crossLine = crossLine * (1 + checkPercent / 100);
-      //short touches
-      const touchesShortLow = candles
-        .slice(-3)
-        .filter(
-          (candle) =>
-            crossLine >= candle.low &&
-            crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
-        ).length;
-      const touchesShortHigh = candles
-        .slice(-3)
-        .filter(
-          (candle) =>
-            crossLine <= candle.high &&
-            crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
-        ).length;
       const touchesLow = candles.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
+          crossLine <= (candle.high + candle.low) / 2,
       ).length;
       const touchesHigh = candles.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
+          crossLine >= (candle.high + candle.low) / 2,
       ).length;
-      if (touchesLow >= touchCount && touchesShortLow >= 2) {
+      if (touchesLow >= touchCount) {
         levelsLow.push({
           crossLine,
           touchesLow,
         });
       }
-      if (touchesHigh >= touchCount && touchesShortHigh >= 2) {
+      if (touchesHigh >= touchCount) {
         levelsHigh.push({
           crossLine,
           touchesHigh,
@@ -181,18 +165,15 @@ class Indicators {
       }
       checkPercent += 0.001;
     } while (crossLine <= max);
-    const support =
+    let support =
       levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
-    const resistance =
+    let resistance =
       levelsHigh.length > 0
         ? Math.max(...levelsHigh.map((l) => l.crossLine))
         : 0;
-    const rangePercent =
-      (((resistance || max) - (support || min)) / (support || min)) * 10;
     return {
       support,
       resistance,
-      rangePercent,
     };
   }
   // RSI для всех свечей

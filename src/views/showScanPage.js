@@ -10,7 +10,7 @@ export const viewScans = async (ctx, intervals, edit = false) => {
         `cron/${interval.id}/edit/active/${!interval.active}/redirect`,
       ),
       Markup.button.callback(
-        `${interval.notify ? "🔔" : "🔕"} ${interval.id} (${interval.schedule || "-"})`,
+        `${interval.id} (${interval.schedule || "-"})`,
         `cron/${interval.id}`,
       ),
     ]);

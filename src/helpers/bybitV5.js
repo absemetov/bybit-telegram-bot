@@ -304,9 +304,9 @@ export const getPositions = async (cursor, limit = 10) => {
 };
 
 //cancel ALL order
-export const cancelAllOrders = async (symbol) => {
+export const cancelAllOrders = async (symbol, side) => {
   const orders = await getTickerOrders(symbol);
-  for (const order of orders) {
+  for (const order of orders.filter((o) => o.side === side)) {
     await cancelOrder(symbol, order.orderId);
   }
 };
@@ -345,7 +345,7 @@ export const getTickerOrders = async (symbol) => {
       price: parseFloat(order.price),
       qty: parseFloat(order.qty),
       sum: (order.qty * order.price).toFixed(2),
-      triggerPrice: parseFloat(order.triggerPrice),
+      //triggerPrice: parseFloat(order.triggerPrice),
     }));
 };
 //list orders
@@ -419,13 +419,14 @@ export const createLimitOrder = async (
 
     // 3. Приводим к шагу qtyStep
     //const step = Number(qtyStep);
-    const adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
+    let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
     //const adjustedQty = Math.round(baseQty / qtyStep) * qtyStep;
     // 4. Проверяем лимиты
     if (adjustedQty < minOrderQty) {
-      throw new Error(
-        `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
-      );
+      adjustedQty = +minOrderQty;
+      //throw new Error(
+      //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
+      //);
     }
 
     if (adjustedQty > maxOrderQty) {

@@ -3,7 +3,9 @@
   <div class="list-group-item cursor-pointer coin-item{{#if active}} list-group-item-primary{{/if}}" data-symbol="{{symbol}}">
     <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
-          <span class="coin-symbol">{{#if trading}}🟢{{/if}} {{symbol}} {{#if openLong}}↗️{{else}}↘️{{/if}}</span>
+          <span class="coin-symbol">
+            {{symbol}}
+          </span>
         </div>
         <div class="text-end">
             <span class="coin-price"></span>

@@ -31,26 +31,54 @@ class ModalManager {
       <form data-form-type="order">
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Price ($)</label>
-                <input type="number" class="form-control-plaintext" value="{{price}}" readonly>
-            </div>
-            <div class="col-md-6 mb-3">
                 <label class="form-label">Max position ($)</label>
-                <input type="number" class="form-control-plaintext" value="{{maxPosition}}" readonly>
+                <input type="number" class="form-control-plaintext" name="size" value="{{size}}" required>
             </div>
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Take Profit (%)</label>
-                <input type="number" class="form-control" name="takeProfit" value="{{takeProfit}}" step="0.1" required>
+                <input type="number" class="form-control" name="tp" value="{{tp}}" step="0.1" required>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Stop Loss (%)</label>
-                <input type="number" class="form-control" name="stopLoss" value="{{stopLoss}}" step="0.1" max="2" required>
+                <input type="number" class="form-control" name="sl" value="{{sl}}" step="0.1" max="3" required>
             </div>
         </div>
         <div class="d-grid gap-2">
           <button type="submit" class="btn btn-{{#if (eq orderType 'long')}}success{{else}}danger{{/if}}">{{buttonText}}</button>
+        </div>
+      </form>`),
+      algoForm: window.Handlebars.compile(`
+      <form data-form-type="algo">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+              {{#each algoTypes}}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="tradingType" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+                  <label class="form-check-label" for="radioDefault{{value}}">
+                    {{name}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="size">Max position ($)</label>
+                <input type="number" class="form-control-plaintext" name="size" id="size" value="{{maxPosition}}">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="takeProfit" >Take Profit (%)</label>
+                <input type="number" class="form-control" name="takeProfit" id="takeProfit" value="{{takeProfit}}" step="0.1" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="stopLoss">Stop Loss (%)</label>
+                <input type="number" class="form-control" name="stopLoss" id="stopLoss" value="{{stopLoss}}" step="0.1" max="2" required>
+            </div>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary">Generate orders Goodluck!</button>
         </div>
       </form>`),
       win: window.Handlebars.templates["win-rate"],
@@ -60,6 +88,12 @@ class ModalManager {
     };
 
     // Делегирование событий
+    this.modalElement.addEventListener("hide.bs.modal", function () {
+      // Remove the focus from the active element
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+    });
     this.modalElement.addEventListener("submit", this.handleSubmit.bind(this));
     this.modalElement.addEventListener("click", this.handleClick.bind(this));
   }
@@ -85,10 +119,16 @@ class ModalManager {
         return this.templates.orderForm({
           orderType: config.orderType,
           buttonText: config.orderType.toUpperCase(),
-          price: Order.state.price.toFixed(5),
-          stopLoss: Order.state.STOP_LOSS,
-          takeProfit: Order.state.TAKE_PROFIT,
-          maxPosition: Order.state.MAX_POSITION,
+          sl: Order.state.STOP_LOSS,
+          tp: Order.state.TAKE_PROFIT,
+          size: Order.state.MAX_POSITION,
+        });
+      case "algo-form":
+        return this.templates.algoForm({
+          algoTypes: config.algoTypes,
+          stopLoss: App.state.algoTrading.sl || Order.state.STOP_LOSS,
+          takeProfit: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
+          maxPosition: App.state.algoTrading.size || Order.state.MAX_POSITION,
         });
       case "orders":
         return this.templates.orders({
@@ -129,6 +169,9 @@ class ModalManager {
     const formData = new FormData(form);
     if (form.dataset.formType === "order") {
       this._handleOrderSubmit(formData);
+    }
+    if (form.dataset.formType === "algo") {
+      this._handleAlgoSubmit(formData);
     }
   }
 
@@ -190,7 +233,7 @@ class ModalManager {
     // }
     // Клик по всей строке
     if (symbol !== App.state.symbol) {
-      App.router.navigate(`/chart/${symbol}/${App.state.timeframe}`);
+      App.router.navigate(`/chart/${symbol}`);
     }
     document
       .querySelectorAll(".history-item")
@@ -261,10 +304,11 @@ class ModalManager {
       return;
     }
     //cancel all orders
+    const side = e.target.dataset.side;
     if (cancelAllOrder) {
       if (confirm(`Delete all order ${symbol}?`)) {
         try {
-          const response = await fetch(`/order/cancel-all/${symbol}`, {
+          const response = await fetch(`/order/cancel-all/${symbol}/${side}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -294,7 +338,6 @@ class ModalManager {
     if (cancelOrder) {
       const orderId = e.target.dataset.orderId;
       const price = e.target.dataset.price;
-      const side = e.target.dataset.side;
       if (confirm(`Delete order ${side} ${symbol} by ${price}$?`)) {
         try {
           const response = await fetch(`/order/cancel/${symbol}`, {
@@ -327,7 +370,7 @@ class ModalManager {
       }
     }
     //navigate to ticker
-    App.router.navigate(`/chart/${symbol}/${App.state.timeframe}`);
+    App.router.navigate(`/chart/${symbol}`);
     App.state.bsOffcanvas.hide();
   }
   async _handlePositionClick(item, e) {
@@ -376,13 +419,14 @@ class ModalManager {
       }
     }
     //navigate to ticker
-    App.router.navigate(`/chart/${symbol}/${App.state.timeframe}`);
+    App.router.navigate(`/chart/${symbol}`);
     App.state.bsOffcanvas.hide();
   }
   async _handleOrderSubmit(data) {
-    const { side, symbol, price, MAX_POSITION } = Order.state;
-    const tpPercent = parseFloat(data.get("takeProfit"));
-    const slPercent = parseFloat(data.get("stopLoss"));
+    const { side, symbol } = Order.state;
+    const tp = parseFloat(data.get("takeProfit"));
+    const sl = parseFloat(data.get("stopLoss"));
+    const size = parseFloat(data.get("size"));
     try {
       const response = await fetch(`/order/create/${symbol}`, {
         method: "POST",
@@ -390,11 +434,10 @@ class ModalManager {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          price,
           side,
-          tpPercent,
-          slPercent,
-          MAX_POSITION,
+          tp,
+          sl,
+          size,
         }),
       });
       const resJson = await response.json();
@@ -402,6 +445,56 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
+      //SHOW limit orders in chart
+      App.setState({ hideOrders: true });
+      Order.orderPriceLines(resJson.orders);
+      this.modal.hide();
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
+  async _handleAlgoSubmit(data) {
+    const { symbol } = Order.state;
+    const tp = parseFloat(data.get("takeProfit"));
+    const sl = parseFloat(data.get("stopLoss"));
+    const size = parseFloat(data.get("size"));
+    const tradingType = parseFloat(data.get("tradingType"));
+    App.state.algoTrading = {
+      tradingType,
+      tp,
+      sl,
+      size,
+    };
+    //if (!App.state.hideAlerts) {
+    //  alert("Please, show Alerts");
+    //  return;
+    //}
+    if (!size || !tradingType) {
+      alert("Set data size or tradingType!");
+      return;
+    }
+    try {
+      const response = await fetch(`/algo-trading/${symbol}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tradingType,
+          tp,
+          sl,
+          size,
+        }),
+      });
+      const resJson = await response.json();
+      if (!response.ok) {
+        alert(resJson.message);
+        return false;
+      }
+      //SHOW limit orders in chart
+      //App.setState({ hideOrders: true });
+      //Order.orderPriceLines(resJson.orders);
+      App.renderTradingBtn(tradingType);
       // this.render({
       //   type: "orders",
       //   title: "Limit orders",
@@ -409,7 +502,7 @@ class ModalManager {
       //   cursor: resJson.nextPageCursor,
       //   size: "lg",
       // });
-      Order.orderPriceLines(resJson.orders);
+      //Order.orderPriceLines(resJson.orders);
       this.modal.hide();
       //TODO
       //fetchOrders();
@@ -422,44 +515,68 @@ class ModalManager {
 //Orders
 class Order {
   static state = {
-    TAKE_PROFIT: 7,
-    STOP_LOSS: 2,
-    MAX_POSITION: 60,
+    TAKE_PROFIT: 6,
+    STOP_LOSS: 1.5,
+    MAX_POSITION: 500,
   };
   constructor() {
     this.initEventListeners();
   }
   initEventListeners() {
+    //algo-trading
+    document
+      .querySelector(".trading-btn")
+      .addEventListener("click", async () => {
+        //Order.state.side = "Buy";
+        //const alertData = !(e.target.dataset.alert === "true");
+        //if (alertData) {
+        //  alert("Please, firt Enable alert btn for edit ticker TP SL");
+        //}
+        Order.state.symbol = App.state.symbol;
+        //Order.state.price = ChartManager.state.linesSr[0].line.options().price;
+        const algoTypes = [
+          { value: 1, name: "Off AlgoTrading" },
+          { value: 2, name: "🟢 Long" },
+          { value: 3, name: "🟢 Short" },
+          { value: 4, name: "🟢 Flat" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.tradingType) {
+            el.checked = true;
+          } else {
+            el.checked = false;
+          }
+          return el;
+        });
+        App.modal.render({
+          type: "algo-form",
+          title: `AlgoTrading ${Order.state.symbol}`,
+          algoTypes,
+        });
+      });
     //long btn
     document.querySelector(".long-btn").addEventListener("click", async () => {
       Order.state.side = "Buy";
       Order.state.symbol = App.state.symbol;
-      Order.state.price = ChartManager.state.linesSr[0].line.options().price;
-      if (!ChartManager.state.linesSr[0].line.options().lineVisible) {
-        alert("Show long line!");
-        return;
+      if (!App.state.hideAlerts) {
+        App.setState({ hideAlerts: true });
       }
       App.modal.render({
         type: "order-form",
-        title: `LONG ${Order.state.symbol}`,
+        title: `LONG by Alerts ${Order.state.symbol}`,
         orderType: "long",
-        //size: "sm",
       });
     });
     //short btn
     document.querySelector(".short-btn").addEventListener("click", async () => {
       Order.state.side = "Sell";
       Order.state.symbol = App.state.symbol;
-      Order.state.price = ChartManager.state.linesSr[1].line.options().price;
-      if (!ChartManager.state.linesSr[1].line.options().lineVisible) {
-        alert("Show short line!");
-        return;
+      if (!App.state.hideAlerts) {
+        App.setState({ hideAlerts: true });
       }
       App.modal.render({
         type: "order-form",
-        title: `SHORT ${Order.state.symbol}`,
+        title: `SHORT by Alerts ${Order.state.symbol}`,
         orderType: "short",
-        //size: "sm",
       });
     });
   }
@@ -487,8 +604,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `Long: ${unrealisedPnl}$`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
         avgPrice,
         size,
@@ -504,8 +621,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `SL/Long:${slPercent.toFixed(2)}%`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
       });
       ChartManager.state.positions.push({
@@ -516,8 +633,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `TP/Long:${tpPercent.toFixed(2)}%`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
       });
     }
@@ -534,8 +651,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `Short: ${unrealisedPnl}$`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
         avgPrice,
         size,
@@ -551,8 +668,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `SL/Short:${slPercent.toFixed(2)}%`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
       });
       ChartManager.state.positions.push({
@@ -563,8 +680,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `TP/Short:${tpPercent.toFixed(2)}%`,
-          lineVisible: ChartManager.state.hideSr,
-          axisLabelVisible: ChartManager.state.hideSr,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
       });
     }
@@ -583,8 +700,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 2,
           title: `L:${side} ${sum}$`,
-          //lineVisible: false,
-          //axisLabelVisible: false,
+          lineVisible: App.state.hideOrders,
+          axisLabelVisible: App.state.hideOrders,
         }),
       );
     }
@@ -715,45 +832,18 @@ class Router {
     this.router
       .on({
         "/chart": async () => this.defaultRoute(),
-        "/chart/:symbol": ({ data }) => {
-          this.router.navigate(`/chart/${data.symbol}/1h`);
-        },
-        "/chart/:symbol/:timeframe": async ({ data, params }) =>
-          await this.handleRoute(data, params),
-        "/chart/:symbol/:timeframe/message": async ({ data }) =>
-          this.handleMessage(data),
+        "/chart/:symbol": async ({ data }) => await this.handleRoute(data),
       })
       .resolve();
   }
   defaultRoute() {
-    this.navigate(`/chart/BTCUSDT/${App.state.timeframe}`);
+    this.navigate(`/chart/BTCUSDT`);
   }
-  handleMessage(data) {
-    App.state.activeTab = data.timeframe;
-    this.navigate(`/chart/${data.symbol}/${data.timeframe}`);
-  }
-  async handleRoute(data, params) {
-    const intervalKline = {
-      "1min": "1",
-      "5min": "5",
-      "15min": "15",
-      "30min": "30",
-      "1h": "60",
-      "2h": "120",
-      "4h": "240",
-      "6h": "360",
-      "12h": "720",
-      "1d": "D",
-      "1w": "W",
-      "1m": "M",
-    };
+  async handleRoute(data) {
     const state = {
       symbol: data.symbol || "BTCUSDT",
-      timeframe: data.timeframe || "1h",
-      intervalKline: intervalKline[data.timeframe],
-      markerTime: +params?.time,
-      markerPrice: params?.price,
-      markerSide: params?.side,
+      timeframe: App.state.timeframe || "4h",
+      intervalKline: App.state.intervalKline || "240",
     };
     App.setState(state);
     await App.renderChart();
@@ -769,8 +859,48 @@ class Indicators {
   static state = {
     countLoads: 0,
   };
-
-  static calculateLevels(candles, candlesCount = 40, touchCount = 5) {
+  static findLevels(candles, touchCount = 4) {
+    const max = Math.max(...candles.map((c) => c.high));
+    const min = Math.min(...candles.map((c) => c.low));
+    let checkPercent = 0;
+    const levelsHigh = [];
+    const levelsLow = [];
+    let crossLine = min;
+    do {
+      crossLine = crossLine * (1 + checkPercent / 100);
+      const touchesLow = candles.filter(
+        (candle) =>
+          crossLine >= candle.low &&
+          crossLine <= (candle.high + candle.low) / 2,
+      ).length;
+      const touchesHigh = candles.filter(
+        (candle) =>
+          crossLine <= candle.high &&
+          crossLine >= (candle.high + candle.low) / 2,
+      ).length;
+      if (touchesLow >= touchCount) {
+        levelsLow.push({
+          crossLine,
+          touchesLow,
+        });
+      }
+      if (touchesHigh >= touchCount) {
+        levelsHigh.push({
+          crossLine,
+          touchesHigh,
+        });
+      }
+      checkPercent += 0.001;
+    } while (crossLine <= max);
+    const support =
+      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
+    const resistance =
+      levelsHigh.length > 0
+        ? Math.max(...levelsHigh.map((l) => l.crossLine))
+        : 0;
+    return { support, resistance };
+  }
+  static calculateLevels(candles, candlesCount = 10, touchCount = 4) {
     if (ChartManager.state.hideSr) {
       for (const alert of ChartManager.state.linesSr) {
         alert.line.applyOptions({
@@ -795,57 +925,15 @@ class Indicators {
     ChartManager.state.markLevels = [];
     const max = Math.max(...candlesSlice.map((c) => c.high));
     const min = Math.min(...candlesSlice.map((c) => c.low));
-    let checkPercent = 0;
-    const levelsHigh = [];
-    const levelsLow = [];
-    let crossLine = min;
-    do {
-      crossLine = crossLine * (1 + checkPercent / 100);
-      const rangeCandle = 4;
-      //short touches
-      const touchesShortLow = candlesSlice
-        .slice(-3)
-        .filter(
-          (candle) =>
-            crossLine >= candle.low &&
-            crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
-        ).length;
-      const touchesShortHigh = candlesSlice
-        .slice(-3)
-        .filter(
-          (candle) =>
-            crossLine <= candle.high &&
-            crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
-        ).length;
-      const touchesLow = candlesSlice.filter(
-        (candle) =>
-          crossLine >= candle.low &&
-          crossLine <= candle.low + (candle.high - candle.low) / rangeCandle,
-      ).length;
-      const touchesHigh = candlesSlice.filter(
-        (candle) =>
-          crossLine <= candle.high &&
-          crossLine >= candle.high - (candle.high - candle.low) / rangeCandle,
-      ).length;
-      if (touchesLow >= touchCount && touchesShortLow >= 2) {
-        levelsLow.push({
-          crossLine,
-          touchesLow,
-        });
-      }
-      if (touchesHigh >= touchCount && touchesShortHigh >= 2) {
-        levelsHigh.push({
-          crossLine,
-          touchesHigh,
-        });
-      }
-      checkPercent += 0.001;
-    } while (crossLine <= max);
+    const longLevels = this.findLevels(candlesSlice, touchCount);
+    const shortLevels = this.findLevels(candlesSlice.slice(-2), 2);
     App.state.support =
-      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
+      longLevels.support > 0 && shortLevels.support > 0
+        ? longLevels.support
+        : 0;
     App.state.resistance =
-      levelsHigh.length > 0
-        ? Math.max(...levelsHigh.map((l) => l.crossLine))
+      longLevels.resistance > 0 && shortLevels.resistance > 0
+        ? longLevels.resistance
         : 0;
     const currentTime = new Date(lastCandle.time * 1000);
     ChartManager.state.markLevels.push({
@@ -885,23 +973,23 @@ class Indicators {
     });
     ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
-    const resistanceV = App.state.resistance || max;
+    App.state.resistanceMax = App.state.resistance || max;
     ChartManager.state.linesSr[1].line.applyOptions({
-      price: resistanceV,
+      price: App.state.resistanceMax,
       color: App.state.resistance ? "red" : "black",
       //lineStyle: resistance ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
     });
     //support line
-    const supportV = App.state.support || min;
+    App.state.supportMin = App.state.support || min;
     ChartManager.state.linesSr[0].line.applyOptions({
-      price: supportV,
+      price: App.state.supportMin,
       color: App.state.support ? "green" : "black",
       //lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
-      title: `${(((resistanceV - supportV) / supportV) * 100).toFixed(2)}%`,
+      title: `${(((App.state.resistanceMax - App.state.supportMin) / App.state.supportMin) * 100).toFixed(2)}%`,
     });
     // const coordinateY = ChartManager.state.candlestickSeries.priceToCoordinate(
     //   Math.max(firstCandle.high, lastCandle.high),
@@ -1076,7 +1164,7 @@ class ChartManager {
     currentPriceMove: null,
     isDroped: true,
     candles: [],
-    hideSr: false,
+    hideSr: true,
     linesSr: [],
     orders: [],
     positions: [],
@@ -1309,14 +1397,14 @@ class ChartManager {
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent < -1.5 && alertName === "slLong") {
+        if (pricePercent < -2 && alertName === "slLong") {
           ChartManager.state.positions
             .find((p) => p.name === "slLong")
             .line.applyOptions({
               price: stopLoss,
               title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
             });
-          return alert("SL Long > 1.5%!!!");
+          return alert("SL Long > 2%!!!");
         }
         const params = { side };
         if (alertName === "slLong") {
@@ -1368,14 +1456,14 @@ class ChartManager {
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent > 1.5 && alertName === "slShort") {
+        if (pricePercent > 2 && alertName === "slShort") {
           ChartManager.state.positions
             .find((p) => p.name === "slShort")
             .line.applyOptions({
               price: stopLoss,
               title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
             });
-          return alert("SL Short > 1.5%!!!");
+          return alert("SL Short > 2%!!!");
         }
         const params = { side };
         if (alertName === "slShort") {
@@ -1508,9 +1596,6 @@ class ChartManager {
       ChartManager.state.rsiSeries.setData([]);
       this.updateData(formattedData);
       ChartManager.state.chart.timeScale().scrollToPosition(10);
-      //load Alerts
-      await App.loadAlerts();
-      this.updateWebsocketSymbol();
     } catch (error) {
       alert(`Error loading chart data:, ${error}`);
       console.error("Error loading chart data:", error);
@@ -1828,6 +1913,7 @@ class ChartManager {
           handleScroll: false,
           handleScale: false,
         });
+        App.updateAlertsTitle();
         return;
       }
     }
@@ -1916,12 +2002,9 @@ class ChartManager {
   defaultAlerts() {
     for (const alert of ChartManager.state.alerts) {
       alert.line.applyOptions({
-        color:
-          alert.name === "alert0" ||
-          alert.name === "alert5" ||
-          alert.name === "alert6"
-            ? "red"
-            : "blue",
+        color: ["alert1", "alert2", "alert5"].includes(alert.name)
+          ? "green"
+          : "red",
       });
     }
     ChartManager.state.positions
@@ -1966,12 +2049,13 @@ class ChartManager {
 class App {
   static state = {
     symbol: "BTCUSDT",
-    timeframe: "1h",
+    timeframe: "4h",
     cursorPrev: null,
     cursorNext: null,
     coins: [],
-    activeTab: "favorites",
+    activeTab: "all",
     hideAlerts: false,
+    hideOrders: true,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
   };
 
@@ -2039,7 +2123,7 @@ class App {
           onSelect({ item }) {
             const symbol = item.label.toUpperCase();
             App.router.navigate(
-              `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
+              `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
             );
           },
         };
@@ -2056,7 +2140,7 @@ class App {
         const symbol = state.query.toUpperCase();
         if (symbol) {
           App.router.navigate(
-            `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
+            `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
           );
         }
       },
@@ -2114,7 +2198,7 @@ class App {
               });
               const symbol = item.name.toUpperCase();
               App.router.navigate(
-                `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}/${App.state.timeframe}`,
+                `/chart/${symbol}${symbol.endsWith("USDT") ? "" : "USDT"}`,
               );
             },
           },
@@ -2167,7 +2251,7 @@ class App {
       this.renderCoinList();
       //this.updatePagination();
     } catch (error) {
-      console.error("Error loading Bybit coins:", error);
+      console.error("Error loading My coins:", error);
     }
   }
   static renderCoinList() {
@@ -2191,29 +2275,24 @@ class App {
   static setState(newState) {
     this.state = { ...this.state, ...newState };
     document.querySelector(".hide-btn").textContent = this.state.hideAlerts
-      ? "📝"
-      : "🔏";
+      ? "🔔"
+      : "🔕";
+    document.querySelector(".order-btn").textContent = this.state.hideOrders
+      ? "📬"
+      : "📭";
   }
   static async renderChart() {
     await this.chartManager.loadChartData();
+    this.renderLevels();
+    //load Alerts
+    await this.loadAlerts();
+    this.chartManager.updateWebsocketSymbol();
   }
   static hideAlerts() {
     this.state.hideAlerts = !this.state.hideAlerts;
-    for (const alert of ChartManager.state.positions) {
-      alert.line.applyOptions({
-        lineVisible: !this.state.hideAlerts,
-        axisLabelVisible: !this.state.hideAlerts,
-      });
-    }
-    for (const alert of ChartManager.state.orders) {
-      alert.applyOptions({
-        lineVisible: !this.state.hideAlerts,
-        axisLabelVisible: !this.state.hideAlerts,
-      });
-    }
     document.querySelector(".hide-btn").textContent = this.state.hideAlerts
-      ? "📝"
-      : "🔏";
+      ? "🔔"
+      : "🔕";
     for (const alert of ChartManager.state.alerts) {
       alert.line.applyOptions({
         lineVisible: this.state.hideAlerts,
@@ -2221,8 +2300,92 @@ class App {
       });
     }
   }
+  static hideOrders() {
+    this.state.hideOrders = !this.state.hideOrders;
+    for (const alert of ChartManager.state.positions) {
+      alert.line.applyOptions({
+        lineVisible: this.state.hideOrders,
+        axisLabelVisible: this.state.hideOrders,
+      });
+    }
+    for (const alert of ChartManager.state.orders) {
+      alert.applyOptions({
+        lineVisible: this.state.hideOrders,
+        axisLabelVisible: this.state.hideOrders,
+      });
+    }
+    document.querySelector(".order-btn").textContent = this.state.hideOrders
+      ? "📬"
+      : "📭";
+  }
+  static renderLevels() {
+    const tfConfig = {
+      "15min": [30, 4],
+      "30min": [30, 4],
+      "1h": [7, 4],
+      "2h": [10, 4],
+      "4h": [10, 4],
+      "1d": [10, 4],
+      "1w": [10, 4],
+    };
+
+    App.state.patternLevel = {
+      candlesCount: tfConfig[App.state.timeframe][0],
+      touchCount: tfConfig[App.state.timeframe][1],
+    };
+    const { candlesCount, touchCount } = App.state.patternLevel;
+    Indicators.calculateLevels(
+      ChartManager.state.candles,
+      candlesCount,
+      touchCount,
+    );
+    document.querySelector(".display-symbol").textContent =
+      `${App.state.symbol} ${candlesCount}, ${touchCount}`;
+  }
+  static updateAlertsTitle() {
+    if (ChartManager.state.alerts.length === 0) {
+      return;
+    }
+    const slBuy = ChartManager.state.alerts[0].line.options().price;
+    const stopBuy = ChartManager.state.alerts[1].line.options().price;
+    const startBuy = ChartManager.state.alerts[2].line.options().price;
+    ChartManager.state.alerts[1].line.applyOptions({
+      title: `end ${(((startBuy - stopBuy) / stopBuy) * 100).toFixed(2)}%`,
+    });
+    ChartManager.state.alerts[0].line.applyOptions({
+      title: `SL ${(((stopBuy - slBuy) / slBuy) * 100).toFixed(2)}%`,
+    });
+    const startSell = ChartManager.state.alerts[3].line.options().price;
+    const stopSell = ChartManager.state.alerts[4].line.options().price;
+    const slSell = ChartManager.state.alerts[5].line.options().price;
+    ChartManager.state.alerts[4].line.applyOptions({
+      title: `end ${(((startSell - stopSell) / stopSell) * 100).toFixed(2)}%`,
+    });
+    ChartManager.state.alerts[5].line.applyOptions({
+      title: `SL ${(((stopSell - slSell) / slSell) * 100).toFixed(2)}%`,
+    });
+    ChartManager.state.alerts[2].line.applyOptions({
+      title: `start ${(((startSell - startBuy) / startBuy) * 100).toFixed(2)}%`,
+    });
+    ChartManager.state.alerts[3].line.applyOptions({
+      title: `start ${(((startSell - startBuy) / startBuy) * 100).toFixed(2)}%`,
+    });
+  }
   static async loadAlerts(defaultAlerts = false) {
     Indicators.state.countLoads = 0;
+    if (defaultAlerts) {
+      App.state.supportMin = ChartManager.state.linesSr[0].line.options().price;
+      if (!ChartManager.state.linesSr[0].line.options().lineVisible) {
+        alert("Show support line!");
+        return;
+      }
+      App.state.resistanceMax =
+        ChartManager.state.linesSr[1].line.options().price;
+      if (!ChartManager.state.linesSr[1].line.options().lineVisible) {
+        alert("Show resistance line!");
+        return;
+      }
+    }
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -2231,12 +2394,47 @@ class App {
       },
       body: JSON.stringify({
         defaultAlerts,
+        support: App.state.supportMin,
+        resistance: App.state.resistanceMax,
       }),
     });
     const alertsDataJson = await alertsData.json();
     if (!alertsData.ok) {
       alert(alertsDataJson.message);
       return false;
+    }
+    //clear alerts
+    if (ChartManager.state.alerts.length) {
+      for (const alert of ChartManager.state.alerts) {
+        ChartManager.state.candlestickSeries.removePriceLine(alert.line);
+      }
+    }
+    ChartManager.state.alerts = [];
+    const alertNames = {
+      0: "sl",
+      1: "stop",
+      2: "start",
+      3: "start",
+      4: "stop",
+      5: "sl",
+    };
+    for (const [index, value] of alertsDataJson.alerts.entries()) {
+      ChartManager.state.alerts.push({
+        name: `alert${index}`,
+        line: ChartManager.state.candlestickSeries.createPriceLine({
+          price: value,
+          color: [1, 2, 5].includes(index) ? "green" : "red",
+          lineWidth: 2,
+          lineStyle: window.LightweightCharts.LineStyle.Dashed,
+          title: alertNames[index],
+          lineVisible: this.state.hideAlerts,
+          axisLabelVisible: this.state.hideAlerts,
+        }),
+      });
+    }
+    this.updateAlertsTitle();
+    if (defaultAlerts) {
+      return;
     }
     //Level SR
     //App.state.patternLevel = alertsDataJson.patterns?.levels;
@@ -2253,30 +2451,14 @@ class App {
     //   document.querySelector(".display-symbol").textContent = paramsSR;
     // } else {
     //set default value levels pattern
-    const tfConfig = {
-      "15min": [24, 4],
-      "30min": [24, 4],
-      "1h": [12, 4],
-      "2h": [24, 4],
-      "4h": [24, 4],
-      "1d": [12, 4],
-      "1w": [24, 4],
-    };
-
-    App.state.patternLevel = {
-      candlesCount: tfConfig[App.state.timeframe][0],
-      touchCount: tfConfig[App.state.timeframe][1],
-    };
-    const { candlesCount, touchCount } = App.state.patternLevel;
-    Indicators.calculateLevels(
-      ChartManager.state.candles,
-      candlesCount,
-      touchCount,
-    );
-    document.querySelector(".display-symbol").textContent =
-      `${App.state.symbol} ${candlesCount}, ${touchCount}`;
     //}
     //event click coin then load data from alert endpoint
+    App.state.algoTrading = {
+      tradingType: alertsDataJson.tradingType || 1,
+      tp: alertsDataJson.tp,
+      sl: alertsDataJson.sl,
+      size: alertsDataJson.size,
+    };
     if (App.state.item) {
       App.state.item.querySelector(".add-btn").classList.remove("d-none");
       App.state.item
@@ -2325,51 +2507,22 @@ class App {
     Order.orderPriceLines(alertsDataJson.orders);
     //SHOW positions in chart
     Order.positionPriceLines(alertsDataJson.positions);
-    //clear alerts
-    if (ChartManager.state.alerts.length) {
-      for (const [index, alert] of ChartManager.state.alerts.entries()) {
-        if (index <= 5) {
-          ChartManager.state.candlestickSeries.removePriceLine(alert.line);
-        } else {
-          ChartManager.state.rsiSeries.removePriceLine(alert.line);
-        }
-      }
+    //show hide btn
+    if (alertsDataJson.exists) {
+      this.renderTradingBtn(alertsDataJson.tradingType);
     }
-    ChartManager.state.alerts = [];
-    for (const [index, value] of alertsDataJson.alerts.entries()) {
-      if (index <= 5) {
-        ChartManager.state.alerts.push({
-          name: `alert${index}`,
-          line: ChartManager.state.candlestickSeries.createPriceLine({
-            price: value,
-            color: index === 0 || index === 5 ? "red" : "blue",
-            lineWidth: 2,
-            lineStyle: window.LightweightCharts.LineStyle.Dashed,
-            title: index + 1,
-            lineVisible: this.state.hideAlerts,
-            axisLabelVisible: this.state.hideAlerts,
-          }),
-        });
-      } else {
-        ChartManager.state.alerts.push({
-          name: `alert${index}`,
-          line: ChartManager.state.rsiSeries.createPriceLine({
-            price: value,
-            color: index === 6 ? "red" : "blue",
-            lineWidth: 2,
-            lineStyle: window.LightweightCharts.LineStyle.Dashed,
-            title: index + 1,
-            lineVisible: this.state.hideAlerts,
-            axisLabelVisible: this.state.hideAlerts,
-          }),
-        });
-      }
-    }
+    document
+      .querySelector(".trading-btn")
+      .classList.toggle("d-none", !alertsDataJson.exists);
+    document.querySelector(".trading-btn").dataset.alert = alertsDataJson.alert;
     document
       .querySelector(".reset-btn")
       .classList.toggle("d-none", !alertsDataJson.exists);
     document
       .querySelector(".hide-btn")
+      .classList.toggle("d-none", !alertsDataJson.exists);
+    document
+      .querySelector(".order-btn")
       .classList.toggle("d-none", !alertsDataJson.exists);
     this.state.bsOffcanvas.hide();
     //tf active
@@ -2379,6 +2532,22 @@ class App {
     document
       .querySelector(`[data-tf="${App.state.timeframe}"]`)
       ?.classList.add("bg-primary");
+  }
+  //trading btn render
+  static renderTradingBtn(tradingType) {
+    switch (tradingType) {
+      case 2: // Value of foo matches this criteria; execution starts from here
+        document.querySelector(".trading-btn").textContent = "🟢 ↗️  🕹";
+        break;
+      case 3: // no break statement in 'case 0:' so this case will run as well
+        document.querySelector(".trading-btn").textContent = "🟢 ↘️ 🕹";
+        break;
+      case 4:
+        document.querySelector(".trading-btn").textContent = "🟢 ↗️ ↘️ 🕹";
+        break;
+      default:
+        document.querySelector(".trading-btn").textContent = "🔴 🕹";
+    }
   }
   // Функция для обработки нажатий клавиш
   static handleKeyPress(event) {
@@ -2481,6 +2650,7 @@ class App {
             item.querySelector(".alert-btn").dataset.alert = false;
             document.querySelector(".reset-btn").classList.remove("d-none");
             document.querySelector(".hide-btn").classList.remove("d-none");
+            document.querySelector(".order-btn").classList.remove("d-none");
             coinInList.exists = true;
             await this.loadAlerts();
           } else {
@@ -2490,6 +2660,7 @@ class App {
             item.querySelector(".alert-btn").classList.add("d-none");
             document.querySelector(".reset-btn").classList.add("d-none");
             document.querySelector(".hide-btn").classList.add("d-none");
+            document.querySelector(".order-btn").classList.add("d-none");
             coinInList.exists = false;
           }
           return;
@@ -2552,7 +2723,7 @@ class App {
               .forEach((n) => n.classList.remove("list-group-item-primary"));
             item.classList.add("list-group-item-primary");
             this.state.item = item;
-            this.router.navigate(`/chart/${symbol}/${this.state.timeframe}`);
+            this.router.navigate(`/chart/${symbol}`);
           }
         }
       });
@@ -2565,7 +2736,26 @@ class App {
           .forEach((n) => n.classList.remove("bg-primary"));
         e.target.classList.add("bg-primary");
         const { tf } = event.target.dataset;
-        this.router.navigate(`/chart/${this.state.symbol}/${tf}`);
+        App.state.timeframe = tf;
+        const intervalKline = {
+          "1min": "1",
+          "5min": "5",
+          "15min": "15",
+          "30min": "30",
+          "1h": "60",
+          "2h": "120",
+          "4h": "240",
+          "6h": "360",
+          "12h": "720",
+          "1d": "D",
+          "1w": "W",
+          "1m": "M",
+        };
+        App.state.intervalKline = intervalKline[tf];
+        await App.chartManager.loadChartData();
+        App.renderLevels();
+        App.chartManager.updateWebsocketSymbol();
+        //this.router.navigate(`/chart/${this.state.symbol}`);
       });
     });
     //move level
@@ -2596,19 +2786,6 @@ class App {
         ChartManager.state.markerSeries.setMarkers([]);
         ChartManager.state.hideSr = !ChartManager.state.hideSr;
         e.target.textContent = ChartManager.state.hideSr ? "🚫" : "🟰";
-        //hide positions
-        for (const alert of ChartManager.state.positions) {
-          alert.line.applyOptions({
-            lineVisible: ChartManager.state.hideSr,
-            axisLabelVisible: ChartManager.state.hideSr,
-          });
-        }
-        for (const alert of ChartManager.state.orders) {
-          alert.applyOptions({
-            lineVisible: ChartManager.state.hideSr,
-            axisLabelVisible: ChartManager.state.hideSr,
-          });
-        }
         if (App.state.patternLevel) {
           const { candlesCount, touchCount } = App.state.patternLevel;
           Indicators.calculateLevels(
@@ -2645,6 +2822,9 @@ class App {
     });
     document.querySelector(".hide-btn").addEventListener("click", async () => {
       this.hideAlerts();
+    });
+    document.querySelector(".order-btn").addEventListener("click", async () => {
+      this.hideOrders();
     });
     document.querySelector(".info-btn").addEventListener("click", async () => {
       const symbol = this.state.symbol;

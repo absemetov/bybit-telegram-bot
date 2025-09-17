@@ -1,7 +1,6 @@
 import { db, FieldValue } from "../firebase.js";
 import Joi from "joi";
 import {
-  getCandles,
   getTickerOrders,
   getTickerPositions,
   getTicker,
@@ -54,7 +53,7 @@ class Ticker {
     };
     await db.doc(`crypto/${symbol}`).set(newTickerData);
     //create alerts
-    await Ticker.createAlerts(symbol);
+    //await Ticker.createAlerts(symbol);
   }
   static async find(ticker, getDoc = false) {
     if (ticker) {
@@ -70,23 +69,14 @@ class Ticker {
     return null;
   }
   //create default Alerts
-  static async createAlerts(symbol) {
-    const kline = await getCandles(symbol, "1d", 1);
-    if (kline.length == 0) {
-      throw new Error(`Ticker ${symbol} not found in Bybit`);
-    }
-    // validate
-    const { close } = kline[0];
-    const step = 0.02;
+  static async createAlerts(symbol, support, resistance) {
     const alerts = {
-      alert0: close * (1 - step * 3),
-      alert1: close * (1 - step * 2),
-      alert2: close * (1 - step),
-      alert3: close * (1 + step),
-      alert4: close * (1 + step * 2),
-      alert5: close * (1 + step * 3),
-      alert6: 35,
-      alert7: 70,
+      alert0: support * (1 - 3 / 100),
+      alert1: support,
+      alert2: support * (1 + 3 / 100),
+      alert3: resistance * (1 - 3 / 100),
+      alert4: resistance,
+      alert5: resistance * (1 + 3 / 100),
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
@@ -97,20 +87,16 @@ class Ticker {
   //for check cross
   static async getOnlyAlerts(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
-    return {
-      alerts: alertsDoc.exists
-        ? [
-            alertsDoc.data().alert0,
-            alertsDoc.data().alert1,
-            alertsDoc.data().alert2,
-            alertsDoc.data().alert3,
-            alertsDoc.data().alert4,
-            alertsDoc.data().alert5,
-            alertsDoc.data().alert6,
-            alertsDoc.data().alert7,
-          ]
-        : [],
-    };
+    return alertsDoc.exists
+      ? [
+          alertsDoc.data().alert0,
+          alertsDoc.data().alert1,
+          alertsDoc.data().alert2,
+          alertsDoc.data().alert3,
+          alertsDoc.data().alert4,
+          alertsDoc.data().alert5,
+        ]
+      : [];
   }
   // get all alerts
   static async getAlerts(symbol) {
@@ -131,8 +117,6 @@ class Ticker {
             alertsDoc.data().alert3,
             alertsDoc.data().alert4,
             alertsDoc.data().alert5,
-            alertsDoc.data().alert6,
-            alertsDoc.data().alert7,
           ]
         : [],
       exists: symbolDoc.exists,
@@ -183,7 +167,7 @@ class Ticker {
         : tab === "alerts"
           ? db.collection("crypto").where("alert", "==", true)
           : tab === "trading"
-            ? db.collection("crypto").where("trading", "==", true)
+            ? db.collection("crypto").where("tradingType", ">", 1)
             : db.collection("crypto");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
@@ -289,6 +273,17 @@ class Ticker {
     }
     return {};
   }
+  static async getLevelMessage(symbol) {
+    if (symbol) {
+      const alertDoc = await db
+        .doc(`crypto/${symbol}/message-alert/level`)
+        .get();
+      if (alertDoc.exists) {
+        return { ...alertDoc.data() };
+      }
+    }
+    return {};
+  }
   //get levels
   static async getLevels(symbol) {
     const snapshotPumpMsg = await db
@@ -307,6 +302,20 @@ class Ticker {
     }
     return levels;
   }
+  //levels
+  static async saveLevelBatch(batchArray) {
+    const batch = db.batch();
+    for (const ticker of batchArray) {
+      const { symbol, data } = ticker;
+      if (symbol) {
+        batch.set(db.doc(`crypto/${symbol}/message-alert/level`), data, {
+          merge: true,
+        });
+      }
+    }
+    await batch.commit();
+  }
+  //alert
   static async sendNotifyAlert(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
@@ -322,12 +331,13 @@ class Ticker {
   static async changeFields(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
-      const { symbol, data } = ticker;
+      //data
+      const { symbol } = ticker;
       if (symbol) {
-        batch.update(db.doc(`crypto/${symbol}`), data);
-        //batch.update(db.doc(`crypto/${symbol}`), {
-        //  field: FieldValue.delete(),
-        //});
+        //batch.update(db.doc(`crypto/${symbol}`), data);
+        batch.update(db.doc(`crypto/${symbol}`), {
+          entryLevel: FieldValue.delete(),
+        });
       }
     }
     await batch.commit();

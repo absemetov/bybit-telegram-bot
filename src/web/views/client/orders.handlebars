@@ -38,7 +38,7 @@
               <td>{{formatDate createdTime}}</td>
               <td>{{symbol}}</td>
               <td class="{{#if (eq side 'Buy')}}text-success{{else}}text-danger{{/if}}">
-                {{#if (eq side 'Buy')}}Long{{else}}Short{{/if}} {{#if (eq price '0')}}TP/SL{{/if}}
+               {{#if (eq price '0')}}TP/SL{{else}}{{#if (eq side 'Buy')}}Long{{else}}Short{{/if}}{{/if}}  
               </td>
               <td>{{multiply qty price}}$</td>
               <td>
@@ -47,7 +47,7 @@
               <td>
                 {{#if (gt price 0)}}
                   <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{price}}" data-side="{{side}}">🗑</button>
-                  <button type="button" class="btn btn-sm btn-light cancel-all-orders">Del ALL</button>
+                  <button type="button" class="btn btn-sm btn-light cancel-all-orders" data-side="{{side}}">Del ALL</button>
                 {{/if}}
               </td>
             </tr>

@@ -70,9 +70,20 @@ app.use(auth);
 app.get("/", protectPage, async (req, res) => {
   return res.redirect("/chart");
 });
-app.get("/chart/:symbol?/:timeframe?/:tab?", protectPage, async (req, res) => {
+app.get("/chart/:symbol?/", protectPage, async (req, res) => {
   const title = "Bybit terminal";
   res.render("ticker", { title, user: req.user });
+});
+//AlgoTrading
+app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { tradingType, tp, sl, size } = req.body;
+    await Ticker.update(symbol, { tradingType, tp, sl, size });
+    return res.json({ ok: "Googluck!" });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
 });
 //get PnL
 app.post("/positions-history/:symbol?", protectPage, async (req, res) => {
@@ -145,10 +156,10 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts } = req.body;
+    const { defaultAlerts, support, resistance } = req.body;
     if (defaultAlerts) {
       //set default alerts
-      await Ticker.createAlerts(symbol);
+      await Ticker.createAlerts(symbol, support, resistance);
     }
     const alerts = await Ticker.getAlerts(symbol);
     return res.json(alerts);
@@ -198,27 +209,32 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
 app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { price, side, tpPercent, slPercent, MAX_POSITION } = req.body;
-    //first delete old orders
+    const { side, tp, sl, size } = req.body;
     const ordersOld = await getTickerOrders(symbol);
-    for (const order of ordersOld.filter((o) => o.side === side)) {
-      await cancelOrder(symbol, order.orderId);
+    //create orders Long
+    const alerts = await Ticker.getOnlyAlerts(symbol);
+    if (side === "Buy") {
+      for (const order of ordersOld.filter((o) => o.side === side)) {
+        await cancelOrder(symbol, order.orderId);
+      }
+      const startBuy = alerts[2];
+      const endBuy = alerts[1];
+      const avgBuy = Math.abs(startBuy + endBuy) / 2;
+      await createLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
+      await createLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
+      await createLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
     }
-    //grid orders
-    let newPrice = price;
-    for (const step of [0.2, 0.2, 0.2]) {
-      newPrice =
-        side === "Buy"
-          ? newPrice * (1 - step / 100)
-          : newPrice * (1 + step / 100);
-      await createLimitOrder(
-        symbol,
-        side,
-        newPrice,
-        MAX_POSITION,
-        tpPercent,
-        slPercent,
-      );
+    //create Short orders
+    if (side === "Sell") {
+      for (const order of ordersOld.filter((o) => o.side === side)) {
+        await cancelOrder(symbol, order.orderId);
+      }
+      const startSell = alerts[3];
+      const endSell = alerts[4];
+      const avgSell = Math.abs(startSell + endSell) / 2;
+      await createLimitOrder(symbol, side, startSell, size / 4, tp, sl);
+      await createLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
+      await createLimitOrder(symbol, side, endSell, size / 2, tp, sl);
     }
     const orders = await getTickerOrders(symbol);
     return res.json({ orders });
@@ -238,12 +254,12 @@ app.post("/order/list", protectPage, async (req, res) => {
   }
 });
 //cancel all order
-app.post("/order/cancel-all/:symbol", protectPage, async (req, res) => {
+app.post("/order/cancel-all/:symbol/:side", protectPage, async (req, res) => {
   try {
-    const { symbol } = req.params;
-    await cancelAllOrders(symbol);
-    const response = await getLimitOrders();
-    return res.json(response);
+    const { symbol, side } = req.params;
+    await cancelAllOrders(symbol, side);
+    const orders = await getTickerOrders(symbol);
+    return res.json({ orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
