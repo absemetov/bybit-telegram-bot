@@ -144,12 +144,14 @@ class Indicators {
       const touchesLow = candles.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= (candle.high + candle.low) / 2,
+          crossLine <= candle.low + (candle.high - candle.low) / 2.5,
+        //crossLine <= (candle.high + candle.low) / 2,
       ).length;
       const touchesHigh = candles.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= (candle.high + candle.low) / 2,
+          crossLine >= candle.high - (candle.high - candle.low) / 2.5,
+        //crossLine >= (candle.high + candle.low) / 2,
       ).length;
       if (touchesLow >= touchCount) {
         levelsLow.push({

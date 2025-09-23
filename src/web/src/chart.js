@@ -31,18 +31,18 @@ class ModalManager {
       <form data-form-type="order">
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Max position ($)</label>
-                <input type="number" class="form-control-plaintext" name="size" value="{{size}}" required>
+                <label class="form-label" for="size">Max position ($)</label>
+                <input type="number" class="form-control-plaintext" id="size" name="size" value="{{size}}" max="{{size}}" required>
             </div>
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Take Profit (%)</label>
-                <input type="number" class="form-control" name="tp" value="{{tp}}" step="0.1" required>
+                <label class="form-label" for="tp">Take Profit (%)</label>
+                <input type="number" class="form-control" id="tp" name="tp" value="{{tp}}" step="0.1" required>
             </div>
             <div class="col-md-6 mb-3">
-                <label class="form-label">Stop Loss (%)</label>
-                <input type="number" class="form-control" name="sl" value="{{sl}}" step="0.1" max="3" required>
+                <label class="form-label" for="sl">Stop Loss (%)</label>
+                <input type="number" class="form-control" id="sl" name="sl" value="{{sl}}" step="0.1" max="3" required>
             </div>
         </div>
         <div class="d-grid gap-2">
@@ -62,23 +62,33 @@ class ModalManager {
                 </div>
               {{/each}}
             </div>
+            <div class="col-md-6 mb-3">
+              {{#each enterTf}}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="enterTf" id="radioTf{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+                  <label class="form-check-label" for="radioTf{{value}}">
+                    {{name}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="size">Max position ($)</label>
-                <input type="number" class="form-control-plaintext" name="size" id="size" value="{{maxPosition}}">
+                <input type="number" class="form-control-plaintext" name="size" id="size" value="{{size}}">
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="takeProfit" >Take Profit (%)</label>
-                <input type="number" class="form-control" name="takeProfit" id="takeProfit" value="{{takeProfit}}" step="0.1" required>
+                <label class="form-label" for="tp">Take Profit (%)</label>
+                <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.1" required>
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="stopLoss">Stop Loss (%)</label>
-                <input type="number" class="form-control" name="stopLoss" id="stopLoss" value="{{stopLoss}}" step="0.1" max="2" required>
+                <label class="form-label" for="sl">Stop Loss (%)</label>
+                <input type="number" class="form-control" name="sl" id="sl" value="{{sl}}" step="0.1" max="3" required>
             </div>
         </div>
         <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-primary">Generate orders Goodluck!</button>
+          <button type="submit" class="btn btn-primary">Save settings</button>
         </div>
       </form>`),
       win: window.Handlebars.templates["win-rate"],
@@ -126,9 +136,10 @@ class ModalManager {
       case "algo-form":
         return this.templates.algoForm({
           algoTypes: config.algoTypes,
-          stopLoss: App.state.algoTrading.sl || Order.state.STOP_LOSS,
-          takeProfit: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
-          maxPosition: App.state.algoTrading.size || Order.state.MAX_POSITION,
+          enterTf: config.enterTf,
+          sl: App.state.algoTrading.sl || Order.state.STOP_LOSS,
+          tp: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
+          size: App.state.algoTrading.size || Order.state.MAX_POSITION,
         });
       case "orders":
         return this.templates.orders({
@@ -424,8 +435,8 @@ class ModalManager {
   }
   async _handleOrderSubmit(data) {
     const { side, symbol } = Order.state;
-    const tp = parseFloat(data.get("takeProfit"));
-    const sl = parseFloat(data.get("stopLoss"));
+    const tp = parseFloat(data.get("tp"));
+    const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
     try {
       const response = await fetch(`/order/create/${symbol}`, {
@@ -455,12 +466,14 @@ class ModalManager {
   }
   async _handleAlgoSubmit(data) {
     const { symbol } = Order.state;
-    const tp = parseFloat(data.get("takeProfit"));
-    const sl = parseFloat(data.get("stopLoss"));
+    const tp = parseFloat(data.get("tp"));
+    const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
     const tradingType = parseFloat(data.get("tradingType"));
+    const enterTf = data.get("enterTf");
     App.state.algoTrading = {
       tradingType,
+      enterTf,
       tp,
       sl,
       size,
@@ -479,12 +492,7 @@ class ModalManager {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          tradingType,
-          tp,
-          sl,
-          size,
-        }),
+        body: JSON.stringify(App.state.algoTrading),
       });
       const resJson = await response.json();
       if (!response.ok) {
@@ -515,9 +523,9 @@ class ModalManager {
 //Orders
 class Order {
   static state = {
-    TAKE_PROFIT: 6,
-    STOP_LOSS: 1.5,
-    MAX_POSITION: 500,
+    TAKE_PROFIT: 10,
+    STOP_LOSS: 3,
+    MAX_POSITION: 2000,
   };
   constructor() {
     this.initEventListeners();
@@ -527,20 +535,27 @@ class Order {
     document
       .querySelector(".trading-btn")
       .addEventListener("click", async () => {
-        //Order.state.side = "Buy";
-        //const alertData = !(e.target.dataset.alert === "true");
-        //if (alertData) {
-        //  alert("Please, firt Enable alert btn for edit ticker TP SL");
-        //}
         Order.state.symbol = App.state.symbol;
-        //Order.state.price = ChartManager.state.linesSr[0].line.options().price;
         const algoTypes = [
-          { value: 1, name: "Off AlgoTrading" },
+          { value: 1, name: "🔴 Off AlgoTrading" },
           { value: 2, name: "🟢 Long" },
           { value: 3, name: "🟢 Short" },
           { value: 4, name: "🟢 Flat" },
+          { value: 5, name: "🟢 Position check" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingType) {
+            el.checked = true;
+          } else {
+            el.checked = false;
+          }
+          return el;
+        });
+        const enterTf = [
+          { value: "1h", name: "1h tf enter" },
+          { value: "2h", name: "2h tf enter" },
+          { value: "4h", name: "4h tf enter" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.enterTf) {
             el.checked = true;
           } else {
             el.checked = false;
@@ -551,6 +566,7 @@ class Order {
           type: "algo-form",
           title: `AlgoTrading ${Order.state.symbol}`,
           algoTypes,
+          enterTf,
         });
       });
     //long btn
@@ -871,12 +887,14 @@ class Indicators {
       const touchesLow = candles.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= (candle.high + candle.low) / 2,
+          crossLine <= candle.low + (candle.high - candle.low) / 2.5,
+        //crossLine <= (candle.high + candle.low) / 2,
       ).length;
       const touchesHigh = candles.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= (candle.high + candle.low) / 2,
+          crossLine >= candle.high - (candle.high - candle.low) / 2.5,
+        //crossLine >= (candle.high + candle.low) / 2,
       ).length;
       if (touchesLow >= touchCount) {
         levelsLow.push({
@@ -926,15 +944,10 @@ class Indicators {
     const max = Math.max(...candlesSlice.map((c) => c.high));
     const min = Math.min(...candlesSlice.map((c) => c.low));
     const longLevels = this.findLevels(candlesSlice, touchCount);
-    const shortLevels = this.findLevels(candlesSlice.slice(-2), 2);
-    App.state.support =
-      longLevels.support > 0 && shortLevels.support > 0
-        ? longLevels.support
-        : 0;
+    //const shortLevels = this.findLevels(candlesSlice.slice(-2), 2);
+    App.state.support = longLevels.support > 0 ? longLevels.support : 0;
     App.state.resistance =
-      longLevels.resistance > 0 && shortLevels.resistance > 0
-        ? longLevels.resistance
-        : 0;
+      longLevels.resistance > 0 ? longLevels.resistance : 0;
     const currentTime = new Date(lastCandle.time * 1000);
     ChartManager.state.markLevels.push({
       time: firstCandle.time,
@@ -1397,14 +1410,14 @@ class ChartManager {
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent < -2 && alertName === "slLong") {
+        if (pricePercent < -Order.state.STOP_LOSS && alertName === "slLong") {
           ChartManager.state.positions
             .find((p) => p.name === "slLong")
             .line.applyOptions({
               price: stopLoss,
               title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
             });
-          return alert("SL Long > 2%!!!");
+          return alert(`SL Long > ${Order.state.STOP_LOSS}%!!!`);
         }
         const params = { side };
         if (alertName === "slLong") {
@@ -1456,14 +1469,14 @@ class ChartManager {
           .line.options()
           .price.toFixed(App.state.priceScale);
         const pricePercent = ((price - avgPrice) / avgPrice) * 100;
-        if (pricePercent > 2 && alertName === "slShort") {
+        if (pricePercent > Order.state.STOP_LOSS && alertName === "slShort") {
           ChartManager.state.positions
             .find((p) => p.name === "slShort")
             .line.applyOptions({
               price: stopLoss,
               title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
             });
-          return alert("SL Short > 2%!!!");
+          return alert(`SL Short > ${Order.state.STOP_LOSS}%!!!`);
         }
         const params = { side };
         if (alertName === "slShort") {
@@ -2053,7 +2066,7 @@ class App {
     cursorPrev: null,
     cursorNext: null,
     coins: [],
-    activeTab: "all",
+    activeTab: "favorites",
     hideAlerts: false,
     hideOrders: true,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
@@ -2455,6 +2468,7 @@ class App {
     //event click coin then load data from alert endpoint
     App.state.algoTrading = {
       tradingType: alertsDataJson.tradingType || 1,
+      enterTf: alertsDataJson.enterTf || "4h",
       tp: alertsDataJson.tp,
       sl: alertsDataJson.sl,
       size: alertsDataJson.size,
@@ -2535,18 +2549,10 @@ class App {
   }
   //trading btn render
   static renderTradingBtn(tradingType) {
-    switch (tradingType) {
-      case 2: // Value of foo matches this criteria; execution starts from here
-        document.querySelector(".trading-btn").textContent = "🟢 ↗️  🕹";
-        break;
-      case 3: // no break statement in 'case 0:' so this case will run as well
-        document.querySelector(".trading-btn").textContent = "🟢 ↘️ 🕹";
-        break;
-      case 4:
-        document.querySelector(".trading-btn").textContent = "🟢 ↗️ ↘️ 🕹";
-        break;
-      default:
-        document.querySelector(".trading-btn").textContent = "🔴 🕹";
+    if (tradingType > 1) {
+      document.querySelector(".trading-btn").textContent = "🟢";
+    } else {
+      document.querySelector(".trading-btn").textContent = "🔴";
     }
   }
   // Функция для обработки нажатий клавиш

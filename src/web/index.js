@@ -78,8 +78,8 @@ app.get("/chart/:symbol?/", protectPage, async (req, res) => {
 app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { tradingType, tp, sl, size } = req.body;
-    await Ticker.update(symbol, { tradingType, tp, sl, size });
+    const { tradingType, enterTf, tp, sl, size } = req.body;
+    await Ticker.update(symbol, { tradingType, enterTf, tp, sl, size });
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -210,6 +210,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { side, tp, sl, size } = req.body;
+    console.log(side, tp, sl, size);
     const ordersOld = await getTickerOrders(symbol);
     //create orders Long
     const alerts = await Ticker.getOnlyAlerts(symbol);

@@ -152,6 +152,7 @@ export const algoTrading = async (
   shortLevels,
   price,
   bot,
+  enterTf
 ) => {
   const { symbol, tradingType, size, sl, tp } = ticker;
   //get limit orders
@@ -182,7 +183,7 @@ export const algoTrading = async (
       }
       await bot.telegram.sendMessage(
         94899148,
-        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🟢 Long on Support Zone]\n` +
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🟢 Long on Support Zone ${enterTf}]\n` +
           `Price ${price}$ Size ${size}$</b>\n` +
           `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
         { parse_mode: "HTML" },
@@ -210,80 +211,8 @@ export const algoTrading = async (
       }
       await bot.telegram.sendMessage(
         94899148,
-        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🔴 Short on Resistance Zone]\n` +
+        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🔴 Short on Resistance Zone ${enterTf}]\n` +
           `Price ${price}$ Size ${size}$</b>\n` +
-          `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
-        { parse_mode: "HTML" },
-      );
-    }
-  }
-};
-//create Long order
-export const createLongOrder = async (symbol, price, bot, tp, sl, size) => {
-  const orders = await getTickerOrders(symbol);
-  if (orders.length === 0) {
-    const positions = await getTickerPositions(symbol);
-    const longPosition = positions.find((p) => p.side === "Buy");
-    let posSize = size;
-    //open Long && openLong
-    if (!longPosition || longPosition.positionValue < posSize) {
-      if (longPosition) {
-        posSize =
-          longPosition.positionValue < posSize
-            ? posSize - longPosition.positionValue
-            : posSize;
-      }
-      if (posSize < 50) {
-        return;
-      }
-      await createLimitOrder(
-        symbol,
-        "Buy",
-        price,
-        posSize,
-        tp || TAKE_PROFIT,
-        sl || STOP_LOSS,
-      );
-      await bot.telegram.sendMessage(
-        94899148,
-        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🟢 Long on Support Zone]\n` +
-          `Price ${price}$ Max position ${posSize.toFixed(2)}$</b>\n` +
-          `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
-        { parse_mode: "HTML" },
-      );
-    }
-  }
-};
-//create Short order
-export const createShortOrder = async (symbol, price, bot, tp, sl, size) => {
-  const orders = await getTickerOrders(symbol);
-  if (orders.length === 0) {
-    const positions = await getTickerPositions(symbol);
-    const shortPosition = positions.find((p) => p.side === "Sell");
-    let posSize = size;
-    //open Short && !openLong
-    if (!shortPosition || shortPosition.positionValue < posSize) {
-      if (shortPosition) {
-        posSize =
-          shortPosition.positionValue < posSize
-            ? posSize - shortPosition.positionValue
-            : posSize;
-      }
-      if (posSize < 50) {
-        return;
-      }
-      await createLimitOrder(
-        symbol,
-        "Sell",
-        price,
-        posSize,
-        tp || TAKE_PROFIT,
-        sl || STOP_LOSS,
-      );
-      await bot.telegram.sendMessage(
-        94899148,
-        `<b><code>${symbol.slice(0, -4)}</code> [Created 3 orders grid 🔴 Short on Resistance Zone]\n` +
-          `Price ${price}$ Map position ${posSize.toFixed(2)}$</b>\n` +
           `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
         { parse_mode: "HTML" },
       );

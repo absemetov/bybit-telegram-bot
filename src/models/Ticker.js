@@ -49,6 +49,7 @@ class Ticker {
     const newTickerData = {
       alert: false,
       star: false,
+      updatedAt: new Date(),
       priceScale,
     };
     await db.doc(`crypto/${symbol}`).set(newTickerData);
@@ -71,12 +72,12 @@ class Ticker {
   //create default Alerts
   static async createAlerts(symbol, support, resistance) {
     const alerts = {
-      alert0: support * (1 - 3 / 100),
+      alert0: support * (1 - 2 / 100),
       alert1: support,
-      alert2: support * (1 + 3 / 100),
-      alert3: resistance * (1 - 3 / 100),
+      alert2: support * (1 + 1 / 100),
+      alert3: resistance * (1 - 1 / 100),
       alert4: resistance,
-      alert5: resistance * (1 + 3 / 100),
+      alert5: resistance * (1 + 2 / 100),
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
@@ -168,7 +169,7 @@ class Ticker {
           ? db.collection("crypto").where("alert", "==", true)
           : tab === "trading"
             ? db.collection("crypto").where("tradingType", ">", 1)
-            : db.collection("crypto");
+            : db.collection("crypto").orderBy("updatedAt", "desc");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {
@@ -211,62 +212,10 @@ class Ticker {
     }
     return { tickers: [] };
   }
-  //paginate Pump message
-  static async paginatePump(limit, direction = null, lastVisibleId = null) {
-    //.orderBy("price24hPcnt", order)
-    const mainQuery = db.collection("crypto").orderBy(`lastNotified`, "desc");
-    let query = mainQuery;
-    const lastVisibleDoc = await db.doc(`crypto/${lastVisibleId}`).get();
-    if (direction && !lastVisibleDoc) {
-      direction = null;
-      //throw new Error("lastVisibleDoc is empty!");
-    }
-    if (direction === "next") {
-      query = query.startAfter(lastVisibleDoc);
-    } else if (direction === "prev") {
-      query = query.endBefore(lastVisibleDoc);
-    }
-    // set limit
-    if (direction === "prev") {
-      query = query.limitToLast(limit);
-    } else {
-      query = query.limit(limit);
-    }
-    const snapshot = await query.get();
-    // for doc use exists for qyery empty opt
-    if (!snapshot.empty) {
-      const tickers = snapshot.docs.map((doc) => {
-        return {
-          symbol: doc.id,
-          ...doc.data(),
-          exists: true,
-        };
-      });
-      const firstVisible = snapshot.docs[0];
-      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-      // Check for previous and next tickers
-      const hasPrevSnap = await mainQuery
-        .endBefore(firstVisible)
-        .limitToLast(1)
-        .get();
-      const hasNextSnap = await mainQuery
-        .startAfter(lastVisible)
-        .limit(1)
-        .get();
-      const hasPrev = !hasPrevSnap.empty;
-      const hasNext = !hasNextSnap.empty;
-      const firstVisibleId = firstVisible.id;
-      const lastVisibleId = lastVisible.id;
-      return { tickers, firstVisibleId, lastVisibleId, hasPrev, hasNext };
-    }
-    return { tickers: [] };
-  }
   //new update notify telegram
   static async getAlertMessage(ticker) {
     if (ticker) {
-      const alertDoc = await db
-        .doc(`crypto/${ticker}/message-alert/alert`)
-        .get();
+      const alertDoc = await db.doc(`crypto/${ticker}/alerts/message`).get();
       if (alertDoc.exists) {
         return { ...alertDoc.data() };
       }
@@ -275,32 +224,12 @@ class Ticker {
   }
   static async getLevelMessage(symbol) {
     if (symbol) {
-      const alertDoc = await db
-        .doc(`crypto/${symbol}/message-alert/level`)
-        .get();
+      const alertDoc = await db.doc(`crypto/${symbol}`).get();
       if (alertDoc.exists) {
         return { ...alertDoc.data() };
       }
     }
     return {};
-  }
-  //get levels
-  static async getLevels(symbol) {
-    const snapshotPumpMsg = await db
-      .collection("crypto")
-      .doc(symbol)
-      .collection("message-levels")
-      .orderBy("lastNotified", "desc")
-      .get();
-    let levels = [];
-    if (!snapshotPumpMsg.empty) {
-      levels = snapshotPumpMsg.docs.map((doc) => {
-        return {
-          ...doc.data(),
-        };
-      });
-    }
-    return levels;
   }
   //levels
   static async saveLevelBatch(batchArray) {
@@ -308,7 +237,7 @@ class Ticker {
     for (const ticker of batchArray) {
       const { symbol, data } = ticker;
       if (symbol) {
-        batch.set(db.doc(`crypto/${symbol}/message-alert/level`), data, {
+        batch.set(db.doc(`crypto/${symbol}`), data, {
           merge: true,
         });
       }
@@ -321,7 +250,7 @@ class Ticker {
     for (const ticker of batchArray) {
       const { symbol, data } = ticker;
       if (symbol) {
-        batch.set(db.doc(`crypto/${symbol}/message-alert/alert`), data, {
+        batch.set(db.doc(`crypto/${symbol}/alerts/message`), data, {
           merge: true,
         });
       }
