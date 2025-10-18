@@ -153,7 +153,7 @@ const timeframeConfig = {
   },
 };
 
-export const convertCandles = (candles, timeframe) => {
+export const convert15minCandles = (candles, timeframe) => {
   const { intervalMs, startOffsetUtcMs } = timeframeConfig[timeframe];
   const groups = new Map();
 
@@ -342,10 +342,12 @@ export const getTickerOrders = async (symbol) => {
       symbol: order.symbol,
       localTime: new Date(parseInt(order.createdTime)).toLocaleString("ru-RU"),
       side: order.side,
-      price: parseFloat(order.price),
+      price: order.triggerPrice
+        ? parseFloat(order.triggerPrice)
+        : parseFloat(order.price),
       qty: parseFloat(order.qty),
       sum: (order.qty * order.price).toFixed(2),
-      //triggerPrice: parseFloat(order.triggerPrice),
+      triggerPrice: order.triggerPrice,
     }));
 };
 //list orders
@@ -367,15 +369,94 @@ export const getLimitOrders = async (cursor, limit = 10) => {
     nextPageCursor: response.result.nextPageCursor,
   };
 };
-//create or edit order
+//create stopLimit order
+export const createStopLimitOrder = async (
+  symbol,
+  side,
+  triggerPrice,
+  size,
+  tpPercent,
+  slPercent,
+) => {
+  try {
+    const { result } = await bybitClient.getInstrumentsInfo({
+      category: "linear",
+      symbol: symbol,
+    });
+
+    if (!result?.list?.length) {
+      throw new Error(`Символ ${symbol} не найден`);
+    }
+
+    const instrument = result.list[0];
+    const {
+      lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
+      priceScale,
+    } = instrument;
+    const baseQty = size / triggerPrice;
+    let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
+    if (adjustedQty < minOrderQty) {
+      adjustedQty = +minOrderQty;
+      //throw new Error(
+      //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
+      //);
+    }
+
+    if (adjustedQty > maxOrderQty) {
+      throw new Error(
+        `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * triggerPrice} USDT)`,
+      );
+    }
+    const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
+    const formattedQty = adjustedQty.toFixed(qtyDecimals);
+    //format
+    const formatPrice = (value) => {
+      return value.toFixed(priceScale);
+    };
+    const price =
+      side === "Buy"
+        ? formatPrice(triggerPrice * (1 + 1 / 100))
+        : formatPrice(triggerPrice * (1 - 1 / 100));
+    const takeProfit =
+      side === "Sell"
+        ? formatPrice(triggerPrice * (1 - tpPercent / 100))
+        : formatPrice(triggerPrice * (1 + tpPercent / 100));
+    const stopLoss =
+      side === "Sell"
+        ? formatPrice(triggerPrice * (1 + slPercent / 100))
+        : formatPrice(triggerPrice * (1 - slPercent / 100));
+    const response = await bybitClient.submitOrder({
+      category: "linear",
+      symbol,
+      side,
+      orderType: "Limit",
+      qty: formattedQty,
+      triggerPrice: formatPrice(triggerPrice),
+      price,
+      takeProfit,
+      stopLoss,
+      triggerDirection: side === "Sell" ? 2 : 1,
+      timeInForce: "GTC",
+      positionIdx: side === "Sell" ? 2 : 1,
+    });
+    if (response.retCode !== 0) {
+      throw new Error(`Order create Error: ${response.retMsg}`);
+    }
+    return { orderId: response.result.orderId };
+  } catch (error) {
+    throw new Error(
+      `${symbol} ${side} Order creation failed: ${error.message}`,
+    );
+  }
+};
+//create limit order
 export const createLimitOrder = async (
   symbol,
   side,
   price,
-  MAX_POSITION,
+  size,
   tpPercent,
   slPercent,
-  orderId,
 ) => {
   try {
     //TODO check position size!!
@@ -414,8 +495,7 @@ export const createLimitOrder = async (
 
     // 2. Рассчитываем количество контрактов как в споте: qty = сумма / цена
     //sl 1$ TP 5$
-    const maxUsdt = MAX_POSITION;
-    const baseQty = maxUsdt / price;
+    const baseQty = size / price;
 
     // 3. Приводим к шагу qtyStep
     //const step = Number(qtyStep);
@@ -446,56 +526,30 @@ export const createLimitOrder = async (
     //  side === "Buy"
     //    ? formatPrice(price * (1 - 0.0015))
     //    : formatPrice(price * (1 + 0.0015));
-    const entryPrice = formatPrice(price);
     const takeProfit =
       side === "Sell"
-        ? formatPrice(entryPrice * (1 - tpPercent / 100))
-        : formatPrice(entryPrice * (1 + tpPercent / 100));
+        ? formatPrice(price * (1 - tpPercent / 100))
+        : formatPrice(price * (1 + tpPercent / 100));
     const stopLoss =
       side === "Sell"
-        ? formatPrice(entryPrice * (1 + slPercent / 100))
-        : formatPrice(entryPrice * (1 - slPercent / 100));
-    //edit order
-    if (orderId) {
-      const params = {
-        category: "linear",
-        symbol,
-        orderId,
-        price: entryPrice,
-        //triggerPrice,
-        takeProfit,
-        stopLoss,
-        qty: formattedQty,
-      };
-
-      const response = await bybitClient.amendOrder(params);
-      if (response.retCode === 0) {
-        console.log("Ордер успешно изменен:", response.result);
-        return response.result;
-      } else {
-        throw new Error(`Ошибка ${response.retCode}: ${response.retMsg}`);
-      }
-    } else {
-      const response = await bybitClient.submitOrder({
-        category: "linear",
-        symbol,
-        side,
-        orderType: "Limit",
-        qty: formattedQty,
-        //triggerPrice,
-        price: entryPrice,
-        takeProfit,
-        stopLoss,
-        //triggerDirection: side === "Sell" ? 2 : 1,
-        //triggerDirection: triggerPrice > currentPrice ? 1 : 2,
-        timeInForce: "GTC",
-        positionIdx: side === "Sell" ? 2 : 1,
-      });
-      if (response.retCode !== 0) {
-        throw new Error(`Order create Error: ${response.retMsg}`);
-      }
-      return { orderId: response.result.orderId };
+        ? formatPrice(price * (1 + slPercent / 100))
+        : formatPrice(price * (1 - slPercent / 100));
+    const response = await bybitClient.submitOrder({
+      category: "linear",
+      symbol,
+      side,
+      orderType: "Limit",
+      qty: formattedQty,
+      price: formatPrice(price),
+      takeProfit,
+      stopLoss,
+      timeInForce: "GTC",
+      positionIdx: side === "Sell" ? 2 : 1,
+    });
+    if (response.retCode !== 0) {
+      throw new Error(`Order create Error: ${response.retMsg}`);
     }
+    return { orderId: response.result.orderId };
   } catch (error) {
     throw new Error(
       `${symbol} ${side} Order creation failed: ${error.message}`,
@@ -587,7 +641,7 @@ export const getActiveSymbols = async (cursor, limit = 30) => {
       console.error("Bybit API Error:", response.retMsg);
       return [];
     }
-    const STABLECOINS = ["USDE", "USDC"];
+    const STABLECOINS = ["USDE", "USDC", "RLUSD", "USD1"];
     const tickers = response.result.list.filter((symbol) => {
       if (STABLECOINS.includes(symbol.baseCoin)) return false;
       return symbol.status === "Trading" && symbol.symbol.endsWith("USDT");

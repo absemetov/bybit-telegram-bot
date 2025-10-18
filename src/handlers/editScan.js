@@ -21,11 +21,10 @@ export const handleEditScanField = async (ctx, session) => {
     }
     await Scan.updateField(interval, field, value);
     await session.delete("bybit-scene");
-    const message = `Scan field <b>[${field}]</b> updated to <b>${value}</b>.`;
     const buttons = Markup.inlineKeyboard([
       [Markup.button.callback(`Show cron job ${interval}`, `cron/${interval}`)],
     ]);
-    await ctx.replyWithHTML(message, buttons);
+    await ctx.replyWithHTML(`Scan field <b>${field} updated</b>!`, buttons);
   } catch (error) {
     ctx.reply(`Error updating Scan interval: ${error.message}`);
   }

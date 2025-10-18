@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { createHash } from "crypto";
 import {
   createLimitOrder,
+  createStopLimitOrder,
   getLimitOrders,
   cancelOrder,
   cancelAllOrders,
@@ -78,8 +79,26 @@ app.get("/chart/:symbol?/", protectPage, async (req, res) => {
 app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { tradingType, enterTf, tp, sl, size } = req.body;
-    await Ticker.update(symbol, { tradingType, enterTf, tp, sl, size });
+    const {
+      tradingType,
+      enterTf,
+      tp,
+      sl,
+      attemptsCount,
+      candlesCount,
+      touchCount,
+      tolerance,
+    } = req.body;
+    await Ticker.update(symbol, {
+      tradingType,
+      enterTf,
+      tp,
+      sl,
+      attemptsCount,
+      candlesCount,
+      touchCount,
+      tolerance,
+    });
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -156,12 +175,15 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts, support, resistance } = req.body;
+    const { defaultAlerts, support, resistance, read } = req.body;
     if (defaultAlerts) {
       //set default alerts
       await Ticker.createAlerts(symbol, support, resistance);
     }
-    const alerts = await Ticker.getAlerts(symbol);
+    if (read) {
+      await Ticker.updateField(symbol, "read", !read);
+    }
+    const alerts = await Ticker.getAlerts(symbol, read);
     return res.json(alerts);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -182,8 +204,8 @@ app.post("/edit-alert/:symbol", protectPage, async (req, res) => {
 app.post("/add/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { star } = req.body;
-    if (star) {
+    const { add } = req.body;
+    if (add) {
       await Ticker.create(symbol);
       return res.json({ create: true });
     } else {
@@ -209,8 +231,7 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
 app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { side, tp, sl, size } = req.body;
-    console.log(side, tp, sl, size);
+    const { side, tp, sl, size, orderType } = req.body;
     const ordersOld = await getTickerOrders(symbol);
     //create orders Long
     const alerts = await Ticker.getOnlyAlerts(symbol);
@@ -221,9 +242,15 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
       const startBuy = alerts[2];
       const endBuy = alerts[1];
       const avgBuy = Math.abs(startBuy + endBuy) / 2;
-      await createLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
-      await createLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
-      await createLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
+      if (orderType === "limit") {
+        await createLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
+        await createLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
+        await createLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
+      } else {
+        await createStopLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
+        await createStopLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
+        await createStopLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
+      }
     }
     //create Short orders
     if (side === "Sell") {
@@ -233,9 +260,15 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
       const startSell = alerts[3];
       const endSell = alerts[4];
       const avgSell = Math.abs(startSell + endSell) / 2;
-      await createLimitOrder(symbol, side, startSell, size / 4, tp, sl);
-      await createLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
-      await createLimitOrder(symbol, side, endSell, size / 2, tp, sl);
+      if (orderType === "limit") {
+        await createLimitOrder(symbol, side, startSell, size / 4, tp, sl);
+        await createLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
+        await createLimitOrder(symbol, side, endSell, size / 2, tp, sl);
+      } else {
+        await createStopLimitOrder(symbol, side, startSell, size / 4, tp, sl);
+        await createStopLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
+        await createStopLimitOrder(symbol, side, endSell, size / 2, tp, sl);
+      }
     }
     const orders = await getTickerOrders(symbol);
     return res.json({ orders });
@@ -260,7 +293,9 @@ app.post("/order/cancel-all/:symbol/:side", protectPage, async (req, res) => {
     const { symbol, side } = req.params;
     await cancelAllOrders(symbol, side);
     const orders = await getTickerOrders(symbol);
-    return res.json({ orders });
+    //return res.json({ orders });
+    const response = await getLimitOrders();
+    return res.json({ ...response, tickerOrders: orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
@@ -271,8 +306,9 @@ app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
     const { symbol } = req.params;
     const { orderId } = req.body;
     await cancelOrder(symbol, orderId);
+    const response = await getLimitOrders();
     const orders = await getTickerOrders(symbol);
-    return res.json({ orders });
+    return res.json({ ...response, tickerOrders: orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }

@@ -1,3 +1,15 @@
+//escape Html
+export const escapeHtml = (text) => {
+  if (typeof text !== "string") {
+    text = String(text);
+  }
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
 // format time
 export const timeConvert = (timestamp) => {
   return new Date(timestamp).toLocaleString("ru-RU", {
@@ -24,4 +36,18 @@ export const renderMsg = async (ctx, message, inlineKeyboard, edit = true) => {
   } else {
     await ctx.replyWithHTML(message, inlineKeyboard);
   }
+};
+//send msg to the channel
+export const sendMsgChannel = async (bot, message, inlineKeyboard) => {
+  await bot.telegram.sendMessage("-1002687531775", message, {
+    parse_mode: "HTML",
+    ...inlineKeyboard,
+  });
+};
+//send msg to me
+export const sendMsgMe = async (bot, message, inlineKeyboard) => {
+  await bot.telegram.sendMessage(94899148, message, {
+    parse_mode: "HTML",
+    ...inlineKeyboard,
+  });
 };

@@ -1,5 +1,6 @@
 import { Markup } from "telegraf";
 //new cron jobs
+import { renderMsg, escapeHtml } from "../helpers/helpers.js";
 export const viewScans = async (ctx, intervals, edit = false) => {
   let message = "Choose interval for editing\n";
   const buttons = [];
@@ -10,20 +11,21 @@ export const viewScans = async (ctx, intervals, edit = false) => {
         `cron/${interval.id}/edit/active/${!interval.active}/redirect`,
       ),
       Markup.button.callback(
-        `${interval.id} (${interval.schedule || "-"})`,
+        `${interval.name || ""} ${interval.id} (${interval.schedule || "-"})`,
         `cron/${interval.id}`,
       ),
     ]);
   }
   //render
-  if (edit) {
-    await ctx.editMessageText(message, {
-      parse_mode: "HTML",
-      ...Markup.inlineKeyboard(buttons),
-    });
-  } else {
-    await ctx.replyWithHTML(message, Markup.inlineKeyboard(buttons));
-  }
+  await renderMsg(ctx, message, Markup.inlineKeyboard(buttons), edit);
+  //if (edit) {
+  //  await ctx.editMessageText(message, {
+  //    parse_mode: "HTML",
+  //    ...Markup.inlineKeyboard(buttons),
+  //  });
+  //} else {
+  //  await ctx.replyWithHTML(message, Markup.inlineKeyboard(buttons));
+  //}
 };
 
 export const showScanPage = async (ctx, interval, scan, scanFields) => {
@@ -31,11 +33,7 @@ export const showScanPage = async (ctx, interval, scan, scanFields) => {
   const buttons = [];
   buttons.push([Markup.button.callback("<Back", "cron")]);
   for (const field of scanFields) {
-    if (field.name === "patterns") {
-      message += `${field.name}: <code>${JSON.stringify(scan[field.name])}</code>\n`;
-    } else {
-      message += `${field.name}: <code>${scan[field.name]}</code>\n`;
-    }
+    message += `${field.name}: <code>${escapeHtml(scan[field.name])}</code>\n`;
     if (field.name === "active" || field.name === "notify") {
       buttons.push([
         Markup.button.callback(
@@ -53,9 +51,9 @@ export const showScanPage = async (ctx, interval, scan, scanFields) => {
     }
   }
   //render
-  //await renderMsg(ctx, message, Markup.inlineKeyboard(buttons));
-  await ctx.editMessageText(message, {
-    parse_mode: "HTML",
-    ...Markup.inlineKeyboard(buttons),
-  });
+  await renderMsg(ctx, message, Markup.inlineKeyboard(buttons));
+  //await ctx.editMessageText(message, {
+  //  parse_mode: "HTML",
+  //  ...Markup.inlineKeyboard(buttons),
+  //});
 };

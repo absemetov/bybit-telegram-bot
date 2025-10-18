@@ -1,7 +1,6 @@
 import Scan from "../models/Scan.js";
 import Session from "../models/Session.js";
 import { viewScans, showScanPage } from "../views/showScanPage.js";
-
 //show intervals
 export const showAllScans = async (ctx, edit) => {
   const intervals = await Scan.all();

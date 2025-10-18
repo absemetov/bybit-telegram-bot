@@ -21,7 +21,7 @@
 <div class="row">
   <div class="col-12">
     <div class="table-responsive">
-      <table class="table table-striped table-hover">
+      <table class="table table-hover">
         <thead class="table-dark">
           <tr>
             <th>Date</th>
@@ -36,7 +36,7 @@
         </thead>
         <tbody>
           {{#each positions}}
-            <tr class="history-item cursor-pointer" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
+            <tr class="history-item cursor-pointer{{#if (gt closedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
               <td>{{formatDate updatedTime}}</td>
               <td>{{symbol}}</td>
               <td class="{{#if (eq side 'Buy')}}text-danger{{else}}text-success{{/if}}">

@@ -142,6 +142,12 @@ class Ticker {
   static async update(symbol, data) {
     await db.doc(`crypto/${symbol}`).update(data);
   }
+  static async incrementField(symbol, fieldName, number) {
+    const editTickerField = {
+      [fieldName]: FieldValue.increment(number),
+    };
+    await db.doc(`crypto/${symbol}`).update(editTickerField);
+  }
   //update field text
   static async updateField(symbol, fieldName, fieldData) {
     if (fieldName === "patterns") {
@@ -154,6 +160,8 @@ class Ticker {
   }
   //delete Ticker
   static async delete(symbol) {
+    await db.doc(`crypto/${symbol}/alerts/triggers`).delete();
+    await db.doc(`crypto/${symbol}/alerts/message`).delete();
     await db.doc(`crypto/${symbol}`).delete();
   }
   static async paginate(

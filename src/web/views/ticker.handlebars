@@ -14,19 +14,23 @@
                   <a class="nav-link tab-link" data-tab="all" href="#">🪙</a>
                 </li>
                 <li class="nav-item">
+                  <a class="nav-link tab-link" data-tab="bybit" href="#">🎁</a>
+                </li>
+                <li class="nav-item">
                   <a class="nav-link tab-link" data-tab="alerts" href="#">🔔</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link tab-link" data-tab="trading" href="#">📈</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link show-orders" href="#">⌛️</a>
+                  <a class="nav-link tab-link" data-tab="trading" href="#">💰</a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link show-positions" href="#">🎲</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link show-history" href="#">💰</a>
+                  {{#if user.auth}}
+                    <a class="nav-link" href="/logout">👨</a>
+                  {{else}}
+                    <a class="nav-link" href="/login">💂</a>
+                  {{/if}}
                 </li>
               </ul>
               <div class="coin-list"></div>
@@ -35,8 +39,8 @@
     </div>
     <div class="col-md-12 col-lg-9">
         <div class="btn-group position-relative z-3" role="group" aria-label="Vertical button group">
-          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="15min">15min</button>
-          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="30min">30min</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="15min">15m</button>
+          <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="30min">30m</button>
           <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="1h">1h</button>
           <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="2h">2h</button>
           <button type="button" class="btn tf-btn btn-sm btn-light" data-tf="4h">4h</button>
@@ -57,10 +61,10 @@
               <button type="button" class="btn btn-outline-light hide-btn d-none" title="Hide Alerts">📝</button>
               <button type="button" class="btn btn-outline-light order-btn d-none" title="Hide Orders, Positions">📬</button>
               <button type="button" class="btn btn-outline-light reset-btn d-none" title="Default Alerts">🔃</button>
-              <button type="button" class="btn btn-outline-light trading-btn d-none" title="Algo-Trading">☯️</button>
+              <button type="button" class="btn btn-outline-light trading-btn d-none" title="Algo-Trading">🕹</button>
               <button type="button" class="btn btn-outline-light info-btn" title="Indicators">ℹ️</button>
-              <button type="button" class="btn btn-sm btn-success long-btn" title="Create long grid">Long</button>  
-              <button type="button" class="btn btn-sm btn-danger short-btn" title="Crete short grid">Short</button>  
+              <button type="button" class="btn btn-sm btn-success long-btn d-none" title="Create long grid">Long</button>  
+              <button type="button" class="btn btn-sm btn-danger short-btn d-none" title="Crete short grid">Short</button>  
               <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
             </div>
           </div>

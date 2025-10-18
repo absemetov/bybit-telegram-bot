@@ -1,19 +1,61 @@
-//import Scan from "../models/Scan.js";
 import { Markup } from "telegraf";
 import Ticker from "../models/Ticker.js";
+import Indicators from "../helpers/indicators.js";
 import { getCandles } from "../helpers/bybitV5.js";
-
+import { algoTrading, checkPositions } from "../helpers/levels.js";
+import { sendMsgMe } from "../helpers/helpers.js";
+//new algotrading and alerts
 export const checkAlerts = async (bot) => {
+  //algoTrading
+  let direction = null;
+  let lastVisible = null;
+  //algotrading
+  do {
+    const { tickers, hasNext, lastVisibleId } = await Ticker.paginate(
+      100,
+      direction,
+      lastVisible,
+      "trading",
+    );
+    for (const ticker of tickers) {
+      try {
+        const {
+          symbol,
+          enterTf = "4h",
+          candlesCount = 30,
+          touchCount = 4,
+          //tradingType = 1,
+        } = ticker;
+        const candles = await getCandles(symbol, enterTf, candlesCount);
+        const levels = Indicators.calculateLevels(candles, touchCount);
+        const { close } = candles[candles.length - 1];
+        await checkPositions(ticker, close, bot, levels);
+        await algoTrading(ticker, levels, close, bot, enterTf);
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // 1second pause
+      } catch (error) {
+        console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
+        await sendMsgMe(
+          bot,
+          `Error in AlgoTrading ${ticker.symbol} ${error.message}`,
+        );
+      }
+    }
+    direction = hasNext ? "next" : null;
+    lastVisible = lastVisibleId;
+    // Пауза между пагинациями 1sec
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  } while (direction);
+  //alerts
   try {
     //const interval = "1min";
-    const interval = "5min";
+    const interval = "1min";
     const tickerNotifyArray = [];
     let direction = null;
     let lastVisibleId = null;
     //"alerts" or "all" "favorites"
     do {
       const paginate = await Ticker.paginate(
-        50,
+        100,
         direction,
         lastVisibleId,
         "alerts",
@@ -47,22 +89,19 @@ export const checkAlerts = async (bot) => {
         for (const [index, value] of alerts.entries()) {
           if (low <= value && value <= high && index <= 5) {
             if (silent10min) {
-              await bot.telegram.sendMessage(
-                "94899148",
+              await sendMsgMe(
+                bot,
                 `<code>${symbol.slice(0, -4)}</code> <b>[#ALERT ${alertNames[index]} cross ${value.toFixed(priceScale)}$]</b>\n` +
                   `#${symbol.slice(0, -4)} #${symbol} /${symbol}`,
-                {
-                  parse_mode: "HTML",
-                  ...Markup.inlineKeyboard([
-                    [Markup.button.callback("🗑 Delete message", "delete/msg")],
-                    [
-                      Markup.button.url(
-                        `${symbol} chart`,
-                        `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
-                      ),
-                    ],
-                  ]),
-                },
+                Markup.inlineKeyboard([
+                  [Markup.button.callback("🗑 Delete message", "delete/msg")],
+                  [
+                    Markup.button.url(
+                      `${symbol} chart`,
+                      `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
+                    ),
+                  ],
+                ]),
               );
               tickerNotifyArray.push({
                 symbol,
@@ -86,12 +125,6 @@ export const checkAlerts = async (bot) => {
       `[${new Date().toISOString()}] Error in cron job checkAlerts:`,
       error.message,
     );
-    await bot.telegram.sendMessage(
-      94899148,
-      `Error in Check Alerts and Levels ${error.message}`,
-      {
-        parse_mode: "HTML",
-      },
-    );
+    await sendMsgMe(bot, `Error in Check Alerts and Levels ${error.message}`);
   }
 };
