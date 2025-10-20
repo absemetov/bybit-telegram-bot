@@ -4,6 +4,7 @@ import Indicators from "../helpers/indicators.js";
 import { getCandles } from "../helpers/bybitV5.js";
 import { algoTrading, checkPositions } from "../helpers/levels.js";
 import { sendMsgMe } from "../helpers/helpers.js";
+import { volumeUp } from "../helpers/checkPumpTickers.js";
 //new algotrading and alerts
 export const checkAlerts = async (bot) => {
   //algoTrading
@@ -112,6 +113,32 @@ export const checkAlerts = async (bot) => {
               });
             }
           }
+        }
+        //volumeUp
+        const volume = await volumeUp(symbol);
+        if (volume && silent10min) {
+          tickerNotifyArray.push({
+            symbol,
+            data: {
+              ...volume,
+              lastNotified: new Date(),
+              //alertIndex: index + 1,
+            },
+          });
+          await sendMsgMe(
+            bot,
+            `<code>${symbol.slice(0, -4)}</code> <b>[${volume.msg}]</b>\n` +
+              `#${symbol.slice(0, -4)} #${symbol} #volumeUp`,
+            Markup.inlineKeyboard([
+              [Markup.button.callback("🗑 Delete message", "delete/msg")],
+              [
+                Markup.button.url(
+                  `${symbol} chart`,
+                  `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
+                ),
+              ],
+            ]),
+          );
         }
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }

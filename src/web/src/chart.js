@@ -112,7 +112,7 @@ class ModalManager {
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="tolerance">Tolerance, %</label>
-                <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.8">
+                <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4">
             </div>
         </div>
         <div class="d-grid gap-2">
@@ -471,6 +471,42 @@ class ModalManager {
     const tp = parseFloat(data.get("tp"));
     const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
+    //validate!!!
+    if (ChartManager.state.alerts.length === 0) {
+      alert("First create alerts!");
+      return;
+    }
+    const { close } =
+      ChartManager.state.candles[ChartManager.state.candles.length - 1];
+    const stopBuy = ChartManager.state.alerts[1].line.options().price;
+    const startBuy = ChartManager.state.alerts[2].line.options().price;
+    const startSell = ChartManager.state.alerts[3].line.options().price;
+    const stopSell = ChartManager.state.alerts[4].line.options().price;
+    if (side === "Buy") {
+      if (orderType === "limit") {
+        if (close < stopBuy || close < startBuy) {
+          alert("start stop above price!");
+          return;
+        }
+      } else {
+        if (close > stopBuy || close > startBuy) {
+          alert("start stop below price!");
+          return;
+        }
+      }
+    } else {
+      if (orderType === "limit") {
+        if (close > stopSell || close > startSell) {
+          alert("start stop below price!");
+          return;
+        }
+      } else {
+        if (close < stopSell || close < startSell) {
+          alert("start stop below price!");
+          return;
+        }
+      }
+    }
     try {
       const response = await fetch(`/order/create/${symbol}`, {
         method: "POST",
@@ -599,6 +635,8 @@ class Order {
           return el;
         });
         const enterTf = [
+          { value: "15min", name: "15min levels" },
+          { value: "30min", name: "30min levels" },
           { value: "1h", name: "1h levels" },
           { value: "2h", name: "2h levels" },
           { value: "4h", name: "4h levels" },
@@ -2475,6 +2513,8 @@ class App {
         return;
       }
     }
+    const item = App.state.item;
+    App.state.item = false;
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -2531,36 +2571,36 @@ class App {
       enterTf: alertsDataJson.enterTf || "4h",
       tp: alertsDataJson.tp,
       sl: alertsDataJson.sl,
-      attemptsCount: alertsDataJson.attemptsCount || 4,
+      attemptsCount: alertsDataJson.attemptsCount,
       candlesCount: alertsDataJson.candlesCount || 30,
       touchCount: alertsDataJson.touchCount || 4,
       tolerance: alertsDataJson.tolerance || 0.5,
     };
     App.setState({});
-    if (App.state.item) {
-      App.state.item.querySelector(".add-btn").classList.remove("d-none");
-      App.state.item
+    if (item) {
+      item.querySelector(".add-btn").classList.remove("d-none");
+      item
         .querySelector(".star-btn")
         .classList.toggle("d-none", !alertsDataJson.exists);
-      App.state.item
+      item
         .querySelector(".alert-btn")
         .classList.toggle("d-none", !alertsDataJson.exists);
       if (alertsDataJson.exists) {
-        App.state.item.querySelector(".add-btn").textContent = "🗑";
-        App.state.item.querySelector(".add-btn").dataset.add = true;
+        item.querySelector(".add-btn").textContent = "🗑";
+        item.querySelector(".add-btn").dataset.add = true;
         //star
-        App.state.item.querySelector(".star-btn").dataset.star =
-          alertsDataJson.star;
-        App.state.item.querySelector(".star-btn").textContent =
-          alertsDataJson.star ? "❤️" : "🖤";
+        item.querySelector(".star-btn").dataset.star = alertsDataJson.star;
+        item.querySelector(".star-btn").textContent = alertsDataJson.star
+          ? "❤️"
+          : "🖤";
         //alert
-        App.state.item.querySelector(".alert-btn").dataset.alert =
-          alertsDataJson.alert;
-        App.state.item.querySelector(".alert-btn").textContent =
-          alertsDataJson.alert ? "🔔" : "🔕";
+        item.querySelector(".alert-btn").dataset.alert = alertsDataJson.alert;
+        item.querySelector(".alert-btn").textContent = alertsDataJson.alert
+          ? "🔔"
+          : "🔕";
       } else {
-        App.state.item.querySelector(".add-btn").textContent = "➕";
-        App.state.item.querySelector(".add-btn").dataset.add = false;
+        item.querySelector(".add-btn").textContent = "➕";
+        item.querySelector(".add-btn").dataset.add = false;
       }
     } else {
       //add loaded coin
@@ -2580,7 +2620,6 @@ class App {
       //render new data
       this.renderCoinList();
     }
-    App.state.item = false;
     App.state.read = false;
     //SHOW limit orders in chart
     Order.orderPriceLines(alertsDataJson.orders);

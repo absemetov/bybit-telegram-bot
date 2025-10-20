@@ -22,7 +22,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
         const arrayNotify = [];
         for (const ticker of tickers) {
           const { symbol } = ticker;
-          for (const tf of ["4h", "1d"]) {
+          for (const tf of ["2h", "4h", "1d"]) {
             const levels = await findLevels(ticker, bot, tf);
             const rsi = await getRsi(ticker, bot, tf);
             if (levels && rsi && (rsi <= 40 || rsi >= 60)) {
@@ -91,6 +91,25 @@ export const runTimeframeScan = async (timeframe, bot) => {
               );
             }
           }
+          //volumeUp
+          const volume = await volumeUp(symbol, 4);
+          if (volume) {
+            if (volume.volumeRatio > 8) {
+              await sendMsgChannel(
+                bot,
+                `<code>${symbol.slice(0, -4)}</code> <b>[${escapeHtml(volume.msg)}]</b> ${new Date().toLocaleString("ru-RU")}\n` +
+                  `#${symbol.slice(0, -4)} #${symbol}`,
+                Markup.inlineKeyboard([
+                  [
+                    Markup.button.url(
+                      `${symbol} chart`,
+                      `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+                    ),
+                  ],
+                ]),
+              );
+            }
+          }
           //pause 0.5 seconds
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
@@ -105,53 +124,40 @@ export const runTimeframeScan = async (timeframe, bot) => {
   }
 };
 //find pump volumes
-async function findPumpVolumes(
-  ticker,
-  bot,
+export const volumeUp = async function findPumpVolumes(
+  symbol,
+  multiplier = 2.5,
   timeframe = "15min",
-  multiplier = 3,
 ) {
   try {
-    const { symbol } = ticker;
-    const candles = await getCandles(symbol, timeframe, 200);
-    if (candles.length < 200) {
+    const candles = await getCandles(symbol, timeframe, 10);
+    if (candles.length < 10) {
       return null;
     }
-    const rsiData = Indicators.calculateRSI(candles);
-    const currentRsi = rsiData[rsiData.length - 1].value;
-    //const previousVolumes = candles.slice(0, 2);
+    const previousVolumes = candles.slice(-5, -1);
     //prev candle
-    const { close, volume } = candles[candles.length - 2];
-    //const averageVolume =
-    //  previousVolumes.reduce((sum, candle) => sum + candle.volume, 0) /
-    //  previousVolumes.length;
+    const { close, volume } = candles[candles.length - 1];
     const averageVolume =
-      (candles[candles.length - 4] + candles[candles.length - 5]) / 2;
+      previousVolumes.reduce((sum, candle) => sum + candle.volume, 0) /
+      previousVolumes.length;
     const volumeRatio = volume / averageVolume;
     const isSpike = volumeRatio >= multiplier;
-    console.log(currentRsi);
-    if (isSpike && currentRsi <= 50) {
+    if (isSpike) {
       return {
-        msg: `📊 Volume Up x${volumeRatio.toFixed(1)} RSI ${currentRsi.toFixed(2)}% ${timeframe} Price ${close}$`,
+        msg: `📊 Volume Up x${volumeRatio.toFixed(1)} ${timeframe} Price ${close}$`,
+        volumeRatio,
       };
     }
     return null;
   } catch (error) {
-    console.error(`Error in findPumpvolumes ${ticker.symbol}:`, error.message);
-    await bot.telegram.sendMessage(
-      94899148,
-      `Error in ${timeframe} find Levels ${error.message}`,
-      {
-        parse_mode: "HTML",
-      },
-    );
+    console.error(`Error in findPumpvolumes ${symbol}:`, error.message);
   }
-}
+};
 //get RSI data
 async function getRsi(ticker, bot, timeframe = "1h") {
   try {
     const { symbol } = ticker;
-    const candles = await getCandles(symbol, timeframe, 100);
+    const candles = await getCandles(symbol, timeframe, 200);
     if (candles.length < 100) {
       return null;
     }

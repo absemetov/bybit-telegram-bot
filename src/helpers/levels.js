@@ -55,14 +55,14 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
     const slPersent = ((stopLoss - avgPrice) / avgPrice) * 100;
     const pnlPersent = ((markPrice - avgPrice) / avgPrice) * 100;
     //check position size max and FOMO!!!
-    if (positionValue >= MAX_POSITION_USDT * (1 + 10 / 100)) {
+    if (positionValue >= MAX_POSITION_USDT * 2) {
       await sendMsgMe(
         bot,
         `<b>[<code>${symbol.slice(0, -4)}</code> FOMO!!! Close position!!! Emotions!!! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$]</b>\n` +
           `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
       );
     }
-    if (positionValue > MAX_POSITION_USDT && orders.length > 0) {
+    if (positionValue > MAX_POSITION_USDT * 2 && orders.length > 0) {
       for (const order of orders) {
         await cancelOrder(symbol, order.orderId);
       }
@@ -106,7 +106,7 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
       let levelPrcnt = 0;
       if (tradingType === 4 && levels.support) {
         levelPrcnt = ((levels.support - avgPrice) / avgPrice) * 100 + tolerance;
-        if (levelPrcnt <= -3) {
+        if (levelPrcnt <= -0.5) {
           newTakeProfit = avgPrice * (1 + levelPrcnt / 100);
         } else {
           newTakeProfit = avgPrice * (1 - tickerTakeProfit / 100);
@@ -121,7 +121,7 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
         await sendMsgMe(
           bot,
-          `<b>[<code>${symbol.slice(0, -4)}</code> ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt <= -3 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🔴 Short] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          `<b>[<code>${symbol.slice(0, -4)}</code> ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt <= -0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🔴 Short] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `TP value: ${takeProfit}  ${newTakeProfit.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]</b>\n` +
             `#${symbol.slice(0, -4)} #SHORT_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
         );
@@ -162,7 +162,7 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
       if (tradingType === 4 && levels.resistance) {
         levelPrcnt =
           ((levels.resistance - avgPrice) / avgPrice) * 100 - tolerance;
-        if (levelPrcnt >= 3) {
+        if (levelPrcnt >= 0.5) {
           newTakeProfit = avgPrice * (1 + levelPrcnt / 100);
         } else {
           newTakeProfit = avgPrice * (1 + tickerTakeProfit / 100);
@@ -177,7 +177,7 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
         await sendMsgMe(
           bot,
-          `<b>[<code>${symbol.slice(0, -4)}</code> ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt >= 3 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🟢 Long] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          `<b>[<code>${symbol.slice(0, -4)}</code> ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt >= 0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🟢 Long] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `TP value: ${takeProfit}  ${newTakeProfit.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]</b>\n` +
             `#${symbol.slice(0, -4)} #LONG_${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
         );
@@ -202,8 +202,8 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
       attemptsCount,
     } = ticker;
     //your trading account must not drop below 90% of the initial account balance!!!
-    const balance = await getBybitBalance();
-    const size = balance * 1;
+    //const balance = await getBybitBalance();
+    const size = MAX_POSITION_USDT;
     //get limit orders
     const orders = await getTickerOrders(symbol);
     const longOrders = orders.filter((o) => o.side === "Buy");
@@ -236,7 +236,7 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
           await createStopLimitOrder(
             symbol,
             "Buy",
-            price * (1 + 0.18 / 100),
+            price * (1 + 0.15 / 100),
             sizeTotal,
             tp || TAKE_PROFIT,
             sl || STOP_LOSS,
@@ -279,7 +279,7 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
           await createStopLimitOrder(
             symbol,
             "Sell",
-            price * (1 - 0.18 / 100),
+            price * (1 - 0.15 / 100),
             sizeTotal,
             tp || TAKE_PROFIT,
             sl || STOP_LOSS,

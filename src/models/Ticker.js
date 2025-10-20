@@ -72,12 +72,12 @@ class Ticker {
   //create default Alerts
   static async createAlerts(symbol, support, resistance) {
     const alerts = {
-      alert0: support * (1 - 2 / 100),
+      alert0: support * (1 - 1 / 100),
       alert1: support,
       alert2: support * (1 + 1 / 100),
       alert3: resistance * (1 - 1 / 100),
       alert4: resistance,
-      alert5: resistance * (1 + 2 / 100),
+      alert5: resistance * (1 + 1 / 100),
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
