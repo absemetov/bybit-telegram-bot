@@ -375,8 +375,8 @@ export const createStopLimitOrder = async (
   side,
   triggerPrice,
   size,
-  tpPercent,
-  slPercent,
+  tp,
+  sl,
 ) => {
   try {
     const { result } = await bybitClient.getInstrumentsInfo({
@@ -417,14 +417,14 @@ export const createStopLimitOrder = async (
       side === "Buy"
         ? formatPrice(triggerPrice * (1 + 1 / 100))
         : formatPrice(triggerPrice * (1 - 1 / 100));
-    const takeProfit =
-      side === "Sell"
-        ? formatPrice(triggerPrice * (1 - tpPercent / 100))
-        : formatPrice(triggerPrice * (1 + tpPercent / 100));
-    const stopLoss =
-      side === "Sell"
-        ? formatPrice(triggerPrice * (1 + slPercent / 100))
-        : formatPrice(triggerPrice * (1 - slPercent / 100));
+    //const takeProfit =
+    //  side === "Sell"
+    //    ? formatPrice(triggerPrice * (1 - tpPercent / 100))
+    //    : formatPrice(triggerPrice * (1 + tpPercent / 100));
+    //const stopLoss =
+    //  side === "Sell"
+    //    ? formatPrice(triggerPrice * (1 + slPercent / 100))
+    //    : formatPrice(triggerPrice * (1 - slPercent / 100));
     const response = await bybitClient.submitOrder({
       category: "linear",
       symbol,
@@ -433,8 +433,8 @@ export const createStopLimitOrder = async (
       qty: formattedQty,
       triggerPrice: formatPrice(triggerPrice),
       price,
-      takeProfit,
-      stopLoss,
+      takeProfit: formatPrice(tp),
+      stopLoss: formatPrice(sl),
       triggerDirection: side === "Sell" ? 2 : 1,
       timeInForce: "GTC",
       positionIdx: side === "Sell" ? 2 : 1,
@@ -450,14 +450,7 @@ export const createStopLimitOrder = async (
   }
 };
 //create limit order
-export const createLimitOrder = async (
-  symbol,
-  side,
-  price,
-  size,
-  tpPercent,
-  slPercent,
-) => {
+export const createLimitOrder = async (symbol, side, price, size, tp, sl) => {
   try {
     //TODO check position size!!
     // 1. Получаем текущую рыночную цену
@@ -526,14 +519,14 @@ export const createLimitOrder = async (
     //  side === "Buy"
     //    ? formatPrice(price * (1 - 0.0015))
     //    : formatPrice(price * (1 + 0.0015));
-    const takeProfit =
-      side === "Sell"
-        ? formatPrice(price * (1 - tpPercent / 100))
-        : formatPrice(price * (1 + tpPercent / 100));
-    const stopLoss =
-      side === "Sell"
-        ? formatPrice(price * (1 + slPercent / 100))
-        : formatPrice(price * (1 - slPercent / 100));
+    //const takeProfit =
+    //  side === "Sell"
+    //    ? formatPrice(price * (1 - tpPercent / 100))
+    //    : formatPrice(price * (1 + tpPercent / 100));
+    //const stopLoss =
+    //  side === "Sell"
+    //    ? formatPrice(price * (1 + slPercent / 100))
+    //    : formatPrice(price * (1 - slPercent / 100));
     const response = await bybitClient.submitOrder({
       category: "linear",
       symbol,
@@ -541,8 +534,8 @@ export const createLimitOrder = async (
       orderType: "Limit",
       qty: formattedQty,
       price: formatPrice(price),
-      takeProfit,
-      stopLoss,
+      takeProfit: formatPrice(tp),
+      stopLoss: formatPrice(sl),
       timeInForce: "GTC",
       positionIdx: side === "Sell" ? 2 : 1,
     });

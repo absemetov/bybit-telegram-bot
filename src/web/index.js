@@ -84,6 +84,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       enterTf,
       tp,
       sl,
+      size,
       attemptsCount,
       candlesCount,
       touchCount,
@@ -94,6 +95,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       enterTf,
       tp,
       sl,
+      size,
       attemptsCount,
       candlesCount,
       touchCount,
@@ -231,25 +233,74 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
 app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { side, tp, sl, size, orderType } = req.body;
+    const {
+      side,
+      size,
+      orderType,
+      startBuy,
+      stopBuy,
+      slBuy,
+      startSell,
+      stopSell,
+      slSell,
+    } = req.body;
     const ordersOld = await getTickerOrders(symbol);
     //create orders Long
-    const alerts = await Ticker.getOnlyAlerts(symbol);
+    //const alerts = await Ticker.getOnlyAlerts(symbol);
     if (side === "Buy") {
       for (const order of ordersOld.filter((o) => o.side === side)) {
         await cancelOrder(symbol, order.orderId);
       }
-      const startBuy = alerts[2];
-      const endBuy = alerts[1];
-      const avgBuy = Math.abs(startBuy + endBuy) / 2;
       if (orderType === "limit") {
-        await createLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
-        await createLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
-        await createLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
+        await createLimitOrder(
+          symbol,
+          side,
+          startBuy,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
+        await createLimitOrder(
+          symbol,
+          side,
+          (startBuy + stopBuy) / 2,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
+        await createLimitOrder(
+          symbol,
+          side,
+          stopBuy,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
       } else {
-        await createStopLimitOrder(symbol, side, startBuy, size / 4, tp, sl);
-        await createStopLimitOrder(symbol, side, avgBuy, size / 3, tp, sl);
-        await createStopLimitOrder(symbol, side, endBuy, size / 2, tp, sl);
+        await createStopLimitOrder(
+          symbol,
+          side,
+          startBuy,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
+        await createStopLimitOrder(
+          symbol,
+          side,
+          (startBuy + stopBuy) / 2,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
+        await createStopLimitOrder(
+          symbol,
+          side,
+          stopBuy,
+          size / 3,
+          stopSell,
+          slBuy,
+        );
       }
     }
     //create Short orders
@@ -257,17 +308,56 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
       for (const order of ordersOld.filter((o) => o.side === side)) {
         await cancelOrder(symbol, order.orderId);
       }
-      const startSell = alerts[3];
-      const endSell = alerts[4];
-      const avgSell = Math.abs(startSell + endSell) / 2;
       if (orderType === "limit") {
-        await createLimitOrder(symbol, side, startSell, size / 4, tp, sl);
-        await createLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
-        await createLimitOrder(symbol, side, endSell, size / 2, tp, sl);
+        await createLimitOrder(
+          symbol,
+          side,
+          startSell,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
+        await createLimitOrder(
+          symbol,
+          side,
+          (startSell + stopSell) / 2,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
+        await createLimitOrder(
+          symbol,
+          side,
+          stopSell,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
       } else {
-        await createStopLimitOrder(symbol, side, startSell, size / 4, tp, sl);
-        await createStopLimitOrder(symbol, side, avgSell, size / 3, tp, sl);
-        await createStopLimitOrder(symbol, side, endSell, size / 2, tp, sl);
+        await createStopLimitOrder(
+          symbol,
+          side,
+          startSell,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
+        await createStopLimitOrder(
+          symbol,
+          side,
+          (startSell + stopSell) / 2,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
+        await createStopLimitOrder(
+          symbol,
+          side,
+          stopSell,
+          size / 3,
+          stopBuy,
+          slSell,
+        );
       }
     }
     const orders = await getTickerOrders(symbol);

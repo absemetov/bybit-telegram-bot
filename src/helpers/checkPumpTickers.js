@@ -3,7 +3,7 @@ import { getActiveSymbols, getCandles } from "../helpers/bybitV5.js";
 //import { uploadDataToAlgolia } from "../helpers/algoliaIndex.js";
 import Ticker from "../models/Ticker.js";
 import { Markup } from "telegraf";
-import { sendMsgChannel, sendMsgMe, escapeHtml } from "../helpers/helpers.js";
+import { sendMsgChannel, sendMsgMe } from "../helpers/helpers.js";
 //import { algoTrading, checkPositions } from "../helpers/levels.js";
 // Основная функция сканирования
 export const runTimeframeScan = async (timeframe, bot) => {
@@ -22,10 +22,10 @@ export const runTimeframeScan = async (timeframe, bot) => {
         const arrayNotify = [];
         for (const ticker of tickers) {
           const { symbol } = ticker;
-          for (const tf of ["2h", "4h", "1d"]) {
+          for (const tf of ["4h", "6h", "12h", "1d", "1w"]) {
             const levels = await findLevels(ticker, bot, tf);
             const rsi = await getRsi(ticker, bot, tf);
-            if (levels && rsi && (rsi <= 40 || rsi >= 60)) {
+            if (levels) {
               arrayNotify.push({
                 symbol,
                 data: {
@@ -37,13 +37,16 @@ export const runTimeframeScan = async (timeframe, bot) => {
               const { msg } = levels;
               await sendMsgChannel(
                 bot,
-                `<code>${symbol.slice(0, -4)}</code> <b>[${escapeHtml(msg)}] RSI ${rsi.toFixed(2)}%</b> ${new Date().toLocaleString("ru-RU")}\n` +
-                  `#${symbol.slice(0, -4)} #${symbol} #top100`,
+                {
+                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  msg,
+                  footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
+                },
                 Markup.inlineKeyboard([
                   [
                     Markup.button.url(
                       `${symbol} chart`,
-                      `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+                      `https://bybit-telegram-bot.pages.dev/${symbol}/${tf}`,
                     ),
                   ],
                 ]),
@@ -78,8 +81,11 @@ export const runTimeframeScan = async (timeframe, bot) => {
               const { msg } = levels;
               await sendMsgChannel(
                 bot,
-                `<code>${symbol.slice(0, -4)}</code> <b>[${escapeHtml(msg)} RSI ${rsi.toFixed(2)}%]</b> ${new Date().toLocaleString("ru-RU")}\n` +
-                  `#${symbol.slice(0, -4)} #${symbol}`,
+                {
+                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  msg,
+                  footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
+                },
                 Markup.inlineKeyboard([
                   [
                     Markup.button.url(
@@ -94,11 +100,15 @@ export const runTimeframeScan = async (timeframe, bot) => {
           //volumeUp
           const volume = await volumeUp(symbol, 4);
           if (volume) {
-            if (volume.volumeRatio > 8) {
+            const { volumeRatio, msg } = volume;
+            if (volumeRatio > 8) {
               await sendMsgChannel(
                 bot,
-                `<code>${symbol.slice(0, -4)}</code> <b>[${escapeHtml(volume.msg)}]</b> ${new Date().toLocaleString("ru-RU")}\n` +
-                  `#${symbol.slice(0, -4)} #${symbol}`,
+                {
+                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  msg,
+                  footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
+                },
                 Markup.inlineKeyboard([
                   [
                     Markup.button.url(
@@ -120,7 +130,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
     }
   } catch (error) {
     console.error(`Error CheckLevels`, error.message);
-    await sendMsgMe(bot, `Error in CheckLevels ${error.message}`);
+    await sendMsgMe(bot, { msg: `Error in CheckLevels ${error.message}` });
   }
 };
 //find pump volumes
@@ -159,33 +169,29 @@ async function getRsi(ticker, bot, timeframe = "1h") {
     const { symbol } = ticker;
     const candles = await getCandles(symbol, timeframe, 200);
     if (candles.length < 100) {
-      return null;
+      return 0;
     }
     const rsiData = Indicators.calculateRSI(candles);
     return rsiData[rsiData.length - 1].value;
   } catch (error) {
     console.error(`Error processing:`, error.message);
-    await bot.telegram.sendMessage(
-      94899148,
-      `Error in 4h find Levels ${error.message}`,
-      {
-        parse_mode: "HTML",
-      },
-    );
+    await sendMsgMe(bot, { msg: `Error in getRsi ${error.message}` });
   }
 }
 //find levels
-async function findLevels(
-  ticker,
-  bot,
-  timeframe = "1h",
-  candlesCount = 30,
-  touchCount = 4,
-  tolerance = 0.5,
-) {
+async function findLevels(ticker, bot, timeframe = "4h") {
   try {
-    const { symbol } = ticker;
+    const {
+      symbol,
+      candlesCount = 30,
+      touchCount = 4,
+      tolerance = 0.5,
+    } = ticker;
     const candles = await getCandles(symbol, timeframe, candlesCount);
+    if (candles.length < candlesCount) {
+      //continue;
+      return null;
+    }
     const { close } = candles[candles.length - 1];
     const longLevels = Indicators.calculateLevels(candles, touchCount);
     //support zone
@@ -195,10 +201,10 @@ async function findLevels(
         !ticker[`levelPriceS${timeframe}`] ||
         Math.abs(ticker[`levelPriceS${timeframe}`] - longLevels.support) /
           longLevels.support >=
-          1 / 100;
+          0.5 / 100;
       if (newLevel) {
         return {
-          msg: `📈 Support zone ${timeframe} [${candlesCount}, ${touchCount}, ${tolerance}] ${close}$ #support `,
+          msg: `📈 Support ${timeframe} ${close}$`,
           [`levelPriceS${timeframe}`]: longLevels.support,
         };
       }
@@ -213,10 +219,10 @@ async function findLevels(
         !ticker[`levelPriceR${timeframe}`] ||
         Math.abs(ticker[`levelPriceR${timeframe}`] - longLevels.resistance) /
           longLevels.resistance >=
-          1 / 100;
+          0.5 / 100;
       if (newLevel) {
         return {
-          msg: `📉 Resistance zone ${timeframe} [${candlesCount}, ${touchCount}, ${tolerance}] ${close}$ #resistance`,
+          msg: `📉 Resistance ${timeframe} ${close}$`,
           [`levelPriceR${timeframe}`]: longLevels.resistance,
         };
       }
@@ -224,12 +230,6 @@ async function findLevels(
     return null;
   } catch (error) {
     console.error(`Error check Levels:`, error.message);
-    await bot.telegram.sendMessage(
-      94899148,
-      `Error in 4h find Levels ${error.message}`,
-      {
-        parse_mode: "HTML",
-      },
-    );
+    await sendMsgMe(bot, { msg: `Error in findLevels ${error.message}` });
   }
 }

@@ -4,7 +4,7 @@ import Indicators from "../helpers/indicators.js";
 import { getCandles } from "../helpers/bybitV5.js";
 import { algoTrading, checkPositions } from "../helpers/levels.js";
 import { sendMsgMe } from "../helpers/helpers.js";
-import { volumeUp } from "../helpers/checkPumpTickers.js";
+//import { volumeUp } from "../helpers/checkPumpTickers.js";
 //new algotrading and alerts
 export const checkAlerts = async (bot) => {
   //algoTrading
@@ -28,6 +28,9 @@ export const checkAlerts = async (bot) => {
           //tradingType = 1,
         } = ticker;
         const candles = await getCandles(symbol, enterTf, candlesCount);
+        if (candles.length < candlesCount) {
+          continue;
+        }
         const levels = Indicators.calculateLevels(candles, touchCount);
         const { close } = candles[candles.length - 1];
         await checkPositions(ticker, close, bot, levels);
@@ -35,10 +38,9 @@ export const checkAlerts = async (bot) => {
         await new Promise((resolve) => setTimeout(resolve, 1000)); // 1second pause
       } catch (error) {
         console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
-        await sendMsgMe(
-          bot,
-          `Error in AlgoTrading ${ticker.symbol} ${error.message}`,
-        );
+        await sendMsgMe(bot, {
+          msg: `Error in AlgoTrading ${ticker.symbol} ${error.message}`,
+        });
       }
     }
     direction = hasNext ? "next" : null;
@@ -92,14 +94,17 @@ export const checkAlerts = async (bot) => {
             if (silent10min) {
               await sendMsgMe(
                 bot,
-                `<code>${symbol.slice(0, -4)}</code> <b>[#ALERT ${alertNames[index]} cross ${value.toFixed(priceScale)}$]</b>\n` +
-                  `#${symbol.slice(0, -4)} #${symbol} /${symbol}`,
+                {
+                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  msg: `[#ALERT ${alertNames[index]} cross ${value.toFixed(priceScale)}$]`,
+                  footer: `#${symbol.slice(0, -4)} #${symbol} /${symbol}`,
+                },
                 Markup.inlineKeyboard([
                   [Markup.button.callback("🗑 Delete message", "delete/msg")],
                   [
                     Markup.button.url(
                       `${symbol} chart`,
-                      `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
+                      `https://bybit.rzk.com.ru/chart/${symbol}`,
                     ),
                   ],
                 ]),
@@ -115,31 +120,34 @@ export const checkAlerts = async (bot) => {
           }
         }
         //volumeUp
-        const volume = await volumeUp(symbol);
-        if (volume && silent10min) {
-          tickerNotifyArray.push({
-            symbol,
-            data: {
-              ...volume,
-              lastNotified: new Date(),
-              //alertIndex: index + 1,
-            },
-          });
-          await sendMsgMe(
-            bot,
-            `<code>${symbol.slice(0, -4)}</code> <b>[${volume.msg}]</b>\n` +
-              `#${symbol.slice(0, -4)} #${symbol} #volumeUp`,
-            Markup.inlineKeyboard([
-              [Markup.button.callback("🗑 Delete message", "delete/msg")],
-              [
-                Markup.button.url(
-                  `${symbol} chart`,
-                  `https://bybit.rzk.com.ru/chart/${symbol}/1h`,
-                ),
-              ],
-            ]),
-          );
-        }
+        //const volume = await volumeUp(symbol);
+        //if (volume && silent10min) {
+        //  tickerNotifyArray.push({
+        //    symbol,
+        //    data: {
+        //      ...volume,
+        //      lastNotified: new Date(),
+        //      //alertIndex: index + 1,
+        //    },
+        //  });
+        //  await sendMsgMe(
+        //    bot,
+        //    {
+        //      header: `<code>${symbol.slice(0, -4)}</code>`,
+        //      msg: `[${volume.msg}]`,
+        //      footer: `#${symbol.slice(0, -4)} #${symbol} #volumeUp`,
+        //    },
+        //    Markup.inlineKeyboard([
+        //      [Markup.button.callback("🗑 Delete message", "delete/msg")],
+        //      [
+        //        Markup.button.url(
+        //          `${symbol} chart`,
+        //          `https://bybit.rzk.com.ru/chart/${symbol}`,
+        //        ),
+        //      ],
+        //    ]),
+        //  );
+        //}
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
       direction = paginate.hasNext ? "next" : null;
@@ -152,6 +160,8 @@ export const checkAlerts = async (bot) => {
       `[${new Date().toISOString()}] Error in cron job checkAlerts:`,
       error.message,
     );
-    await sendMsgMe(bot, `Error in Check Alerts and Levels ${error.message}`);
+    await sendMsgMe(bot, {
+      msg: `Error in Check Alerts and Levels ${error.message}`,
+    });
   }
 };

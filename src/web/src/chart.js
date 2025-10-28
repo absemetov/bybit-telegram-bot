@@ -44,19 +44,19 @@ class ModalManager {
                 </label>
               </div>
             </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label" for="size">Max position ($)</label>
-                <input type="number" class="form-control-plaintext" id="size" name="size" value="{{size}}" max="{{size}}" required>
-            </div>
         </div>
         <div class="row">
-            <div class="col-md-6 mb-3">
-                <label class="form-label" for="tp">Take Profit (%)</label>
-                <input type="number" class="form-control" id="tp" name="tp" value="{{tp}}" step="0.1" required>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="sizeOrder">Position size($)</label>
+                <input type="number" class="form-control" id="sizeOrder" name="size"  max="{{size}}" required>
             </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label" for="sl">Stop Loss (%)</label>
-                <input type="number" class="form-control" id="sl" name="sl" value="{{sl}}" step="0.1" max="3" required>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="sl">Stop by Alerts (%)</label>
+                <input type="number" class="form-control is-invalid" id="sl" value="{{sl}}" max="3">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">LOSS ($)</label>
+                <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
             </div>
         </div>
         <div class="d-grid gap-2">
@@ -88,9 +88,19 @@ class ModalManager {
             </div>
         </div>
         <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="sizeAlgo">Position size ($)</label>
+                <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">MAX LOSS ($)</label>
+                <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
+            </div>
+        </div>
+        <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="attemptsCount">Attempts count</label>
-                <input type="number" class="form-control-plaintext" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" max="5">
+                <input type="number" class="form-control" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" max="100">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="tp">Take Profit (%)</label>
@@ -98,17 +108,17 @@ class ModalManager {
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="sl">Stop Loss (%)</label>
-                <input type="number" class="form-control" name="sl" id="sl" value="{{sl}}" step="0.1" max="3" required>
+                <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.1" max="3" required>
             </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="candlesCount">Candles count</label>
-                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="10">
+                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="6">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="touchCount">Touch count</label>
-                <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="4">
+                <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="2">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="tolerance">Tolerance, %</label>
@@ -132,6 +142,7 @@ class ModalManager {
         document.activeElement.blur();
       }
     });
+    this.modalElement.addEventListener("input", this.handleInput.bind(this));
     this.modalElement.addEventListener("submit", this.handleSubmit.bind(this));
     this.modalElement.addEventListener("click", this.handleClick.bind(this));
   }
@@ -157,7 +168,8 @@ class ModalManager {
         return this.templates.orderForm({
           orderType: config.orderType,
           buttonText: config.orderType.toUpperCase(),
-          sl: Order.state.STOP_LOSS,
+          //sl: Order.state.STOP_LOSS,
+          sl: config.sl.toFixed(2),
           tp: Order.state.TAKE_PROFIT,
           size: Order.state.MAX_POSITION,
         });
@@ -167,11 +179,17 @@ class ModalManager {
           enterTf: config.enterTf,
           sl: App.state.algoTrading.sl || Order.state.STOP_LOSS,
           tp: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
-          size: App.state.algoTrading.size || Order.state.MAX_POSITION,
+          size: App.state.algoTrading.size,
+          maxSize: Order.state.MAX_POSITION,
           candlesCount: App.state.algoTrading.candlesCount,
           touchCount: App.state.algoTrading.touchCount,
           tolerance: App.state.algoTrading.tolerance,
           attemptsCount: App.state.algoTrading.attemptsCount,
+          loss:
+            (App.state.algoTrading.size *
+              App.state.algoTrading.sl *
+              App.state.algoTrading.attemptsCount) /
+            100,
         });
       case "orders":
         return this.templates.orders({
@@ -205,7 +223,39 @@ class ModalManager {
     const dialog = this.modalElement.querySelector(".modal-dialog");
     dialog.className = `modal-dialog ${config.size ? "modal-" + config.size : ""}`;
   }
-
+  handleInput(e) {
+    if (e.target.id === "sizeOrder") {
+      const lossOrder =
+        Order.state.side === "Buy"
+          ? (e.target.value * Order.state.slBuyPercent) / 100
+          : (e.target.value * Order.state.slSellPercent) / 100;
+      document.querySelector("#loss").value = lossOrder.toFixed(2);
+    }
+    if (e.target.id === "sizeAlgo") {
+      const lossAlgo =
+        (e.target.value *
+          document.querySelector("#sl").value *
+          document.querySelector("#attemptsCount").value) /
+        100;
+      document.querySelector("#loss").value = lossAlgo.toFixed(2);
+    }
+    if (e.target.id === "attemptsCount") {
+      const lossAlgo =
+        (e.target.value *
+          document.querySelector("#sl").value *
+          document.querySelector("#sizeAlgo").value) /
+        100;
+      document.querySelector("#loss").value = lossAlgo.toFixed(2);
+    }
+    if (e.target.id === "sl") {
+      const lossAlgo =
+        (e.target.value *
+          document.querySelector("#attemptsCount").value *
+          document.querySelector("#sizeAlgo").value) /
+        100;
+      document.querySelector("#loss").value = lossAlgo.toFixed(2);
+    }
+  }
   handleSubmit(e) {
     e.preventDefault();
     const form = e.target;
@@ -468,20 +518,15 @@ class ModalManager {
   async _handleOrderSubmit(data) {
     const { side, symbol } = Order.state;
     const orderType = data.get("orderType");
-    const tp = parseFloat(data.get("tp"));
-    const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
-    //validate!!!
-    if (ChartManager.state.alerts.length === 0) {
-      alert("First create alerts!");
-      return;
-    }
     const { close } =
       ChartManager.state.candles[ChartManager.state.candles.length - 1];
+    const slBuy = ChartManager.state.alerts[0].line.options().price;
     const stopBuy = ChartManager.state.alerts[1].line.options().price;
     const startBuy = ChartManager.state.alerts[2].line.options().price;
     const startSell = ChartManager.state.alerts[3].line.options().price;
     const stopSell = ChartManager.state.alerts[4].line.options().price;
+    const slSell = ChartManager.state.alerts[5].line.options().price;
     if (side === "Buy") {
       if (orderType === "limit") {
         if (close < stopBuy || close < startBuy) {
@@ -516,9 +561,13 @@ class ModalManager {
         body: JSON.stringify({
           side,
           orderType,
-          tp,
-          sl,
           size,
+          startBuy,
+          stopBuy,
+          slBuy,
+          startSell,
+          stopSell,
+          slSell,
         }),
       });
       const resJson = await response.json();
@@ -528,7 +577,7 @@ class ModalManager {
       }
       //SHOW limit orders in chart
       App.setState({ hideOrders: true });
-      //Order.orderPriceLines(resJson.orders);
+      Order.orderPriceLines(resJson.orders);
       this.modal.hide();
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -538,6 +587,7 @@ class ModalManager {
     const { symbol } = Order.state;
     const tp = parseFloat(data.get("tp"));
     const sl = parseFloat(data.get("sl"));
+    const size = parseFloat(data.get("size"));
     const attemptsCount = parseFloat(data.get("attemptsCount"));
     const tradingType = parseFloat(data.get("tradingType"));
     const enterTf = data.get("enterTf");
@@ -549,6 +599,7 @@ class ModalManager {
       enterTf,
       tp,
       sl,
+      size,
       attemptsCount,
       candlesCount,
       touchCount,
@@ -606,9 +657,9 @@ class ModalManager {
 //Orders
 class Order {
   static state = {
-    TAKE_PROFIT: 6,
-    STOP_LOSS: 2,
-    MAX_POSITION: 1000,
+    TAKE_PROFIT: 9,
+    STOP_LOSS: 3,
+    MAX_POSITION: 584,
   };
   constructor() {
     this.initEventListeners();
@@ -635,11 +686,11 @@ class Order {
           return el;
         });
         const enterTf = [
-          { value: "15min", name: "15min levels" },
-          { value: "30min", name: "30min levels" },
-          { value: "1h", name: "1h levels" },
-          { value: "2h", name: "2h levels" },
-          { value: "4h", name: "4h levels" },
+          { value: "1h", name: "1h enter levels" },
+          { value: "2h", name: "2h enter levels" },
+          { value: "4h", name: "4h enter levels" },
+          { value: "6h", name: "6h enter levels" },
+          { value: "12h", name: "12h enter levels" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.enterTf) {
             el.checked = true;
@@ -657,28 +708,42 @@ class Order {
       });
     //long btn
     document.querySelector(".long-btn").addEventListener("click", async () => {
+      //validate!!!
+      if (ChartManager.state.alerts.length === 0) {
+        alert("First create alerts!");
+        return;
+      }
       Order.state.side = "Buy";
       Order.state.symbol = App.state.symbol;
       if (!App.state.hideAlerts) {
-        App.setState({ hideAlerts: true });
+        //App.setState({ hideAlerts: true });
+        App.hideAlerts();
       }
       App.modal.render({
         type: "order-form",
         title: `LONG by Alerts ${Order.state.symbol}`,
         orderType: "long",
+        sl: Order.state.slBuyPercent,
       });
     });
     //short btn
     document.querySelector(".short-btn").addEventListener("click", async () => {
+      //validate!!!
+      if (ChartManager.state.alerts.length === 0) {
+        alert("First create alerts!");
+        return;
+      }
       Order.state.side = "Sell";
       Order.state.symbol = App.state.symbol;
       if (!App.state.hideAlerts) {
-        App.setState({ hideAlerts: true });
+        //App.setState({ hideAlerts: true });
+        App.hideAlerts();
       }
       App.modal.render({
         type: "order-form",
         title: `SHORT by Alerts ${Order.state.symbol}`,
         orderType: "short",
+        sl: Order.state.slSellPercent,
       });
     });
   }
@@ -1010,12 +1075,6 @@ class Indicators {
           axisLabelVisible: false,
         });
       }
-      for (const alert of ChartManager.state.longLevelsArray) {
-        alert.applyOptions({
-          lineVisible: false,
-          axisLabelVisible: false,
-        });
-      }
       return;
     }
     //set markers
@@ -1024,27 +1083,16 @@ class Indicators {
     const lastCandle = candles[lastIndex - 1];
     const firstIndex =
       candles.length - candlesCount - step * this.state.countLoads;
-    const firstIndexLong = candles.length - 30 - step * this.state.countLoads;
     const firstCandle = candles[firstIndex];
     if (!firstCandle) {
       return;
     }
     const candlesSlice = candles.slice(firstIndex, lastIndex);
-    const candlesSliceLong = candles.slice(firstIndexLong, lastIndex);
     ChartManager.state.markerSeries.setMarkers([]);
     ChartManager.state.markLevels = [];
     const max = Math.max(...candlesSlice.map((c) => c.high));
     const min = Math.min(...candlesSlice.map((c) => c.low));
-    const longLevels = this.findLevels(candlesSliceLong, 4);
     const currentLevels = this.findLevels(candlesSlice, touchCount);
-    ChartManager.state.longLevelsArray[0].applyOptions({
-      price: longLevels.support || min,
-      lineVisible: true,
-    });
-    ChartManager.state.longLevelsArray[1].applyOptions({
-      price: longLevels.resistance || max,
-      lineVisible: true,
-    });
     //const shortLevels = this.findLevels(candlesSlice.slice(-2), 2);
     App.state.support = currentLevels.support;
     App.state.resistance = currentLevels.resistance;
@@ -1282,7 +1330,6 @@ class ChartManager {
     candles: [],
     hideSr: true,
     levelsArray: [],
-    longLevelsArray: [],
     orders: [],
     positions: [],
     messages: [],
@@ -1371,25 +1418,6 @@ class ChartManager {
         bottom: 0.15,
       },
     });
-    //Support lines
-    ChartManager.state.longLevelsArray = [
-      ChartManager.state.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 1,
-        lineStyle: 2,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      ChartManager.state.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "red",
-        lineWidth: 1,
-        lineStyle: 2,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-    ];
     ChartManager.state.levelsArray = [
       {
         name: "supportLine",
@@ -1743,10 +1771,10 @@ class ChartManager {
       for (const alert of lines) {
         const tolerancePercentHover =
           App.state.timeframe === "1d" || App.state.timeframe === "1w"
-            ? 1.5
+            ? 0.8
             : App.state.timeframe === "2h" || App.state.timeframe === "4h"
-              ? 1.2
-              : 0.2;
+              ? 0.2
+              : 0.1;
         const isAlertHover =
           alert.name &&
           alert.line.options().lineVisible &&
@@ -2496,6 +2524,10 @@ class App {
     ChartManager.state.alerts[3].line.applyOptions({
       title: `start ${(((startSell - startBuy) / startBuy) * 100).toFixed(2)}%`,
     });
+    Order.state.slBuyPercent =
+      (((startBuy + stopBuy) / 2 - slBuy) / slBuy) * 100;
+    Order.state.slSellPercent =
+      (((startSell + stopSell) / 2 - slSell) / slSell) * 100;
   }
   static async loadAlerts(defaultAlerts = false) {
     Indicators.state.countLoads = 0;
@@ -2512,9 +2544,15 @@ class App {
         alert("Show resistance line!");
         return;
       }
+      if (!App.state.hideAlerts) {
+        //App.setState({ hideAlerts: true });
+        App.hideAlerts();
+      }
     }
     const item = App.state.item;
+    const read = App.state.read;
     App.state.item = false;
+    App.state.read = false;
     //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
@@ -2525,7 +2563,7 @@ class App {
         defaultAlerts,
         support: App.state.supportMin,
         resistance: App.state.resistanceMax,
-        read: App.state.read,
+        read,
       }),
     });
     const alertsDataJson = await alertsData.json();
@@ -2569,12 +2607,13 @@ class App {
     App.state.algoTrading = {
       tradingType: alertsDataJson.tradingType || 1,
       enterTf: alertsDataJson.enterTf || "4h",
-      tp: alertsDataJson.tp,
-      sl: alertsDataJson.sl,
+      sl: alertsDataJson.sl || Order.state.STOP_LOSS,
+      tp: alertsDataJson.tp || Order.state.TAKE_PROFIT,
+      size: alertsDataJson.size,
       attemptsCount: alertsDataJson.attemptsCount,
       candlesCount: alertsDataJson.candlesCount || 30,
       touchCount: alertsDataJson.touchCount || 4,
-      tolerance: alertsDataJson.tolerance || 0.5,
+      tolerance: alertsDataJson.tolerance || 0.2,
     };
     App.setState({});
     if (item) {
@@ -2620,7 +2659,6 @@ class App {
       //render new data
       this.renderCoinList();
     }
-    App.state.read = false;
     //SHOW limit orders in chart
     Order.orderPriceLines(alertsDataJson.orders);
     //SHOW positions in chart
@@ -2642,6 +2680,12 @@ class App {
       .classList.toggle("d-none", !alertsDataJson.exists);
     document
       .querySelector(".order-btn")
+      .classList.toggle("d-none", !alertsDataJson.exists);
+    document
+      .querySelector(".long-btn")
+      .classList.toggle("d-none", !alertsDataJson.exists);
+    document
+      .querySelector(".short-btn")
       .classList.toggle("d-none", !alertsDataJson.exists);
     this.state.bsOffcanvas.hide();
     //tf active
@@ -2788,6 +2832,8 @@ class App {
             document.querySelector(".hide-btn").classList.add("d-none");
             document.querySelector(".order-btn").classList.add("d-none");
             document.querySelector(".trading-btn").classList.add("d-none");
+            document.querySelector(".long-btn").classList.add("d-none");
+            document.querySelector(".short-btn").classList.add("d-none");
             coinInList.exists = false;
           }
           return;

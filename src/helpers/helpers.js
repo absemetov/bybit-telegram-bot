@@ -39,15 +39,25 @@ export const renderMsg = async (ctx, message, inlineKeyboard, edit = true) => {
 };
 //send msg to the channel
 export const sendMsgChannel = async (bot, message, inlineKeyboard) => {
-  await bot.telegram.sendMessage("-1002687531775", message, {
-    parse_mode: "HTML",
-    ...inlineKeyboard,
-  });
+  const { header = "", msg = "", footer = "" } = message;
+  await bot.telegram.sendMessage(
+    "-1002687531775",
+    `${header} <b>${escapeHtml(msg)}</b>\n${footer}`,
+    {
+      parse_mode: "HTML",
+      ...inlineKeyboard,
+    },
+  );
 };
 //send msg to me
 export const sendMsgMe = async (bot, message, inlineKeyboard) => {
-  await bot.telegram.sendMessage(94899148, message, {
-    parse_mode: "HTML",
-    ...inlineKeyboard,
-  });
+  const { header = "", msg = "", footer = "" } = message;
+  await bot.telegram.sendMessage(
+    94899148,
+    `${header} <b>${escapeHtml(msg)}</b>\n${footer}`,
+    {
+      parse_mode: "HTML",
+      ...inlineKeyboard,
+    },
+  );
 };

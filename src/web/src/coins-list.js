@@ -22,9 +22,9 @@ templates['coins-list'] = template({"1":function(container,depth0,helpers,partia
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"exists") : depth0),{"name":"if","hash":{},"fn":container.program(7, data, 0),"inverse":container.program(20, data, 0),"data":data,"loc":{"start":{"line":13,"column":10},"end":{"line":21,"column":17}}})) != null ? stack1 : "")
     + "        </div>\n      </div>\n      <div class=\"d-flex w-100 justify-content-between\">\n        <small>"
     + alias4(((helper = (helper = lookupProperty(helpers,"msg") || (depth0 != null ? lookupProperty(depth0,"msg") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"msg","hash":{},"data":data,"loc":{"start":{"line":25,"column":15},"end":{"line":25,"column":22}}}) : helper)))
-    + "</small>\n        <small><b>"
-    + alias4((lookupProperty(helpers,"fromNow")||(depth0 && lookupProperty(depth0,"fromNow"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"updatedAt") : depth0),{"name":"fromNow","hash":{},"data":data,"loc":{"start":{"line":26,"column":18},"end":{"line":26,"column":39}}}))
-    + "</b></small>\n      </div>\n    </div>\n";
+    + "</small>\n        <small>"
+    + alias4((lookupProperty(helpers,"date")||(depth0 && lookupProperty(depth0,"date"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"updatedAt") : depth0),{"name":"date","hash":{},"data":data,"loc":{"start":{"line":26,"column":15},"end":{"line":26,"column":33}}}))
+    + "</small>\n      </div>\n    </div>\n";
 },"2":function(container,depth0,helpers,partials,data) {
     return " list-group-item-primary";
 },"4":function(container,depth0,helpers,partials,data) {
