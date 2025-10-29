@@ -116,7 +116,6 @@ class Indicators {
     const max = Math.max(...candlesSlice.map((c) => c.high));
     const min = Math.min(...candlesSlice.map((c) => c.low));
     const currentLevels = this.findLevels(candlesSlice, touchCount);
-    //const shortLevels = this.findLevels(candlesSlice.slice(-2), 2);
     App.state.support = currentLevels.support;
     App.state.resistance = currentLevels.resistance;
     const currentTime = new Date(lastCandle.time * 1000);
@@ -126,7 +125,6 @@ class Indicators {
       color: "black",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
       text: `${currentTime.getDate()}, ${currentTime.toLocaleTimeString()}`,
-      //text: `${analysis.marketCondition} (${analysis.strength})`,
     });
     ChartManager.state.markLevels.push({
       time: lastCandle.time,
@@ -1055,6 +1053,7 @@ class App {
       .querySelector(".indicators-btn")
       .addEventListener("click", async (e) => {
         //
+        ChartManager.state.markerSeries.setMarkers([]);
         ChartManager.state.hideSr = !ChartManager.state.hideSr;
         e.target.textContent = ChartManager.state.hideSr ? "🚫" : "🟰";
         Indicators.calculateLevels(ChartManager.state.candles);
