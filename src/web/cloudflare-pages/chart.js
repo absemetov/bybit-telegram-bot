@@ -547,10 +547,18 @@ class ChartManager {
   checkHover(checkPrice, lines) {
     if (ChartManager.state.isDroped) {
       for (const alert of lines) {
+        const tolerancePercentHover = ["1d", "1w"].includes(App.state.timeframe)
+          ? 1.5
+          : ["1h", "2h", "4h", "6h", "12h"].includes(App.state.timeframe)
+            ? 0.5
+            : 0.1;
         const isAlertHover =
+          alert.name &&
+          alert.line.options().lineVisible &&
           alert.line.options().price &&
-          Math.abs(checkPrice - alert.line.options().price) / checkPrice <
-            0.005;
+          Math.abs((alert.line.options().price - checkPrice) / checkPrice) *
+            100 <=
+            tolerancePercentHover;
         if (isAlertHover) {
           ChartManager.state.hoveredAlert = alert.name;
           alert.line.applyOptions({

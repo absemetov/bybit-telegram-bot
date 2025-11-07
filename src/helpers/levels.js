@@ -1,17 +1,9 @@
-import {
-  createStopLimitOrder,
-  getBybitBalance,
-  getTickerOrders,
-  getTickerPositions,
-  editStopLoss,
-  editTakeProfit,
-  cancelOrder,
-} from "../helpers/bybitV5.js";
+import { bybitUsers } from "../helpers/bybitV5.js";
 import Ticker from "../models/Ticker.js";
 import { sendMsgMe } from "../helpers/helpers.js";
-const balance = await getBybitBalance();
+//const balance = await getBybitBalance();
 //leverage
-const MAX_POSITION_USDT = balance * 5;
+const MAX_POSITION_USDT = 1000;
 const TAKE_PROFIT = 6;
 const STOP_LOSS = 2;
 //trading btn render
@@ -32,23 +24,30 @@ function renderTradingBtn(tradingType) {
   }
 }
 //check TP SL set default values
-export const checkPositions = async (ticker, currentPrice, bot, levels) => {
+export const checkPositions = async (
+  ticker,
+  currentPrice,
+  bot,
+  levels,
+  account,
+  tradingType,
+) => {
   const {
     symbol,
     priceScale,
-    tradingType,
     sl,
     tp,
     tolerance,
     candlesCount,
     touchCount,
     enterTf,
+    breakeven,
   } = ticker;
   const tickerStopLoss = sl || STOP_LOSS;
   const tickerTakeProfit = tp || TAKE_PROFIT;
   //get positions
-  const positions = await getTickerPositions(symbol);
-  const orders = await getTickerOrders(symbol);
+  const positions = await bybitUsers[account].getTickerPositions(symbol);
+  const orders = await bybitUsers[account].getTickerOrders(symbol);
   //edit TP, SL set breakeven
   for (const position of positions) {
     const { side, avgPrice, markPrice, stopLoss, takeProfit, positionValue } =
@@ -59,18 +58,18 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
     if (positionValue >= MAX_POSITION_USDT * 1.2) {
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
-        msg: `FOMO!!! Close position!!! Emotions!!! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$ < ${positionValue}$`,
-        footer: `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        msg: `${account} FOMO!!! Close position!!! Emotions!!! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$ < ${positionValue}$`,
+        footer: `#${symbol.slice(0, -4)} #FOMO`,
       });
     }
     if (positionValue > MAX_POSITION_USDT * 1.2 && orders.length > 0) {
       for (const order of orders) {
-        await cancelOrder(symbol, order.orderId);
+        await bybitUsers[account].cancelOrder(symbol, order.orderId);
       }
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
-        msg: `Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$`,
-        footer: `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+        msg: `${account}Orders closed! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$`,
+        footer: `#${symbol.slice(0, -4)}_Close_Fomo`,
       });
     }
     if (side === "Sell") {
@@ -81,22 +80,34 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
           slPersent > 0)
       ) {
-        await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+        await bybitUsers[account].editStopLoss(
+          symbol,
+          side,
+          newStopLoss.toFixed(priceScale),
+        );
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `${renderTradingBtn(tradingType)} Set default SL ${tickerStopLoss}% 🔴 Short] slPersent before ${slPersent.toFixed(2)}%`,
-          footer: `${stopLoss}  ${newStopLoss.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+          msg:
+            `Set default SL 🔴 Short ${account} ${renderTradingBtn(tradingType)} ${tickerStopLoss}% slPersent before ${slPersent.toFixed(2)}%\n` +
+            `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+          footer: `#${symbol.slice(0, -4)}_Short_Default_SL`,
         });
       }
-      //breakeven 20%
-      if (pnlPersent < -4) {
-        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.2) / 100);
+      //breakeven 30%
+      if (pnlPersent < -breakeven) {
+        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.3) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.1) {
-          await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+          await bybitUsers[account].editStopLoss(
+            symbol,
+            side,
+            newStopLoss.toFixed(priceScale),
+          );
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `${renderTradingBtn(tradingType)} Breakeven 20% 🔴 Short pnl  4%] pnlPersent ${pnlPersent.toFixed(2)}%`,
-            footer: `${stopLoss}  ${newStopLoss.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+            msg:
+              `Breakeven 30% 🔴 Short ${account} ${renderTradingBtn(tradingType)} breakeven ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+            footer: `#${symbol.slice(0, -4)}_Short_Breakeven`,
           });
         }
       }
@@ -117,11 +128,17 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.1
       ) {
-        await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
+        await bybitUsers[account].editTakeProfit(
+          symbol,
+          side,
+          newTakeProfit.toFixed(priceScale),
+        );
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt <= -0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🔴 Short] pnlPersent ${pnlPersent.toFixed(2)}%`,
-          footer: `TP value: ${takeProfit}  ${newTakeProfit.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+          msg:
+            `Edit TP 🔴 Short ${account} ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt <= -0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% ] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+            `TP value: ${takeProfit}$ => ${newTakeProfit.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+          footer: `#${symbol.slice(0, -4)}_Short_Edit_TP`,
         });
       }
     }
@@ -133,22 +150,34 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.1 &&
           slPersent < 0)
       ) {
-        await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+        await bybitUsers[account].editStopLoss(
+          symbol,
+          side,
+          newStopLoss.toFixed(priceScale),
+        );
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `${renderTradingBtn(tradingType)} Set default SL ${tickerStopLoss}% 🟢 Long] slPersent before ${slPersent.toFixed(2)}%`,
-          footer: `${stopLoss}  ${newStopLoss.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+          msg:
+            `Set default SL 🟢 Long ${account} ${renderTradingBtn(tradingType)} Set default SL ${tickerStopLoss}% ] slPersent before ${slPersent.toFixed(2)}%\n` +
+            `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+          footer: `#${symbol.slice(0, -4)}_Long_Default_SL`,
         });
       }
-      //breakeven 20%
-      if (pnlPersent > 4) {
-        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.2) / 100);
+      //breakeven 30%
+      if (pnlPersent > breakeven) {
+        const newStopLoss = avgPrice * (1 + (pnlPersent * 0.3) / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 > 0.1) {
-          await editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+          await bybitUsers[account].editStopLoss(
+            symbol,
+            side,
+            newStopLoss.toFixed(priceScale),
+          );
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `${renderTradingBtn(tradingType)} Breakeven 20% 🟢 Long pnl 4%] pnlPersent ${pnlPersent.toFixed(2)}%`,
-            footer: `${stopLoss}  ${newStopLoss.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+            msg:
+              `Breakeven 30% 🟢 Long ${account} ${renderTradingBtn(tradingType)} breakeven ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+            footer: `#${symbol.slice(0, -4)}_Long_Breakeven`,
           });
         }
       }
@@ -170,11 +199,17 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.1
       ) {
-        await editTakeProfit(symbol, side, newTakeProfit.toFixed(priceScale));
+        await bybitUsers[account].editTakeProfit(
+          symbol,
+          side,
+          newTakeProfit.toFixed(priceScale),
+        );
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt >= 0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% 🟢 Long] pnlPersent ${pnlPersent.toFixed(2)}%`,
-          footer: `TP value: ${takeProfit}  ${newTakeProfit.toFixed(priceScale)} ${enterTf} [${candlesCount}, ${touchCount}]\n#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+          msg:
+            `Edit TP 🟢 Long${account} ${renderTradingBtn(tradingType)} TAKE_PROFIT changed to ${levelPrcnt >= 0.5 ? levelPrcnt.toFixed(2) : tickerTakeProfit}% ] pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+            `TP value: ${takeProfit}$ => ${newTakeProfit.toFixed(priceScale)}$ ${enterTf} [${candlesCount}, ${touchCount}]`,
+          footer: `#${symbol.slice(0, -4)}_Long_Edit_TP`,
         });
       }
     }
@@ -183,11 +218,18 @@ export const checkPositions = async (ticker, currentPrice, bot, levels) => {
   //get Long Short positions
 };
 //Algo Trading 15.09.2025
-export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
+export const algoTrading = async (
+  ticker,
+  longLevels,
+  price,
+  bot,
+  enterTf,
+  account,
+  tradingType,
+) => {
   try {
     const {
       symbol,
-      tradingType,
       size,
       sl,
       tp,
@@ -201,14 +243,17 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
     //const balance = await getBybitBalance();
     //const size = MAX_POSITION_USDT;
     //get limit orders
-    const orders = await getTickerOrders(symbol);
+    const orders = await bybitUsers[account].getTickerOrders(symbol);
     const longOrders = orders.filter((o) => o.side === "Buy");
     const shortOrders = orders.filter((o) => o.side === "Sell");
-    const positions = await getTickerPositions(symbol);
+    const positions = await bybitUsers[account].getTickerPositions(symbol);
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
-    if (attemptsCount === 0) {
-      await Ticker.updateField(symbol, "tradingType", 1);
+    //disable trading
+    if (attemptsCount === 0 && tradingType !== 6) {
+      //swith to the check position mode
+      await Ticker.updateField(symbol, "tradingType", 6);
+      await Ticker.updateField(symbol, "tradingTypeSub", 6);
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
         msg: `The number of attempts has been exhausted. Trading closed!`,
@@ -236,8 +281,14 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
     //}
     //delete old orders price tolerance > 1%
     for (const order of orders) {
-      if (Math.abs(order.price - price) / price > tolerance / 100) {
-        await cancelOrder(symbol, order.orderId);
+      if (Math.abs(order.price - price) / price > (tolerance * 2) / 100) {
+        await bybitUsers[account].cancelOrder(symbol, order.orderId);
+        await Ticker.incrementField(symbol, "attemptsCount", 1);
+        await sendMsgMe(bot, {
+          header: `<code>${symbol.slice(0, -4)}</code>`,
+          msg: `${account} Cancel ${order.side} order Price ${order.price}$ Sum: ${order.sum}$ Attempts ${attemptsCount} ${renderTradingBtn(tradingType)}\n${enterTf} [${candlesCount} ${touchCount}, ${tolerance}]`,
+          footer: `#${symbol.slice(0, -4)}_Cancel_Order_${account}`,
+        });
       }
     }
     //create LONG orders
@@ -256,7 +307,7 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
             ? size - longPosition.positionValue
             : size;
           const triggerPrice = price * (1 + tolerance / 100);
-          await createStopLimitOrder(
+          await bybitUsers[account].createStopLimitOrder(
             symbol,
             "Buy",
             triggerPrice,
@@ -277,8 +328,8 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
           //}
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `🟢 Open Long ${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempts ${attemptsCount} ${renderTradingBtn(tradingType)}\n${enterTf} [${candlesCount} ${touchCount}, ${tolerance}]`,
-            footer: `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+            msg: `🟢 ${account} Open Long ${renderTradingBtn(tradingType)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n${enterTf} [${candlesCount} ${touchCount}, ${tolerance}]`,
+            footer: `#${symbol.slice(0, -4)}_Open_Long_${account}`,
           });
         }
       }
@@ -299,7 +350,7 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
             ? size - shortPosition.positionValue
             : size;
           const triggerPrice = price * (1 - tolerance / 100);
-          await createStopLimitOrder(
+          await bybitUsers[account].createStopLimitOrder(
             symbol,
             "Sell",
             triggerPrice,
@@ -320,8 +371,8 @@ export const algoTrading = async (ticker, longLevels, price, bot, enterTf) => {
           //}
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `🔴 Open Short ${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempts ${attemptsCount} ${renderTradingBtn(tradingType)}\n${enterTf} [${candlesCount} ${touchCount}, ${tolerance}]`,
-            footer: `#${symbol.slice(0, -4)} /${symbol.slice(0, -4)}`,
+            msg: `🔴 ${account} Open Short ${renderTradingBtn(tradingType)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n${enterTf} [${candlesCount} ${touchCount}, ${tolerance}]`,
+            footer: `#${symbol.slice(0, -4)}_Open_Short_${account}`,
           });
         }
       }

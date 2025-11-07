@@ -1,11 +1,6 @@
-import { db, FieldValue } from "../firebase.js";
+import { db, FieldValue, Filter } from "../firebase.js";
 import Joi from "joi";
-import {
-  getTickerOrders,
-  getTickerPositions,
-  getTicker,
-  getClosedPositionsHistory,
-} from "../helpers/bybitV5.js";
+import { getTicker, bybitUsers } from "../helpers/bybitV5.js";
 
 class Ticker {
   // constructor(symbol) {
@@ -100,15 +95,16 @@ class Ticker {
       : [];
   }
   // get all alerts
-  static async getAlerts(symbol) {
+  static async getAlerts(symbol, user) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     //const config = await Scan.getConfig(timeframe);
     //const pumpMsg = await this.getLevels(symbol);
     //get limit orders
-    const orders = await getTickerOrders(symbol);
-    const positions = await getTickerPositions(symbol);
-    const closedPositions = await getClosedPositionsHistory(symbol);
+    const orders = await bybitUsers[user].getTickerOrders(symbol);
+    const positions = await bybitUsers[user].getTickerPositions(symbol);
+    //const closedPositions =
+    //  await bybitUsers[user].getClosedPositionsHistory(symbol);
     return {
       alerts: alertsDoc.exists
         ? [
@@ -124,7 +120,7 @@ class Ticker {
       ...(symbolDoc.exists ? symbolDoc.data() : {}),
       orders,
       positions,
-      closedPositions,
+      //closedPositions,
     };
   }
   //update alert
@@ -176,7 +172,14 @@ class Ticker {
         : tab === "alerts"
           ? db.collection("crypto").where("alert", "==", true)
           : tab === "trading"
-            ? db.collection("crypto").where("tradingType", ">", 1)
+            ? db
+                .collection("crypto")
+                .where(
+                  Filter.or(
+                    Filter.where("tradingType", ">", 1),
+                    Filter.where("tradingTypeSub", ">", 1),
+                  ),
+                )
             : db.collection("crypto").orderBy("updatedAt", "desc");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);

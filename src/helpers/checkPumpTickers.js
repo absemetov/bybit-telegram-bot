@@ -24,7 +24,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
           const { symbol } = ticker;
           for (const tf of ["4h", "6h", "12h", "1d", "1w"]) {
             const levels = await findLevels(ticker, bot, tf);
-            const rsi = await getRsi(ticker, bot, tf);
+            //const rsi = await getRsi(ticker, bot, tf);
             if (levels) {
               arrayNotify.push({
                 symbol,
@@ -34,23 +34,23 @@ export const runTimeframeScan = async (timeframe, bot) => {
                   read: true,
                 },
               });
-              const { msg } = levels;
-              await sendMsgChannel(
-                bot,
-                {
-                  header: `<code>${symbol.slice(0, -4)}</code>`,
-                  msg,
-                  footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
-                },
-                Markup.inlineKeyboard([
-                  [
-                    Markup.button.url(
-                      `${symbol} chart`,
-                      `https://bybit-telegram-bot.pages.dev/${symbol}/${tf}`,
-                    ),
-                  ],
-                ]),
-              );
+              //const { msg } = levels;
+              //await sendMsgChannel(
+              //  bot,
+              //  {
+              //    header: `<code>${symbol.slice(0, -4)}</code>`,
+              //    msg,
+              //    footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
+              //  },
+              //  Markup.inlineKeyboard([
+              //    [
+              //      Markup.button.url(
+              //        `${symbol} chart`,
+              //        `https://bybit-telegram-bot.pages.dev/${symbol}/${tf}`,
+              //      ),
+              //    ],
+              //  ]),
+              //);
             }
           }
           //pause 1 seconds
@@ -195,16 +195,16 @@ async function findLevels(ticker, bot, timeframe = "4h") {
     const { close } = candles[candles.length - 1];
     const longLevels = Indicators.calculateLevels(candles, touchCount);
     //support zone
-    if (Math.abs(longLevels.support - close) / close <= 1 / 100) {
+    if (Math.abs(longLevels.support - close) / close <= tolerance / 100) {
       //timeframe === "4h" ? 94899148 : "-1002687531775",
       const newLevel =
         !ticker[`levelPriceS${timeframe}`] ||
         Math.abs(ticker[`levelPriceS${timeframe}`] - longLevels.support) /
           longLevels.support >=
-          0.5 / 100;
+          (tolerance * 2) / 100;
       if (newLevel) {
         return {
-          msg: `📈 Support ${timeframe} ${close}$`,
+          msg: `📈 Support ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
           [`levelPriceS${timeframe}`]: longLevels.support,
         };
       }
@@ -219,10 +219,10 @@ async function findLevels(ticker, bot, timeframe = "4h") {
         !ticker[`levelPriceR${timeframe}`] ||
         Math.abs(ticker[`levelPriceR${timeframe}`] - longLevels.resistance) /
           longLevels.resistance >=
-          0.5 / 100;
+          (tolerance * 2) / 100;
       if (newLevel) {
         return {
-          msg: `📉 Resistance ${timeframe} ${close}$`,
+          msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
           [`levelPriceR${timeframe}`]: longLevels.resistance,
         };
       }

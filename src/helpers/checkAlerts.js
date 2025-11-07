@@ -25,7 +25,8 @@ export const checkAlerts = async (bot) => {
           enterTf = "4h",
           candlesCount = 30,
           touchCount = 4,
-          //tradingType = 1,
+          tradingType = 1,
+          tradingTypeSub = 1,
         } = ticker;
         const candles = await getCandles(symbol, enterTf, candlesCount);
         if (candles.length < candlesCount) {
@@ -33,8 +34,39 @@ export const checkAlerts = async (bot) => {
         }
         const levels = Indicators.calculateLevels(candles, touchCount);
         const { close } = candles[candles.length - 1];
-        await checkPositions(ticker, close, bot, levels);
-        await algoTrading(ticker, levels, close, bot, enterTf);
+        //main account
+        if (tradingType > 1) {
+          await checkPositions(ticker, close, bot, levels, "main", tradingType);
+          await algoTrading(
+            ticker,
+            levels,
+            close,
+            bot,
+            enterTf,
+            "main",
+            tradingType,
+          );
+        }
+        //sub account
+        if (tradingTypeSub > 1) {
+          await checkPositions(
+            ticker,
+            close,
+            bot,
+            levels,
+            "sub",
+            tradingTypeSub,
+          );
+          await algoTrading(
+            ticker,
+            levels,
+            close,
+            bot,
+            enterTf,
+            "sub",
+            tradingTypeSub,
+          );
+        }
         await new Promise((resolve) => setTimeout(resolve, 1000)); // 1second pause
       } catch (error) {
         console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);

@@ -23,7 +23,10 @@
                   <a class="nav-link tab-link" data-tab="trading" href="#">💰</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link show-positions" href="#">🎲</a>
+                  <a class="nav-link show-positions" data-account="main" href="#">🎲</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link switch-user" href="#">Main</a>
                 </li>
                 <li class="nav-item">
                   {{#if user.auth}}
@@ -68,13 +71,13 @@
               <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
             </div>
           </div>
-          <div class="position-relative z-3 mt-2">
-            <span class="h4 display-symbol bg-success-subtle"></span>
+          <div class="position-relative z-3 mt-0">
+            <span class="h5 display-symbol bg-success-subtle"></span>
           </div>
-          <div class="position-relative z-2 mt-2">
+          <div class="position-relative z-2 mt-0">
             <span class="fw-bold bg-success-subtle mt-2" id="volumeEl">Volume</span>
           </div>
-          <div class="position-relative z-2 mt-2">
+          <div class="position-relative z-2 mt-0">
             <span class="fw-bold bg-success-subtle" id="candleEl">Candle</span>
           </div>
         </div>

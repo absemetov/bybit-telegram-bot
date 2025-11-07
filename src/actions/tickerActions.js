@@ -1,20 +1,20 @@
 import { googleSheet } from "../helpers/googleSpreadSheets.js";
 import Ticker from "../models/Ticker.js";
 import Session from "../models/Session.js";
-import { getLimitOrders } from "../helpers/bybitV5.js";
+//import bybitV5 from "../helpers/bybitV5.js";
 import {
   showTickerPage,
   showTickersPage,
-  showLimitOrders,
+  //showLimitOrders,
 } from "../views/showTickersPage.js";
 import { sleep } from "../helpers/helpers.js";
 import { match } from "path-to-regexp";
 //show all limit ordes
-export const getAllOrders = async (ctx, params = {}) => {
-  const { cursor, symbol, edit = true } = params;
-  const { orders, nextPageCursor } = await getLimitOrders(cursor, 10, symbol);
-  await showLimitOrders(ctx, orders, nextPageCursor, edit);
-};
+//export const getAllOrders = async (ctx, params = {}) => {
+//  const { cursor, symbol, edit = true } = params;
+//  const { orders, nextPageCursor } = await getLimitOrders(cursor, 10, symbol);
+//  await showLimitOrders(ctx, orders, nextPageCursor, edit);
+//};
 export const uploadTickersAction = async () => {
   const sheet = await googleSheet(
     "18nQkKStuFuo-_XJcQstYd95O3Ck2ITr0xZ04zBQKHVw",

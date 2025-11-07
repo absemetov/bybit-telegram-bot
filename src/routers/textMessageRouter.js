@@ -2,7 +2,7 @@ import Session from "../models/Session.js";
 import {
   viewTickers,
   showTicker,
-  getAllOrders,
+//  getAllOrders,
 } from "../actions/tickerActions.js";
 import { showAllScans } from "../actions/scanActions.js";
 import {
@@ -49,9 +49,9 @@ const textMessageRouter = (bot) => {
     await showAllScans(ctx);
   });
   //show limit orders
-  bot.command("orders", async (ctx) => {
-    await getAllOrders(ctx, { edit: false });
-  });
+  //bot.command("orders", async (ctx) => {
+  //  await getAllOrders(ctx, { edit: false });
+  //});
   //show all positions
   bot.command("positions", async (ctx) => {
     await showAllScans(ctx);

@@ -66,7 +66,8 @@ class ModalManager {
       algoForm: window.Handlebars.compile(`
       <form data-form-type="algo">
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
+              <legend class="col-form-label pt-0">Main account</legend>
               {{#each algoTypes}}
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="tradingType" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
@@ -76,7 +77,19 @@ class ModalManager {
                 </div>
               {{/each}}
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
+              <legend class="col-form-label pt-0">Sub account</legend>
+              {{#each algoTypesSub}}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="tradingTypeSub" id="radioDefaultSub{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+                  <label class="form-check-label" for="radioDefaultSub{{value}}">
+                    {{name}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+            <div class="col-md-4 mb-3">
+              <legend class="col-form-label pt-0">Enter tf</legend>
               {{#each enterTf}}
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="enterTf" id="radioTf{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
@@ -88,13 +101,17 @@ class ModalManager {
             </div>
         </div>
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label" for="sizeAlgo">Position size ($)</label>
                 <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" required>
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label">MAX LOSS ($)</label>
                 <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" for="breakeven">Breakeven 30 (%)</label>
+                <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" required>
             </div>
         </div>
         <div class="row">
@@ -121,7 +138,7 @@ class ModalManager {
                 <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="2">
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="tolerance">Tolerance, %</label>
+                <label class="form-label" for="tolerance">Tolerance (%)</label>
                 <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4">
             </div>
         </div>
@@ -176,6 +193,7 @@ class ModalManager {
       case "algo-form":
         return this.templates.algoForm({
           algoTypes: config.algoTypes,
+          algoTypesSub: config.algoTypesSub,
           enterTf: config.enterTf,
           sl: App.state.algoTrading.sl || Order.state.STOP_LOSS,
           tp: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
@@ -185,6 +203,7 @@ class ModalManager {
           touchCount: App.state.algoTrading.touchCount,
           tolerance: App.state.algoTrading.tolerance,
           attemptsCount: App.state.algoTrading.attemptsCount,
+          breakeven: App.state.algoTrading.breakeven,
           loss:
             (App.state.algoTrading.size *
               App.state.algoTrading.sl *
@@ -301,6 +320,7 @@ class ModalManager {
     if (loadMore) {
       const allCoins = e.target.closest(".all");
       await Order.fetchWin(allCoins);
+      App.state.statsTab = allCoins ? "winAll" : "win";
       return;
     }
   }
@@ -310,6 +330,7 @@ class ModalManager {
       const allCoins = e.target.closest(".all");
       const cursor = loadMore.dataset.cursor;
       await Order.fetchHistory(cursor, allCoins);
+      App.state.statsTab = allCoins ? "historyAll" : "history";
       return;
     }
     const symbol = item.dataset.symbol;
@@ -394,6 +415,7 @@ class ModalManager {
     if (getOrders) {
       const cursor = getOrders.dataset.cursor;
       await Order.fetchOrders(cursor);
+      App.state.statsTab = "orders";
       return;
     }
     //cancel all orders
@@ -406,6 +428,9 @@ class ModalManager {
             headers: {
               "Content-Type": "application/json",
             },
+            body: JSON.stringify({
+              user: App.state.user,
+            }),
           });
           const resJson = await response.json();
           if (!response.ok) {
@@ -440,6 +465,7 @@ class ModalManager {
             },
             body: JSON.stringify({
               orderId,
+              user: App.state.user,
             }),
           });
           const resJson = await response.json();
@@ -474,6 +500,7 @@ class ModalManager {
     if (getPositions) {
       const cursor = getPositions.dataset.cursor || "";
       await Order.fetchPositions(cursor);
+      App.state.statsTab = "positions";
       return;
     }
     //cancel orders
@@ -490,6 +517,7 @@ class ModalManager {
             body: JSON.stringify({
               side,
               qty,
+              user: App.state.user,
             }),
           });
           const resJson = await response.json();
@@ -568,6 +596,7 @@ class ModalManager {
           startSell,
           stopSell,
           slSell,
+          user: App.state.user,
         }),
       });
       const resJson = await response.json();
@@ -589,13 +618,17 @@ class ModalManager {
     const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
     const attemptsCount = parseFloat(data.get("attemptsCount"));
+    const breakeven = parseFloat(data.get("breakeven"));
     const tradingType = parseFloat(data.get("tradingType"));
+    const tradingTypeSub = parseFloat(data.get("tradingTypeSub"));
     const enterTf = data.get("enterTf");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
     App.state.algoTrading = {
       tradingType,
+      tradingTypeSub,
+      breakeven,
       enterTf,
       tp,
       sl,
@@ -606,14 +639,6 @@ class ModalManager {
       tolerance,
     };
     App.setState({});
-    //if (!App.state.hideAlerts) {
-    //  alert("Please, show Alerts");
-    //  return;
-    //}
-    if (!tradingType) {
-      alert("Set data size or tradingType!");
-      return;
-    }
     try {
       const response = await fetch(`/algo-trading/${symbol}`, {
         method: "POST",
@@ -627,27 +652,14 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      //SHOW limit orders in chart
-      //App.setState({ hideOrders: true });
-      //Order.orderPriceLines(resJson.orders);
       document.querySelector(".trading-btn").textContent =
         App.renderTradingBtn(tradingType);
-      // this.render({
-      //   type: "orders",
-      //   title: "Limit orders",
-      //   orders: resJson.orders,
-      //   cursor: resJson.nextPageCursor,
-      //   size: "lg",
-      // });
-      //Order.orderPriceLines(resJson.orders);
       Indicators.calculateLevels(
         ChartManager.state.candles,
         App.state.algoTrading.candlesCount,
         App.state.algoTrading.touchCount,
       );
       this.modal.hide();
-      //TODO
-      //fetchOrders();
     } catch (error) {
       alert(`Error: ${error.message}`);
     }
@@ -685,12 +697,27 @@ class Order {
           }
           return el;
         });
+        const algoTypesSub = [
+          { value: 1, name: "🔴 Off" },
+          { value: 2, name: "↗️  Long" },
+          { value: 3, name: "↘️  Short" },
+          { value: 4, name: "🔀 Boxing TP auto" },
+          { value: 5, name: "↕️  Boxing TP fix" },
+          { value: 6, name: "⭕️ Position check" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.tradingTypeSub) {
+            el.checked = true;
+          } else {
+            el.checked = false;
+          }
+          return el;
+        });
         const enterTf = [
-          { value: "1h", name: "1h enter levels" },
-          { value: "2h", name: "2h enter levels" },
-          { value: "4h", name: "4h enter levels" },
-          { value: "6h", name: "6h enter levels" },
-          { value: "12h", name: "12h enter levels" },
+          { value: "1h", name: "🟰 1h" },
+          { value: "2h", name: "🟰 2h" },
+          { value: "4h", name: "🟰 4h" },
+          { value: "6h", name: "🟰 6h" },
+          { value: "12h", name: "🟰 12h" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.enterTf) {
             el.checked = true;
@@ -703,6 +730,7 @@ class Order {
           type: "algo-form",
           title: `AlgoTrading ${Order.state.symbol}`,
           algoTypes,
+          algoTypesSub,
           enterTf,
         });
       });
@@ -882,6 +910,7 @@ class Order {
         },
         body: JSON.stringify({
           cursor,
+          user: App.state.user,
         }),
       });
       const resJson = await response.json();
@@ -891,7 +920,7 @@ class Order {
       }
       App.modal.render({
         type: "orders",
-        title: "Limit orders",
+        title: `Limit orders - User ${App.state.user}`,
         orders: resJson.orders,
         cursor: resJson.nextPageCursor,
         size: "lg",
@@ -909,6 +938,7 @@ class Order {
         },
         body: JSON.stringify({
           cursor,
+          user: App.state.user,
         }),
       });
       const resJson = await response.json();
@@ -918,7 +948,7 @@ class Order {
       }
       App.modal.render({
         type: "positions",
-        title: `Positions, Balance ${resJson.balance.toFixed(2).replace(/\./g, ",")}`,
+        title: `Positions, Balance ${resJson.balance.toFixed(2).replace(/\./g, ",")} - User ${App.state.user}`,
         positions: resJson.positions,
         cursor: resJson.nextPageCursor,
         size: "lg",
@@ -936,6 +966,9 @@ class Order {
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            user: App.state.user,
+          }),
         },
       );
       const resJson = await response.json();
@@ -946,7 +979,7 @@ class Order {
       const { winRate } = resJson;
       App.modal.render({
         type: "win",
-        title: `Win rate ${allCoins ? "" : App.state.symbol}`,
+        title: `Win rate ${allCoins ? "" : App.state.symbol} - User ${App.state.user}`,
         size: "lg",
         winRate,
         allCoins,
@@ -966,6 +999,7 @@ class Order {
           },
           body: JSON.stringify({
             cursor: cursorLink,
+            user: App.state.user,
           }),
         },
       );
@@ -977,7 +1011,7 @@ class Order {
       const { positions, cursor } = resJson.closedPositions;
       App.modal.render({
         type: "history",
-        title: `Positions history ${allCoins ? "" : App.state.symbol}`,
+        title: `Positions history ${allCoins ? "" : App.state.symbol} - User ${App.state.user}`,
         size: "lg",
         positions,
         cursor,
@@ -1339,7 +1373,6 @@ class ChartManager {
     this.container = document.getElementById("chart");
     this.volumeContainer = document.getElementById("volumeEl");
     this.candleContainer = document.getElementById("candleEl");
-    this.levelInfoContainer = document.getElementById("levelEl");
     this.prevSymbolKlineTopic = null;
     this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
     this.activeSubscriptions = new Set();
@@ -1591,7 +1624,10 @@ class ChartManager {
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify(params),
+              body: JSON.stringify({
+                ...params,
+                user: App.state.user,
+              }),
             },
           );
           const resJson = await response.json();
@@ -1650,7 +1686,10 @@ class ChartManager {
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify(params),
+              body: JSON.stringify({
+                ...params,
+                user: App.state.user,
+              }),
             },
           );
           const resJson = await response.json();
@@ -1769,12 +1808,11 @@ class ChartManager {
   checkHover(checkPrice, lines) {
     if (ChartManager.state.isDroped) {
       for (const alert of lines) {
-        const tolerancePercentHover =
-          App.state.timeframe === "1d" || App.state.timeframe === "1w"
-            ? 0.8
-            : App.state.timeframe === "2h" || App.state.timeframe === "4h"
-              ? 0.2
-              : 0.1;
+        const tolerancePercentHover = ["1d", "1w"].includes(App.state.timeframe)
+          ? 1.5
+          : ["1h", "2h", "4h", "6h", "12h"].includes(App.state.timeframe)
+            ? 0.5
+            : 0.1;
         const isAlertHover =
           alert.name &&
           alert.line.options().lineVisible &&
@@ -2209,6 +2247,8 @@ class App {
     hideAlerts: false,
     hideOrders: true,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
+    user: "main",
+    statsTab: "positions",
   };
 
   static async init() {
@@ -2449,7 +2489,7 @@ class App {
       : "📭";
     if (this.state.algoTrading) {
       document.querySelector(".display-symbol").textContent =
-        `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
+        `${this.state.symbol} ${this.state.timeframe} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
     }
   }
   static async renderChart() {
@@ -2564,6 +2604,7 @@ class App {
         support: App.state.supportMin,
         resistance: App.state.resistanceMax,
         read,
+        user: App.state.user,
       }),
     });
     const alertsDataJson = await alertsData.json();
@@ -2606,11 +2647,13 @@ class App {
     }
     App.state.algoTrading = {
       tradingType: alertsDataJson.tradingType || 1,
+      tradingTypeSub: alertsDataJson.tradingTypeSub || 1,
       enterTf: alertsDataJson.enterTf || "4h",
       sl: alertsDataJson.sl || Order.state.STOP_LOSS,
       tp: alertsDataJson.tp || Order.state.TAKE_PROFIT,
       size: alertsDataJson.size,
       attemptsCount: alertsDataJson.attemptsCount,
+      breakeven: alertsDataJson.breakeven || 5,
       candlesCount: alertsDataJson.candlesCount || 30,
       touchCount: alertsDataJson.touchCount || 4,
       tolerance: alertsDataJson.tolerance || 0.2,
@@ -2977,20 +3020,26 @@ class App {
     //    event.preventDefault();
     //    await Order.fetchOrders();
     //  });
-    //show positions
     document
       .querySelector(".show-positions")
       .addEventListener("click", async (event) => {
         event.preventDefault();
-        await Order.fetchPositions();
+        if (App.state.statsTab === "orders") await Order.fetchOrders();
+        if (App.state.statsTab === "positions") await Order.fetchPositions();
+        if (App.state.statsTab === "history") await Order.fetchHistory();
+        if (App.state.statsTab === "historyAll")
+          await Order.fetchHistory("", "all");
+        if (App.state.statsTab === "win") await Order.fetchWin();
+        if (App.state.statsTab === "winAll") await Order.fetchWin("all");
       });
-    //show history
-    //document
-    //  .querySelector(".show-history")
-    //  .addEventListener("click", async (event) => {
-    //    event.preventDefault();
-    //    await Order.fetchHistory();
-    //  });
+    document
+      .querySelector(".switch-user")
+      .addEventListener("click", async (event) => {
+        event.preventDefault();
+        App.state.user = App.state.user === "main" ? "sub" : "main";
+        event.target.textContent = App.state.user;
+        await this.loadAlerts();
+      });
     //reset hide info btns
     document.querySelector(".reset-btn").addEventListener("click", async () => {
       await this.loadAlerts(true);

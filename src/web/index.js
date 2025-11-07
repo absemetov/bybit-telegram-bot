@@ -5,20 +5,7 @@ import Ticker from "../models/Ticker.js";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { createHash } from "crypto";
-import {
-  createLimitOrder,
-  createStopLimitOrder,
-  getLimitOrders,
-  cancelOrder,
-  cancelAllOrders,
-  getPositions,
-  closePosition,
-  editStopLoss,
-  editTakeProfit,
-  getClosedPositionsHistory,
-  getDailyWinRate,
-  getTickerOrders,
-} from "../helpers/bybitV5.js";
+import { bybitUsers } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -81,6 +68,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     const { symbol } = req.params;
     const {
       tradingType,
+      tradingTypeSub,
       enterTf,
       tp,
       sl,
@@ -89,9 +77,11 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       candlesCount,
       touchCount,
       tolerance,
+      breakeven,
     } = req.body;
     await Ticker.update(symbol, {
       tradingType,
+      tradingTypeSub,
       enterTf,
       tp,
       sl,
@@ -100,6 +90,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       candlesCount,
       touchCount,
       tolerance,
+      breakeven,
     });
     return res.json({ ok: "Googluck!" });
   } catch (error) {
@@ -110,8 +101,11 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
 app.post("/positions-history/:symbol?", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { cursor } = req.body;
-    const closedPositions = await getClosedPositionsHistory(symbol, cursor);
+    const { cursor, user } = req.body;
+    const closedPositions = await bybitUsers[user].getClosedPositionsHistory(
+      symbol,
+      cursor,
+    );
     return res.json({ closedPositions });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -121,7 +115,8 @@ app.post("/positions-history/:symbol?", protectPage, async (req, res) => {
 app.post("/win-rate/:symbol?", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const winRate = await getDailyWinRate(7, symbol);
+    const { user } = req.body;
+    const winRate = await bybitUsers[user].getDailyWinRate(7, symbol);
     return res.json({ winRate });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -177,7 +172,7 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts, support, resistance, read } = req.body;
+    const { defaultAlerts, support, resistance, read, user } = req.body;
     if (defaultAlerts) {
       //set default alerts
       await Ticker.createAlerts(symbol, support, resistance);
@@ -185,7 +180,7 @@ app.post("/alerts/:symbol", protectPage, async (req, res) => {
     if (read) {
       await Ticker.updateField(symbol, "read", !read);
     }
-    const alerts = await Ticker.getAlerts(symbol, read);
+    const alerts = await Ticker.getAlerts(symbol, user);
     return res.json(alerts);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -229,7 +224,7 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-//create limit order
+//create limit or stop orders
 app.post("/order/create/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -243,16 +238,17 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
       startSell,
       stopSell,
       slSell,
+      user,
     } = req.body;
-    const ordersOld = await getTickerOrders(symbol);
+    const ordersOld = await bybitUsers[user].getTickerOrders(symbol);
     //create orders Long
     //const alerts = await Ticker.getOnlyAlerts(symbol);
     if (side === "Buy") {
       for (const order of ordersOld.filter((o) => o.side === side)) {
-        await cancelOrder(symbol, order.orderId);
+        await bybitUsers[user].cancelOrder(symbol, order.orderId);
       }
       if (orderType === "limit") {
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           startBuy,
@@ -260,7 +256,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopSell,
           slBuy,
         );
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           (startBuy + stopBuy) / 2,
@@ -268,7 +264,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopSell,
           slBuy,
         );
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           stopBuy,
@@ -277,7 +273,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           slBuy,
         );
       } else {
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           startBuy,
@@ -285,7 +281,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopSell,
           slBuy,
         );
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           (startBuy + stopBuy) / 2,
@@ -293,7 +289,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopSell,
           slBuy,
         );
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           stopBuy,
@@ -306,10 +302,10 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
     //create Short orders
     if (side === "Sell") {
       for (const order of ordersOld.filter((o) => o.side === side)) {
-        await cancelOrder(symbol, order.orderId);
+        await bybitUsers[user].cancelOrder(symbol, order.orderId);
       }
       if (orderType === "limit") {
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           startSell,
@@ -317,7 +313,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopBuy,
           slSell,
         );
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           (startSell + stopSell) / 2,
@@ -325,7 +321,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopBuy,
           slSell,
         );
-        await createLimitOrder(
+        await bybitUsers[user].createLimitOrder(
           symbol,
           side,
           stopSell,
@@ -334,7 +330,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           slSell,
         );
       } else {
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           startSell,
@@ -342,7 +338,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopBuy,
           slSell,
         );
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           (startSell + stopSell) / 2,
@@ -350,7 +346,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
           stopBuy,
           slSell,
         );
-        await createStopLimitOrder(
+        await bybitUsers[user].createStopLimitOrder(
           symbol,
           side,
           stopSell,
@@ -360,7 +356,7 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
         );
       }
     }
-    const orders = await getTickerOrders(symbol);
+    const orders = await bybitUsers[user].getTickerOrders(symbol);
     return res.json({ orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -370,8 +366,8 @@ app.post("/order/create/:symbol", protectPage, async (req, res) => {
 app.post("/order/list", protectPage, async (req, res) => {
   try {
     //const { symbol } = req.params;
-    const { cursor } = req.body;
-    const response = await getLimitOrders(cursor);
+    const { cursor, user } = req.body;
+    const response = await bybitUsers[user].getLimitOrders(cursor);
     return res.json(response);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -381,10 +377,11 @@ app.post("/order/list", protectPage, async (req, res) => {
 app.post("/order/cancel-all/:symbol/:side", protectPage, async (req, res) => {
   try {
     const { symbol, side } = req.params;
-    await cancelAllOrders(symbol, side);
-    const orders = await getTickerOrders(symbol);
+    const { user } = req.body;
+    await bybitUsers[user].cancelAllOrders(symbol, side);
+    const orders = await bybitUsers[user].getTickerOrders(symbol);
     //return res.json({ orders });
-    const response = await getLimitOrders();
+    const response = await bybitUsers[user].getLimitOrders();
     return res.json({ ...response, tickerOrders: orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -394,10 +391,10 @@ app.post("/order/cancel-all/:symbol/:side", protectPage, async (req, res) => {
 app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { orderId } = req.body;
-    await cancelOrder(symbol, orderId);
-    const response = await getLimitOrders();
-    const orders = await getTickerOrders(symbol);
+    const { orderId, user } = req.body;
+    await bybitUsers[user].cancelOrder(symbol, orderId);
+    const response = await bybitUsers[user].getLimitOrders();
+    const orders = await bybitUsers[user].getTickerOrders(symbol);
     return res.json({ ...response, tickerOrders: orders });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -407,8 +404,8 @@ app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
 app.post("/position/list", protectPage, async (req, res) => {
   try {
     //const { symbol } = req.params;
-    const { cursor } = req.body;
-    const response = await getPositions(cursor);
+    const { cursor, user } = req.body;
+    const response = await bybitUsers[user].getPositions(cursor);
     return res.json(response);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -418,14 +415,14 @@ app.post("/position/list", protectPage, async (req, res) => {
 app.post("/position/edit/:field/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol, field } = req.params;
-    const { side, stopLoss, takeProfit } = req.body;
+    const { side, stopLoss, takeProfit, user } = req.body;
     if (field === "sl") {
-      await editStopLoss(symbol, side, stopLoss);
+      await bybitUsers[user].editStopLoss(symbol, side, stopLoss);
     }
     if (field === "tp") {
-      await editTakeProfit(symbol, side, takeProfit);
+      await bybitUsers[user].editTakeProfit(symbol, side, takeProfit);
     }
-    const response = await getPositions();
+    const response = await bybitUsers[user].getPositions();
     return res.json(response);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -435,9 +432,9 @@ app.post("/position/edit/:field/:symbol", protectPage, async (req, res) => {
 app.post("/position/close/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { side, qty } = req.body;
-    await closePosition(symbol, side, qty);
-    const response = await getPositions();
+    const { side, qty, user } = req.body;
+    await bybitUsers[user].closePosition(symbol, side, qty);
+    const response = await bybitUsers[user].getPositions();
     return res.json(response);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -445,5 +442,5 @@ app.post("/position/close/:symbol", protectPage, async (req, res) => {
 });
 //run app
 app.listen(PORT, () => {
-  console.log(`Bot-Web app listening on port ${PORT}`);
+  console.log(`Web app listening on port ${PORT}`);
 });

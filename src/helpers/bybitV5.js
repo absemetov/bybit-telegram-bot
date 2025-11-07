@@ -1,129 +1,546 @@
 import { RestClientV5 } from "bybit-api";
 import dotenv from "dotenv";
 dotenv.config();
-const bybitClient = new RestClientV5({
-  key: process.env.BYBIT_API_KEY,
-  secret: process.env.BYBIT_API_SECRET,
-});
-//win rate
-export const getDailyWinRate = async (days = 7, symbol = null) => {
-  const dailyStats = [];
-  const currentDate = new Date();
-
-  for (let i = days - 1; i >= 0; i--) {
-    const targetDate = new Date(currentDate);
-    targetDate.setDate(targetDate.getDate() - i);
-    const startOfDayMSK = new Date(targetDate);
-    startOfDayMSK.setHours(0, 0, 0, 0);
-    const endOfDayMSK = new Date(targetDate);
-    endOfDayMSK.setHours(23, 59, 59, 999);
-
-    const startTime = startOfDayMSK.getTime();
-    const endTime = endOfDayMSK.getTime();
-
-    let allTrades = [];
-    let cursor;
-    let page = 0;
-    const maxPages = 20;
-
-    const dateKey = startOfDayMSK.toLocaleDateString("ru-RU");
-
-    try {
-      let hasMorePages = true;
-      while (hasMorePages) {
-        const params = {
-          category: "linear",
-          startTime: startTime,
-          endTime: endTime,
-          limit: 100,
-          cursor: cursor,
-        };
-        if (symbol) params.symbol = symbol;
-        const response = await bybitClient.getClosedPnL(params);
-
-        if (response.retCode !== 0) {
-          console.error(`Ошибка для ${dateKey}:`, response.retMsg);
-          break;
-        }
-
-        // Добавляем новые сделки
-        allTrades = [...allTrades, ...response.result.list];
-        // Обновляем курсор для следующей страницы
-        cursor = response.result.nextPageCursor;
-        page++;
-
-        // Условия завершения цикла:
-        // 1. Нет следующей страницы (cursor пустой)
-        // 2. Достигли лимита страниц
-        // 3. Нет данных в ответе
-        hasMorePages =
-          !!cursor && page < maxPages && response.result.list.length > 0;
-      }
-      if (allTrades.length > 0) {
-        // Фильтруем по символу, если нужно (дополнительная фильтрация)
-        // if (symbol) {
-        //   allTrades = allTrades.filter(trade => trade.symbol === symbol);
-        // }
-        const profitableTrades = allTrades.filter(
-          (trade) => parseFloat(trade.closedPnl) > 0,
-        );
-        const lossTrades = allTrades.filter(
-          (trade) => parseFloat(trade.closedPnl) < 0,
-        );
-        const strictWinRate = (
-          (profitableTrades.length / allTrades.length) *
-          100
-        ).toFixed(2);
-        const total = {
-          pnl: 0,
-          lossPrcnt: 0,
-          profPrcnt: 0,
-        };
-        const totalR = allTrades.reduce((acc, trade) => {
-          acc.pnl = acc.pnl + +trade.closedPnl;
-          const changePrcnt =
-            Math.abs(
-              (trade.avgExitPrice - trade.avgEntryPrice) / trade.avgEntryPrice,
-            ) * 100;
-          if (trade.closedPnl > 0) {
-            acc.profPrcnt += changePrcnt;
-          } else {
-            acc.lossPrcnt = acc.lossPrcnt + changePrcnt;
+class UserAPI {
+  constructor(restClient) {
+    this.bybitClient = restClient;
+  }
+  //win rate
+  async getDailyWinRate(days = 7, symbol = null) {
+    const dailyStats = [];
+    const currentDate = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const targetDate = new Date(currentDate);
+      targetDate.setDate(targetDate.getDate() - i);
+      const startOfDayMSK = new Date(targetDate);
+      startOfDayMSK.setHours(0, 0, 0, 0);
+      const endOfDayMSK = new Date(targetDate);
+      endOfDayMSK.setHours(23, 59, 59, 999);
+      const startTime = startOfDayMSK.getTime();
+      const endTime = endOfDayMSK.getTime();
+      let allTrades = [];
+      let cursor;
+      let page = 0;
+      const maxPages = 20;
+      const dateKey = startOfDayMSK.toLocaleDateString("ru-RU");
+      try {
+        let hasMorePages = true;
+        while (hasMorePages) {
+          const params = {
+            category: "linear",
+            startTime: startTime,
+            endTime: endTime,
+            limit: 100,
+            cursor: cursor,
+          };
+          if (symbol) params.symbol = symbol;
+          const response = await this.bybitClient.getClosedPnL(params);
+          if (response.retCode !== 0) {
+            console.error(`Ошибка для ${dateKey}:`, response.retMsg);
+            break;
           }
-          return acc;
-        }, total);
+          // Добавляем новые сделки
+          allTrades = [...allTrades, ...response.result.list];
+          // Обновляем курсор для следующей страницы
+          cursor = response.result.nextPageCursor;
+          page++;
+          // Условия завершения цикла:
+          // 1. Нет следующей страницы (cursor пустой)
+          // 2. Достигли лимита страниц
+          // 3. Нет данных в ответе
+          hasMorePages =
+            !!cursor && page < maxPages && response.result.list.length > 0;
+        }
+        if (allTrades.length > 0) {
+          // Фильтруем по символу, если нужно (дополнительная фильтрация)
+          // if (symbol) {
+          //   allTrades = allTrades.filter(trade => trade.symbol === symbol);
+          // }
+          const profitableTrades = allTrades.filter(
+            (trade) => parseFloat(trade.closedPnl) > 0,
+          );
+          const lossTrades = allTrades.filter(
+            (trade) => parseFloat(trade.closedPnl) < 0,
+          );
+          const strictWinRate = (
+            (profitableTrades.length / allTrades.length) *
+            100
+          ).toFixed(2);
+          const total = {
+            pnl: 0,
+            lossPrcnt: 0,
+            profPrcnt: 0,
+          };
+          const totalR = allTrades.reduce((acc, trade) => {
+            acc.pnl = acc.pnl + +trade.closedPnl;
+            const changePrcnt =
+              Math.abs(
+                (trade.avgExitPrice - trade.avgEntryPrice) /
+                  trade.avgEntryPrice,
+              ) * 100;
+            if (trade.closedPnl > 0) {
+              acc.profPrcnt += changePrcnt;
+            } else {
+              acc.lossPrcnt = acc.lossPrcnt + changePrcnt;
+            }
+            return acc;
+          }, total);
+          dailyStats.push({
+            dateKey,
+            strictWinRate: `${strictWinRate}%`,
+            totalTrades: allTrades.length,
+            profitable: profitableTrades.length,
+            loss: lossTrades.length,
+            totalPnl: totalR.pnl,
+            lossPrcnt: totalR.lossPrcnt,
+            profPrcnt: totalR.profPrcnt,
+            totalPrcnt: totalR.profPrcnt - total.lossPrcnt,
+            symbol: symbol || "ALL", // Указываем для какой монеты статистика
+          });
+        } else {
+          dailyStats.push({
+            dateKey,
+            strictWinRate: "0.00%",
+            totalTrades: 0,
+            profitable: 0,
+            loss: 0,
+            totalPnl: 0,
+            symbol: symbol || "ALL",
+          });
+        }
+      } catch (error) {
+        console.error(`Ошибка для дня ${dateKey}:`, error.message);
         dailyStats.push({
-          dateKey,
-          strictWinRate: `${strictWinRate}%`,
-          totalTrades: allTrades.length,
-          profitable: profitableTrades.length,
-          loss: lossTrades.length,
-          totalPnl: totalR.pnl,
-          lossPrcnt: totalR.lossPrcnt,
-          profPrcnt: totalR.profPrcnt,
-          totalPrcnt: totalR.profPrcnt - total.lossPrcnt,
-          symbol: symbol || "ALL", // Указываем для какой монеты статистика
-        });
-      } else {
-        dailyStats.push({
-          dateKey,
-          strictWinRate: "0.00%",
-          totalTrades: 0,
-          profitable: 0,
-          loss: 0,
-          totalPnl: 0,
+          error: error.message,
           symbol: symbol || "ALL",
         });
       }
-    } catch (error) {
-      console.error(`Ошибка для дня ${dateKey}:`, error.message);
-      dailyStats.push({
-        error: error.message,
-        symbol: symbol || "ALL",
-      });
+    }
+    return dailyStats;
+  }
+  // get closed positions history
+  async getClosedPositionsHistory(symbol = null, cursor) {
+    const params = {
+      category: "linear",
+      limit: 10,
+      cursor,
+    };
+    if (symbol) {
+      params.symbol = symbol;
+    }
+    const response = await this.bybitClient.getClosedPnL(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+    if (response.result.list && response.result.list.length > 0) {
+      return {
+        positions: response.result.list,
+        cursor: response.result.nextPageCursor,
+      };
+    }
+    return { positions: [] };
+  }
+  //get position
+  async getTickerPositions(symbol) {
+    const positionResponse = await this.bybitClient.getPositionInfo({
+      category: "linear",
+      symbol,
+    });
+    if (positionResponse.retCode !== 0) {
+      throw new Error(`Error API: ${positionResponse.retMsg}`);
+    }
+    return positionResponse.result.list
+      .filter((p) => p.size > 0)
+      .map((order) => ({
+        symbol: order.symbol,
+        localTime: new Date(parseInt(order.updatedTime)).toLocaleString(
+          "ru-RU",
+        ),
+        side: order.side,
+        avgPrice: parseFloat(order.avgPrice),
+        markPrice: parseFloat(order.markPrice),
+        takeProfit: parseFloat(order.takeProfit),
+        stopLoss: parseFloat(order.stopLoss),
+        positionValue: parseFloat(order.positionValue).toFixed(2),
+        size: parseFloat(order.size),
+        unrealisedPnl: parseFloat(order.unrealisedPnl).toFixed(2),
+        positionIdx: order.positionIdx,
+      }));
+  }
+  //edit SL/TP
+  async editStopLoss(symbol, side, stopLoss) {
+    // 1. Получаем текущую позицию
+    const positions = await this.getTickerPositions(symbol);
+    const sidePosition = positions.find((p) => p.side === side);
+    if (!sidePosition) throw new Error("Нет открытой позиции");
+    const params = {
+      category: "linear",
+      symbol,
+      positionIdx: sidePosition.positionIdx, // Важно!
+      stopLoss,
+    };
+    const response = await this.bybitClient.setTradingStop(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
     }
   }
-  return dailyStats;
+  async editTakeProfit(symbol, side, takeProfit) {
+    // 1. Получаем текущую позицию
+    const positions = await this.getTickerPositions(symbol);
+    const sidePosition = positions.find((p) => p.side === side);
+    if (!sidePosition) throw new Error("Нет открытой позиции");
+    const params = {
+      category: "linear",
+      symbol,
+      positionIdx: sidePosition.positionIdx, // Важно!
+      takeProfit,
+    };
+    const response = await this.bybitClient.setTradingStop(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+  }
+  //cancel order
+  async closePosition(symbol, side, qty) {
+    const response = await this.bybitClient.submitOrder({
+      category: "linear",
+      symbol,
+      side: side === "Buy" ? "Sell" : "Buy", // Инвертируем направление
+      orderType: "Market",
+      qty,
+      positionIdx: side === "Sell" ? 2 : 1,
+      reduceOnly: true,
+    });
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+  }
+  //get positions
+  async getPositions(cursor, limit = 10) {
+    const balance = await this.getBybitBalance();
+    const params = {
+      category: "linear",
+      settleCoin: "USDT",
+      limit,
+      cursor,
+    };
+    const response = await this.bybitClient.getPositionInfo(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+    return {
+      positions: response.result.list,
+      nextPageCursor: response.result.nextPageCursor,
+      balance,
+    };
+  }
+  //cancel ALL order
+  async cancelAllOrders(symbol, side) {
+    const orders = await this.getTickerOrders(symbol);
+    for (const order of orders.filter((o) => o.side === side)) {
+      await this.cancelOrder(symbol, order.orderId);
+    }
+  }
+  //cancel order
+  async cancelOrder(symbol, orderId) {
+    const response = await this.bybitClient.cancelOrder({
+      category: "linear",
+      symbol,
+      orderId,
+    });
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+  }
+  //get order
+  async getTickerOrders(symbol) {
+    const params = {
+      category: "linear",
+      settleCoin: "USDT",
+      //openOnly: 0,
+      //orderFilter: "Order",
+      symbol,
+    };
+    const response = await this.bybitClient.getActiveOrders(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+    return response.result.list
+      .filter((o) => o.price > 0)
+      .map((order) => ({
+        orderId: order.orderId,
+        symbol: order.symbol,
+        localTime: new Date(parseInt(order.createdTime)).toLocaleString(
+          "ru-RU",
+        ),
+        side: order.side,
+        price: order.triggerPrice
+          ? parseFloat(order.triggerPrice)
+          : parseFloat(order.price),
+        qty: parseFloat(order.qty),
+        sum: (order.qty * order.price).toFixed(2),
+        triggerPrice: order.triggerPrice,
+      }));
+  }
+  //list orders
+  async getLimitOrders(cursor, limit = 10) {
+    const params = {
+      category: "linear",
+      settleCoin: "USDT",
+      //openOnly: 2,
+      //orderFilter: "StopOrder",
+      limit,
+      cursor,
+    };
+    const response = await this.bybitClient.getActiveOrders(params);
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+    return {
+      orders: response.result.list,
+      nextPageCursor: response.result.nextPageCursor,
+    };
+  }
+  //create stopLimit order
+  async createStopLimitOrder(symbol, side, triggerPrice, size, tp, sl) {
+    try {
+      const { result } = await this.bybitClient.getInstrumentsInfo({
+        category: "linear",
+        symbol: symbol,
+      });
+      if (!result?.list?.length) {
+        throw new Error(`Символ ${symbol} не найден`);
+      }
+      const instrument = result.list[0];
+      const {
+        lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
+        priceScale,
+      } = instrument;
+      const baseQty = size / triggerPrice;
+      let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
+      if (adjustedQty < minOrderQty) {
+        adjustedQty = +minOrderQty;
+        //throw new Error(
+        //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
+        //);
+      }
+      if (adjustedQty > maxOrderQty) {
+        throw new Error(
+          `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * triggerPrice} USDT)`,
+        );
+      }
+      const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
+      const formattedQty = adjustedQty.toFixed(qtyDecimals);
+      //format
+      const formatPrice = (value) => {
+        return value.toFixed(priceScale);
+      };
+      const price =
+        side === "Buy"
+          ? formatPrice(triggerPrice * (1 + 1 / 100))
+          : formatPrice(triggerPrice * (1 - 1 / 100));
+      //const takeProfit =
+      //  side === "Sell"
+      //    ? formatPrice(triggerPrice * (1 - tpPercent / 100))
+      //    : formatPrice(triggerPrice * (1 + tpPercent / 100));
+      //const stopLoss =
+      //  side === "Sell"
+      //    ? formatPrice(triggerPrice * (1 + slPercent / 100))
+      //    : formatPrice(triggerPrice * (1 - slPercent / 100));
+      const response = await this.bybitClient.submitOrder({
+        category: "linear",
+        symbol,
+        side,
+        orderType: "Limit",
+        qty: formattedQty,
+        triggerPrice: formatPrice(triggerPrice),
+        price,
+        takeProfit: formatPrice(tp),
+        stopLoss: formatPrice(sl),
+        triggerDirection: side === "Sell" ? 2 : 1,
+        timeInForce: "GTC",
+        positionIdx: side === "Sell" ? 2 : 1,
+      });
+      if (response.retCode !== 0) {
+        throw new Error(`Order create Error: ${response.retMsg}`);
+      }
+      return { orderId: response.result.orderId };
+    } catch (error) {
+      throw new Error(
+        `${symbol} ${side} Order creation failed: ${error.message}`,
+      );
+    }
+  }
+  //create limit order
+  async createLimitOrder(symbol, side, price, size, tp, sl) {
+    try {
+      //TODO check position size!!
+      // 1. Получаем текущую рыночную цену
+      const ticker = await this.bybitClient.getTickers({
+        category: "linear",
+        symbol,
+      });
+      const lastPrice = parseFloat(ticker.result.list[0].lastPrice);
+      // 2. Проверяем логику цены
+      if (side === "Buy" && price >= lastPrice) {
+        throw new Error(
+          `Для Buy цена ордера (${price}) должна быть ниже текущей (${lastPrice})`,
+        );
+      }
+      if (side === "Sell" && price <= lastPrice) {
+        throw new Error(
+          `Для Sell цена ордера (${price}) должна быть выше текущей (${lastPrice})`,
+        );
+      }
+      // 1. Получаем параметры символа
+      const { result } = await this.bybitClient.getInstrumentsInfo({
+        category: "linear",
+        symbol: symbol,
+      });
+      if (!result?.list?.length) {
+        throw new Error(`Символ ${symbol} не найден`);
+      }
+      const instrument = result.list[0];
+      const {
+        lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
+        priceScale,
+      } = instrument;
+      // 2. Рассчитываем количество контрактов как в споте: qty = сумма / цена
+      //sl 1$ TP 5$
+      const baseQty = size / price;
+      // 3. Приводим к шагу qtyStep
+      //const step = Number(qtyStep);
+      let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
+      //const adjustedQty = Math.round(baseQty / qtyStep) * qtyStep;
+      // 4. Проверяем лимиты
+      if (adjustedQty < minOrderQty) {
+        adjustedQty = +minOrderQty;
+        //throw new Error(
+        //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
+        //);
+      }
+      if (adjustedQty > maxOrderQty) {
+        throw new Error(
+          `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * price} USDT)`,
+        );
+      }
+      // 5. Форматируем значения
+      const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
+      const formattedQty = adjustedQty.toFixed(qtyDecimals);
+      //format
+      const formatPrice = (value) => {
+        return value.toFixed(priceScale);
+      };
+      //const triggerPrice =
+      //  side === "Buy"
+      //    ? formatPrice(price * (1 - 0.0015))
+      //    : formatPrice(price * (1 + 0.0015));
+      //const takeProfit =
+      //  side === "Sell"
+      //    ? formatPrice(price * (1 - tpPercent / 100))
+      //    : formatPrice(price * (1 + tpPercent / 100));
+      //const stopLoss =
+      //  side === "Sell"
+      //    ? formatPrice(price * (1 + slPercent / 100))
+      //    : formatPrice(price * (1 - slPercent / 100));
+      const response = await this.bybitClient.submitOrder({
+        category: "linear",
+        symbol,
+        side,
+        orderType: "Limit",
+        qty: formattedQty,
+        price: formatPrice(price),
+        takeProfit: formatPrice(tp),
+        stopLoss: formatPrice(sl),
+        timeInForce: "GTC",
+        positionIdx: side === "Sell" ? 2 : 1,
+      });
+      if (response.retCode !== 0) {
+        throw new Error(`Order create Error: ${response.retMsg}`);
+      }
+      return { orderId: response.result.orderId };
+    } catch (error) {
+      throw new Error(
+        `${symbol} ${side} Order creation failed: ${error.message}`,
+      );
+    }
+  }
+  async getBybitBalance() {
+    try {
+      const response = await this.bybitClient.getWalletBalance({
+        accountType: "UNIFIED",
+      });
+      return +response.result.list[0].totalEquity;
+    } catch (error) {
+      console.error("Failed to get wallet balance:", error);
+    }
+  }
+}
+export const getCandles = async (symbol, timeframe = "1h", limit = 200) => {
+  try {
+    const response = await restMain.getKline({
+      category: "linear",
+      symbol: symbol,
+      interval: intervalKline[timeframe],
+      limit,
+    });
+    if (response.retCode !== 0) {
+      throw new Error(`Error API: ${response.retMsg}`);
+    }
+    return response.result.list
+      .map((candle) => ({
+        time: parseInt(candle[0]),
+        localTime: new Date(parseInt(candle[0])).toLocaleString("ru-RU"),
+        open: parseFloat(candle[1]),
+        high: parseFloat(candle[2]),
+        low: parseFloat(candle[3]),
+        close: parseFloat(candle[4]),
+        color: candle[4] > candle[1] ? "green" : "red",
+        volume: parseFloat(candle[5]),
+      }))
+      .reverse();
+  } catch (error) {
+    console.error(`Error getting candles for ${symbol}:`, error);
+    return [];
+  }
+};
+export const getTicker = async (symbol) => {
+  try {
+    const response = await restMain.getInstrumentsInfo({
+      category: "linear",
+      symbol,
+    });
+    if (response.retCode !== 0) {
+      console.error("Bybit API Error:", response.retMsg);
+      return [];
+    }
+    return response.result.list;
+  } catch (error) {
+    console.error("Error in getActiveSymbols:", error.message);
+    return [];
+  }
+};
+export const getActiveSymbols = async (cursor, limit = 30) => {
+  try {
+    const response = await restMain.getInstrumentsInfo({
+      category: "linear",
+      limit,
+      cursor,
+    });
+    if (response.retCode !== 0) {
+      console.error("Bybit API Error:", response.retMsg);
+      return [];
+    }
+    const STABLECOINS = ["USDE", "USDC", "RLUSD", "USD1"];
+    const tickers = response.result.list.filter((symbol) => {
+      if (STABLECOINS.includes(symbol.baseCoin)) return false;
+      return symbol.status === "Trading" && symbol.symbol.endsWith("USDT");
+    });
+    return { tickers, nextCursor: response.result.nextPageCursor };
+  } catch (error) {
+    console.error("Error in getActiveSymbols:", error.message);
+    return { symbols: [], nextCursor: null };
+  }
 };
 //convert 15min candles to 1h
 const timeframeConfig = {
@@ -186,379 +603,6 @@ export const convert15minCandles = (candles, timeframe) => {
     });
 };
 
-// get closed positions history
-export const getClosedPositionsHistory = async (symbol = null, cursor) => {
-  const params = {
-    category: "linear",
-    limit: 10,
-    cursor,
-  };
-  if (symbol) {
-    params.symbol = symbol;
-  }
-  const response = await bybitClient.getClosedPnL(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-
-  if (response.result.list && response.result.list.length > 0) {
-    return {
-      positions: response.result.list,
-      cursor: response.result.nextPageCursor,
-    };
-  }
-  return { positions: [] };
-};
-//get position
-export const getTickerPositions = async (symbol) => {
-  const positionResponse = await bybitClient.getPositionInfo({
-    category: "linear",
-    symbol,
-  });
-  if (positionResponse.retCode !== 0) {
-    throw new Error(`Error API: ${positionResponse.retMsg}`);
-  }
-  return positionResponse.result.list
-    .filter((p) => p.size > 0)
-    .map((order) => ({
-      symbol: order.symbol,
-      localTime: new Date(parseInt(order.updatedTime)).toLocaleString("ru-RU"),
-      side: order.side,
-      avgPrice: parseFloat(order.avgPrice),
-      markPrice: parseFloat(order.markPrice),
-      takeProfit: parseFloat(order.takeProfit),
-      stopLoss: parseFloat(order.stopLoss),
-      positionValue: parseFloat(order.positionValue).toFixed(2),
-      size: parseFloat(order.size),
-      unrealisedPnl: parseFloat(order.unrealisedPnl).toFixed(2),
-      positionIdx: order.positionIdx,
-    }));
-};
-//edit SL/TP
-
-export const editStopLoss = async (symbol, side, stopLoss) => {
-  // 1. Получаем текущую позицию
-  const positions = await getTickerPositions(symbol);
-  const sidePosition = positions.find((p) => p.side === side);
-  if (!sidePosition) throw new Error("Нет открытой позиции");
-  const params = {
-    category: "linear",
-    symbol,
-    positionIdx: sidePosition.positionIdx, // Важно!
-    stopLoss,
-  };
-  const response = await bybitClient.setTradingStop(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-};
-export const editTakeProfit = async (symbol, side, takeProfit) => {
-  // 1. Получаем текущую позицию
-  const positions = await getTickerPositions(symbol);
-  const sidePosition = positions.find((p) => p.side === side);
-  if (!sidePosition) throw new Error("Нет открытой позиции");
-  const params = {
-    category: "linear",
-    symbol,
-    positionIdx: sidePosition.positionIdx, // Важно!
-    takeProfit,
-  };
-  const response = await bybitClient.setTradingStop(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-};
-//cancel order
-export const closePosition = async (symbol, side, qty) => {
-  const response = await bybitClient.submitOrder({
-    category: "linear",
-    symbol,
-    side: side === "Buy" ? "Sell" : "Buy", // Инвертируем направление
-    orderType: "Market",
-    qty,
-    positionIdx: side === "Sell" ? 2 : 1,
-    reduceOnly: true,
-  });
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-};
-//get positions
-export const getPositions = async (cursor, limit = 10) => {
-  const balance = await getBybitBalance();
-  const params = {
-    category: "linear",
-    settleCoin: "USDT",
-    limit,
-    cursor,
-  };
-  const response = await bybitClient.getPositionInfo(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-  return {
-    positions: response.result.list,
-    nextPageCursor: response.result.nextPageCursor,
-    balance,
-  };
-};
-
-//cancel ALL order
-export const cancelAllOrders = async (symbol, side) => {
-  const orders = await getTickerOrders(symbol);
-  for (const order of orders.filter((o) => o.side === side)) {
-    await cancelOrder(symbol, order.orderId);
-  }
-};
-
-//cancel order
-export const cancelOrder = async (symbol, orderId) => {
-  const response = await bybitClient.cancelOrder({
-    category: "linear",
-    symbol,
-    orderId,
-  });
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-};
-//get order
-export const getTickerOrders = async (symbol) => {
-  const params = {
-    category: "linear",
-    settleCoin: "USDT",
-    //openOnly: 0,
-    //orderFilter: "Order",
-    symbol,
-  };
-  const response = await bybitClient.getActiveOrders(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-  return response.result.list
-    .filter((o) => o.price > 0)
-    .map((order) => ({
-      orderId: order.orderId,
-      symbol: order.symbol,
-      localTime: new Date(parseInt(order.createdTime)).toLocaleString("ru-RU"),
-      side: order.side,
-      price: order.triggerPrice
-        ? parseFloat(order.triggerPrice)
-        : parseFloat(order.price),
-      qty: parseFloat(order.qty),
-      sum: (order.qty * order.price).toFixed(2),
-      triggerPrice: order.triggerPrice,
-    }));
-};
-//list orders
-export const getLimitOrders = async (cursor, limit = 10) => {
-  const params = {
-    category: "linear",
-    settleCoin: "USDT",
-    //openOnly: 2,
-    //orderFilter: "StopOrder",
-    limit,
-    cursor,
-  };
-  const response = await bybitClient.getActiveOrders(params);
-  if (response.retCode !== 0) {
-    throw new Error(`Error API: ${response.retMsg}`);
-  }
-  return {
-    orders: response.result.list,
-    nextPageCursor: response.result.nextPageCursor,
-  };
-};
-//create stopLimit order
-export const createStopLimitOrder = async (
-  symbol,
-  side,
-  triggerPrice,
-  size,
-  tp,
-  sl,
-) => {
-  try {
-    const { result } = await bybitClient.getInstrumentsInfo({
-      category: "linear",
-      symbol: symbol,
-    });
-
-    if (!result?.list?.length) {
-      throw new Error(`Символ ${symbol} не найден`);
-    }
-
-    const instrument = result.list[0];
-    const {
-      lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
-      priceScale,
-    } = instrument;
-    const baseQty = size / triggerPrice;
-    let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
-    if (adjustedQty < minOrderQty) {
-      adjustedQty = +minOrderQty;
-      //throw new Error(
-      //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
-      //);
-    }
-
-    if (adjustedQty > maxOrderQty) {
-      throw new Error(
-        `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * triggerPrice} USDT)`,
-      );
-    }
-    const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
-    const formattedQty = adjustedQty.toFixed(qtyDecimals);
-    //format
-    const formatPrice = (value) => {
-      return value.toFixed(priceScale);
-    };
-    const price =
-      side === "Buy"
-        ? formatPrice(triggerPrice * (1 + 1 / 100))
-        : formatPrice(triggerPrice * (1 - 1 / 100));
-    //const takeProfit =
-    //  side === "Sell"
-    //    ? formatPrice(triggerPrice * (1 - tpPercent / 100))
-    //    : formatPrice(triggerPrice * (1 + tpPercent / 100));
-    //const stopLoss =
-    //  side === "Sell"
-    //    ? formatPrice(triggerPrice * (1 + slPercent / 100))
-    //    : formatPrice(triggerPrice * (1 - slPercent / 100));
-    const response = await bybitClient.submitOrder({
-      category: "linear",
-      symbol,
-      side,
-      orderType: "Limit",
-      qty: formattedQty,
-      triggerPrice: formatPrice(triggerPrice),
-      price,
-      takeProfit: formatPrice(tp),
-      stopLoss: formatPrice(sl),
-      triggerDirection: side === "Sell" ? 2 : 1,
-      timeInForce: "GTC",
-      positionIdx: side === "Sell" ? 2 : 1,
-    });
-    if (response.retCode !== 0) {
-      throw new Error(`Order create Error: ${response.retMsg}`);
-    }
-    return { orderId: response.result.orderId };
-  } catch (error) {
-    throw new Error(
-      `${symbol} ${side} Order creation failed: ${error.message}`,
-    );
-  }
-};
-//create limit order
-export const createLimitOrder = async (symbol, side, price, size, tp, sl) => {
-  try {
-    //TODO check position size!!
-    // 1. Получаем текущую рыночную цену
-    const ticker = await bybitClient.getTickers({
-      category: "linear",
-      symbol,
-    });
-    const lastPrice = parseFloat(ticker.result.list[0].lastPrice);
-    // 2. Проверяем логику цены
-    if (side === "Buy" && price >= lastPrice) {
-      throw new Error(
-        `Для Buy цена ордера (${price}) должна быть ниже текущей (${lastPrice})`,
-      );
-    }
-    if (side === "Sell" && price <= lastPrice) {
-      throw new Error(
-        `Для Sell цена ордера (${price}) должна быть выше текущей (${lastPrice})`,
-      );
-    }
-    // 1. Получаем параметры символа
-    const { result } = await bybitClient.getInstrumentsInfo({
-      category: "linear",
-      symbol: symbol,
-    });
-
-    if (!result?.list?.length) {
-      throw new Error(`Символ ${symbol} не найден`);
-    }
-
-    const instrument = result.list[0];
-    const {
-      lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
-      priceScale,
-    } = instrument;
-
-    // 2. Рассчитываем количество контрактов как в споте: qty = сумма / цена
-    //sl 1$ TP 5$
-    const baseQty = size / price;
-
-    // 3. Приводим к шагу qtyStep
-    //const step = Number(qtyStep);
-    let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
-    //const adjustedQty = Math.round(baseQty / qtyStep) * qtyStep;
-    // 4. Проверяем лимиты
-    if (adjustedQty < minOrderQty) {
-      adjustedQty = +minOrderQty;
-      //throw new Error(
-      //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
-      //);
-    }
-
-    if (adjustedQty > maxOrderQty) {
-      throw new Error(
-        `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * price} USDT)`,
-      );
-    }
-
-    // 5. Форматируем значения
-    const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
-    const formattedQty = adjustedQty.toFixed(qtyDecimals);
-    //format
-    const formatPrice = (value) => {
-      return value.toFixed(priceScale);
-    };
-    //const triggerPrice =
-    //  side === "Buy"
-    //    ? formatPrice(price * (1 - 0.0015))
-    //    : formatPrice(price * (1 + 0.0015));
-    //const takeProfit =
-    //  side === "Sell"
-    //    ? formatPrice(price * (1 - tpPercent / 100))
-    //    : formatPrice(price * (1 + tpPercent / 100));
-    //const stopLoss =
-    //  side === "Sell"
-    //    ? formatPrice(price * (1 + slPercent / 100))
-    //    : formatPrice(price * (1 - slPercent / 100));
-    const response = await bybitClient.submitOrder({
-      category: "linear",
-      symbol,
-      side,
-      orderType: "Limit",
-      qty: formattedQty,
-      price: formatPrice(price),
-      takeProfit: formatPrice(tp),
-      stopLoss: formatPrice(sl),
-      timeInForce: "GTC",
-      positionIdx: side === "Sell" ? 2 : 1,
-    });
-    if (response.retCode !== 0) {
-      throw new Error(`Order create Error: ${response.retMsg}`);
-    }
-    return { orderId: response.result.orderId };
-  } catch (error) {
-    throw new Error(
-      `${symbol} ${side} Order creation failed: ${error.message}`,
-    );
-  }
-};
-export const getBybitBalance = async () => {
-  try {
-    const response = await bybitClient.getWalletBalance({
-      accountType: "UNIFIED",
-    });
-    return +response.result.list[0].totalEquity;
-  } catch (error) {
-    console.error("Failed to get wallet balance:", error);
-  }
-};
 export const intervalKline = {
   "1min": 1,
   "5min": 5,
@@ -573,76 +617,16 @@ export const intervalKline = {
   "1w": "W",
   "1m": "M",
 };
-export const getCandles = async (symbol, timeframe = "1h", limit = 200) => {
-  try {
-    const response = await bybitClient.getKline({
-      category: "linear",
-      symbol: symbol,
-      interval: intervalKline[timeframe],
-      limit,
-    });
-
-    if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
-    }
-
-    return response.result.list
-      .map((candle) => ({
-        time: parseInt(candle[0]),
-        localTime: new Date(parseInt(candle[0])).toLocaleString("ru-RU"),
-        open: parseFloat(candle[1]),
-        high: parseFloat(candle[2]),
-        low: parseFloat(candle[3]),
-        close: parseFloat(candle[4]),
-        color: candle[4] > candle[1] ? "green" : "red",
-        volume: parseFloat(candle[5]),
-      }))
-      .reverse();
-  } catch (error) {
-    console.error(`Error getting candles for ${symbol}:`, error);
-    return [];
-  }
-};
-//get ticker
-export const getTicker = async (symbol) => {
-  try {
-    const response = await bybitClient.getInstrumentsInfo({
-      category: "linear",
-      symbol,
-    });
-
-    if (response.retCode !== 0) {
-      console.error("Bybit API Error:", response.retMsg);
-      return [];
-    }
-    return response.result.list;
-  } catch (error) {
-    console.error("Error in getActiveSymbols:", error.message);
-    return [];
-  }
-};
-//get symbols
-export const getActiveSymbols = async (cursor, limit = 30) => {
-  try {
-    const response = await bybitClient.getInstrumentsInfo({
-      category: "linear",
-      limit,
-      cursor,
-    });
-
-    if (response.retCode !== 0) {
-      console.error("Bybit API Error:", response.retMsg);
-      return [];
-    }
-    const STABLECOINS = ["USDE", "USDC", "RLUSD", "USD1"];
-    const tickers = response.result.list.filter((symbol) => {
-      if (STABLECOINS.includes(symbol.baseCoin)) return false;
-      return symbol.status === "Trading" && symbol.symbol.endsWith("USDT");
-    });
-
-    return { tickers, nextCursor: response.result.nextPageCursor };
-  } catch (error) {
-    console.error("Error in getActiveSymbols:", error.message);
-    return { symbols: [], nextCursor: null };
-  }
+//new class for main and sub account
+const restMain = new RestClientV5({
+  key: process.env.BYBIT_API_KEY,
+  secret: process.env.BYBIT_API_SECRET,
+});
+const restSub = new RestClientV5({
+  key: process.env.BYBIT_SUB_API_KEY,
+  secret: process.env.BYBIT_SUB_API_SECRET,
+});
+export const bybitUsers = {
+  main: new UserAPI(restMain),
+  sub: new UserAPI(restSub),
 };
