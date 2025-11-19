@@ -52,7 +52,7 @@ class ModalManager {
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="sl">Stop by Alerts (%)</label>
-                <input type="number" class="form-control is-invalid" id="sl" value="{{sl}}" max="3">
+                <input type="number" class="form-control is-invalid" id="sl" value="{{sl}}" max="3" step="0.1">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">LOSS ($)</label>
@@ -66,7 +66,7 @@ class ModalManager {
       algoForm: window.Handlebars.compile(`
       <form data-form-type="algo">
         <div class="row">
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
               <legend class="col-form-label pt-0">Main account</legend>
               {{#each algoTypes}}
                 <div class="form-check">
@@ -77,23 +77,12 @@ class ModalManager {
                 </div>
               {{/each}}
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
               <legend class="col-form-label pt-0">Sub account</legend>
               {{#each algoTypesSub}}
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="tradingTypeSub" id="radioDefaultSub{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
                   <label class="form-check-label" for="radioDefaultSub{{value}}">
-                    {{name}}
-                  </label>
-                </div>
-              {{/each}}
-            </div>
-            <div class="col-md-4 mb-3">
-              <legend class="col-form-label pt-0">Enter tf</legend>
-              {{#each enterTf}}
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="enterTf" id="radioTf{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
-                  <label class="form-check-label" for="radioTf{{value}}">
                     {{name}}
                   </label>
                 </div>
@@ -131,7 +120,7 @@ class ModalManager {
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="candlesCount">Candles count</label>
-                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="6">
+                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="7">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="touchCount">Touch count</label>
@@ -194,7 +183,7 @@ class ModalManager {
         return this.templates.algoForm({
           algoTypes: config.algoTypes,
           algoTypesSub: config.algoTypesSub,
-          enterTf: config.enterTf,
+          //enterTf: config.enterTf,
           sl: App.state.algoTrading.sl || Order.state.STOP_LOSS,
           tp: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
           size: App.state.algoTrading.size,
@@ -621,7 +610,7 @@ class ModalManager {
     const breakeven = parseFloat(data.get("breakeven"));
     const tradingType = parseFloat(data.get("tradingType"));
     const tradingTypeSub = parseFloat(data.get("tradingTypeSub"));
-    const enterTf = data.get("enterTf");
+    //const enterTf = data.get("enterTf");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
@@ -629,7 +618,7 @@ class ModalManager {
       tradingType,
       tradingTypeSub,
       breakeven,
-      enterTf,
+      //enterTf,
       tp,
       sl,
       size,
@@ -652,8 +641,10 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      document.querySelector(".trading-btn").textContent =
-        App.renderTradingBtn(tradingType);
+      document.querySelector(".trading-btn").textContent = App.renderTradingBtn(
+        tradingType,
+        tradingTypeSub,
+      );
       Indicators.calculateLevels(
         ChartManager.state.candles,
         App.state.algoTrading.candlesCount,
@@ -669,9 +660,9 @@ class ModalManager {
 //Orders
 class Order {
   static state = {
-    TAKE_PROFIT: 9,
-    STOP_LOSS: 3,
-    MAX_POSITION: 584,
+    TAKE_PROFIT: 10,
+    STOP_LOSS: 1.5,
+    MAX_POSITION: 1000,
   };
   constructor() {
     this.initEventListeners();
@@ -683,12 +674,11 @@ class Order {
       .addEventListener("click", async () => {
         Order.state.symbol = App.state.symbol;
         const algoTypes = [
-          { value: 1, name: "🔴 Off" },
-          { value: 2, name: "↗️  Long" },
-          { value: 3, name: "↘️  Short" },
-          { value: 4, name: "🔀 Boxing TP auto" },
-          { value: 5, name: "↕️  Boxing TP fix" },
-          { value: 6, name: "⭕️ Position check" },
+          { value: 0, name: "🔴 Off" },
+          { value: 1, name: "↗️  Long 1h" },
+          { value: 2, name: "↗️  Long 2h" },
+          { value: 4, name: "↗️  Long 4h" },
+          { value: 13, name: "⭕️ Position check" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingType) {
             el.checked = true;
@@ -698,12 +688,11 @@ class Order {
           return el;
         });
         const algoTypesSub = [
-          { value: 1, name: "🔴 Off" },
-          { value: 2, name: "↗️  Long" },
-          { value: 3, name: "↘️  Short" },
-          { value: 4, name: "🔀 Boxing TP auto" },
-          { value: 5, name: "↕️  Boxing TP fix" },
-          { value: 6, name: "⭕️ Position check" },
+          { value: 0, name: "🔴 Off" },
+          { value: 1, name: "↘️  Short 1h" },
+          { value: 2, name: "↘️  Short 2h" },
+          { value: 4, name: "↘️  Short 4h" },
+          { value: 13, name: "⭕️ Position check" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingTypeSub) {
             el.checked = true;
@@ -712,26 +701,26 @@ class Order {
           }
           return el;
         });
-        const enterTf = [
-          { value: "1h", name: "🟰 1h" },
-          { value: "2h", name: "🟰 2h" },
-          { value: "4h", name: "🟰 4h" },
-          { value: "6h", name: "🟰 6h" },
-          { value: "12h", name: "🟰 12h" },
-        ].map((el) => {
-          if (el.value === App.state.algoTrading.enterTf) {
-            el.checked = true;
-          } else {
-            el.checked = false;
-          }
-          return el;
-        });
+        //const enterTf = [
+        //  { value: "1h", name: "🟰 1h" },
+        //  { value: "2h", name: "🟰 2h" },
+        //  { value: "4h", name: "🟰 4h" },
+        //  { value: "6h", name: "🟰 6h" },
+        //  { value: "12h", name: "🟰 12h" },
+        //].map((el) => {
+        //  if (el.value === App.state.algoTrading.enterTf) {
+        //    el.checked = true;
+        //  } else {
+        //    el.checked = false;
+        //  }
+        //  return el;
+        //});
         App.modal.render({
           type: "algo-form",
           title: `AlgoTrading ${Order.state.symbol}`,
           algoTypes,
           algoTypesSub,
-          enterTf,
+          //enterTf,
         });
       });
     //long btn
@@ -1615,6 +1604,8 @@ class ChartManager {
             return;
           }
           params.takeProfit = takeProfitNew;
+          params.tp = +pricePercent.toFixed(1);
+          App.state.algoTrading.tp = +pricePercent.toFixed(1);
         }
         try {
           const response = await fetch(
@@ -1677,6 +1668,8 @@ class ChartManager {
             return;
           }
           params.takeProfit = takeProfitNew;
+          params.tp = +Math.abs(pricePercent).toFixed(1);
+          App.state.algoTrading.tp = +Math.abs(pricePercent).toFixed(1);
         }
         try {
           const response = await fetch(
@@ -2265,9 +2258,9 @@ class App {
     });
     window.Handlebars.registerHelper(
       "algoIcon",
-      function (tradingType, enterTf, candlesCount) {
-        if (tradingType === 1 || !tradingType) return "";
-        return `${App.renderTradingBtn(tradingType)} ${enterTf} (${candlesCount})`;
+      function (tradingType, tradingTypeSub, candlesCount) {
+        if (!candlesCount) return "";
+        return `(${App.renderTradingBtn(tradingType, tradingTypeSub)} ${candlesCount})`;
       },
     );
     window.Handlebars.registerHelper("multiply", function (a, b) {
@@ -2646,16 +2639,16 @@ class App {
       return;
     }
     App.state.algoTrading = {
-      tradingType: alertsDataJson.tradingType || 1,
-      tradingTypeSub: alertsDataJson.tradingTypeSub || 1,
-      enterTf: alertsDataJson.enterTf || "4h",
+      tradingType: alertsDataJson.tradingType || 0,
+      tradingTypeSub: alertsDataJson.tradingTypeSub || 0,
+      //enterTf: alertsDataJson.enterTf || "4h",
       sl: alertsDataJson.sl || Order.state.STOP_LOSS,
       tp: alertsDataJson.tp || Order.state.TAKE_PROFIT,
       size: alertsDataJson.size,
       attemptsCount: alertsDataJson.attemptsCount,
-      breakeven: alertsDataJson.breakeven || 5,
-      candlesCount: alertsDataJson.candlesCount || 30,
-      touchCount: alertsDataJson.touchCount || 4,
+      breakeven: alertsDataJson.breakeven || 6,
+      candlesCount: alertsDataJson.candlesCount || 25,
+      touchCount: alertsDataJson.touchCount || 3,
       tolerance: alertsDataJson.tolerance || 0.2,
     };
     App.setState({});
@@ -2709,7 +2702,10 @@ class App {
     //show hide btn
     if (alertsDataJson.exists) {
       document.querySelector(".trading-btn").textContent =
-        this.renderTradingBtn(alertsDataJson.tradingType);
+        this.renderTradingBtn(
+          alertsDataJson.tradingType,
+          alertsDataJson.tradingTypeSub,
+        );
     }
     document
       .querySelector(".trading-btn")
@@ -2724,12 +2720,12 @@ class App {
     document
       .querySelector(".order-btn")
       .classList.toggle("d-none", !alertsDataJson.exists);
-    document
-      .querySelector(".long-btn")
-      .classList.toggle("d-none", !alertsDataJson.exists);
-    document
-      .querySelector(".short-btn")
-      .classList.toggle("d-none", !alertsDataJson.exists);
+    //document
+    //  .querySelector(".long-btn")
+    //  .classList.toggle("d-none", !alertsDataJson.exists);
+    //document
+    //  .querySelector(".short-btn")
+    //  .classList.toggle("d-none", !alertsDataJson.exists);
     this.state.bsOffcanvas.hide();
     //tf active
     document
@@ -2740,17 +2736,16 @@ class App {
       ?.classList.add("bg-primary");
   }
   //trading btn render
-  static renderTradingBtn(tradingType) {
-    switch (tradingType) {
+  static renderTradingBtn(tradingType, tradingTypeSub) {
+    const icon = App.state.user === "main" ? "↗️" : "↘️";
+    switch (App.state.user === "main" ? tradingType : tradingTypeSub) {
+      case 1:
+        return `${icon} 1h`;
       case 2:
-        return "↗️";
-      case 3:
-        return "↘️";
+        return `${icon} 2h`;
       case 4:
-        return "🔀";
-      case 5:
-        return "⏩";
-      case 6:
+        return `${icon} 4h`;
+      case 13:
         return "⭕️";
       default:
         return "💰";

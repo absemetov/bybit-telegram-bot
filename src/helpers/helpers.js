@@ -38,10 +38,12 @@ export const renderMsg = async (ctx, message, inlineKeyboard, edit = true) => {
   }
 };
 //send msg to the channel
+//new channel Levels -1003214379725
+//old -1002687531775
 export const sendMsgChannel = async (bot, message, inlineKeyboard) => {
   const { header = "", msg = "", footer = "" } = message;
   await bot.telegram.sendMessage(
-    "-1002687531775",
+    "-1003214379725",
     `${header} <b>${escapeHtml(msg)}</b>\n${footer}`,
     {
       parse_mode: "HTML",

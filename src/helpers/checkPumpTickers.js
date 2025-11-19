@@ -20,12 +20,35 @@ export const runTimeframeScan = async (timeframe, bot) => {
           "all",
         );
         const arrayNotify = [];
+        //const candlesCount = 20;
         for (const ticker of tickers) {
-          const { symbol } = ticker;
-          for (const tf of ["4h", "6h", "12h", "1d", "1w"]) {
-            const levels = await findLevels(ticker, bot, tf);
+          const { symbol, candlesCount = 20 } = ticker;
+          for (const tf of ["4h", "6h", "12h", "1d"]) {
+            const candles = await getCandles(symbol, tf, candlesCount);
+            if (candles.length < candlesCount) {
+              continue;
+              //return null;
+            }
+            const levels = await findLevels(
+              ticker,
+              candles,
+              bot,
+              tf,
+              candlesCount,
+              3,
+              1,
+            );
+            const shortLevels = await findLevels(
+              ticker,
+              candles.slice(-2),
+              bot,
+              tf,
+              2,
+              2,
+              1,
+            );
             //const rsi = await getRsi(ticker, bot, tf);
-            if (levels) {
+            if (levels && shortLevels) {
               arrayNotify.push({
                 symbol,
                 data: {
@@ -34,27 +57,27 @@ export const runTimeframeScan = async (timeframe, bot) => {
                   read: true,
                 },
               });
-              //const { msg } = levels;
-              //await sendMsgChannel(
-              //  bot,
-              //  {
-              //    header: `<code>${symbol.slice(0, -4)}</code>`,
-              //    msg,
-              //    footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
-              //  },
-              //  Markup.inlineKeyboard([
-              //    [
-              //      Markup.button.url(
-              //        `${symbol} chart`,
-              //        `https://bybit-telegram-bot.pages.dev/${symbol}/${tf}`,
-              //      ),
-              //    ],
-              //  ]),
-              //);
+              const { msg } = levels;
+              await sendMsgChannel(
+                bot,
+                {
+                  header: `<code>${symbol.slice(0, -4)}</code> `,
+                  msg,
+                  footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)}_levels #${symbol} #levels`,
+                },
+                Markup.inlineKeyboard([
+                  [
+                    Markup.button.url(
+                      `${symbol} chart`,
+                      `https://bybit.rzk.com.ru/chart/${symbol}`,
+                    ),
+                  ],
+                ]),
+              );
             }
+            //pause 1 seconds
+            await new Promise((resolve) => setTimeout(resolve, 2000));
           }
-          //pause 1 seconds
-          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
         //save batch
         await Ticker.saveLevelBatch(arrayNotify);
@@ -67,6 +90,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
     //scan all bybit tickers
     if (timeframe === "1d") {
       let cursor = null;
+      const candlesCount = 25;
       //await configureAlgoliaIndex();
       do {
         const { tickers, nextCursor } = await getActiveSymbols(cursor, 50);
@@ -74,51 +98,43 @@ export const runTimeframeScan = async (timeframe, bot) => {
         //await uploadDataToAlgolia(tickers.map((t) => t.symbol));
         for (const ticker of tickers) {
           const { symbol } = ticker;
-          for (const tf of ["4h", "1d"]) {
-            const levels = await findLevels(ticker, bot, tf);
-            const rsi = await getRsi(ticker, bot, tf);
-            if (levels && rsi && (rsi <= 35 || rsi >= 70)) {
+          for (const tf of ["1d", "1w"]) {
+            const candles = await getCandles(symbol, tf, candlesCount);
+            if (candles.length < candlesCount) {
+              continue;
+              //return null;
+            }
+            const levels = await findLevels(
+              ticker,
+              candles,
+              bot,
+              tf,
+              candlesCount,
+              3,
+              0.5,
+            );
+            //const rsi = await getRsi(ticker, bot, tf);
+            if (levels) {
               const { msg } = levels;
               await sendMsgChannel(
                 bot,
                 {
-                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  header: `<code>${symbol.slice(0, -4)}</code> `,
                   msg,
-                  footer: `RSI ${rsi.toFixed(2)}% ${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
+                  footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)}_levels #${symbol} #levels`,
                 },
                 Markup.inlineKeyboard([
                   [
                     Markup.button.url(
                       `${symbol} chart`,
-                      `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
+                      `https://bybit-telegram-bot.pages.dev/${symbol}/${tf}`,
                     ),
                   ],
                 ]),
               );
             }
-          }
-          //volumeUp
-          const volume = await volumeUp(symbol, 4);
-          if (volume) {
-            const { volumeRatio, msg } = volume;
-            if (volumeRatio > 8) {
-              await sendMsgChannel(
-                bot,
-                {
-                  header: `<code>${symbol.slice(0, -4)}</code>`,
-                  msg,
-                  footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)} #${symbol} #top100`,
-                },
-                Markup.inlineKeyboard([
-                  [
-                    Markup.button.url(
-                      `${symbol} chart`,
-                      `https://bybit-telegram-bot.pages.dev/${symbol}/1h`,
-                    ),
-                  ],
-                ]),
-              );
-            }
+            //pause 1 seconds
+            await new Promise((resolve) => setTimeout(resolve, 2000));
           }
           //pause 0.5 seconds
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -134,16 +150,13 @@ export const runTimeframeScan = async (timeframe, bot) => {
   }
 };
 //find pump volumes
-export const volumeUp = async function findPumpVolumes(
-  symbol,
+function findPumpVolumes(
+  ticker,
+  candles,
   multiplier = 2.5,
   timeframe = "15min",
 ) {
   try {
-    const candles = await getCandles(symbol, timeframe, 10);
-    if (candles.length < 10) {
-      return null;
-    }
     const previousVolumes = candles.slice(-5, -1);
     //prev candle
     const { close, volume } = candles[candles.length - 1];
@@ -152,17 +165,21 @@ export const volumeUp = async function findPumpVolumes(
       previousVolumes.length;
     const volumeRatio = volume / averageVolume;
     const isSpike = volumeRatio >= multiplier;
-    if (isSpike) {
+    const newVolume =
+      !ticker[`volumeRatio${timeframe}`] ||
+      Math.abs(ticker[`volumeRatio${timeframe}`] - volumeRatio) / volumeRatio >=
+        2 / 100;
+    if (isSpike && newVolume) {
       return {
         msg: `📊 Volume Up x${volumeRatio.toFixed(1)} ${timeframe} Price ${close}$`,
-        volumeRatio,
+        [`volumeRatio${timeframe}`]: volumeRatio,
       };
     }
     return null;
   } catch (error) {
-    console.error(`Error in findPumpvolumes ${symbol}:`, error.message);
+    console.error(`Error in findPumpvolumes`, error.message);
   }
-};
+}
 //get RSI data
 async function getRsi(ticker, bot, timeframe = "1h") {
   try {
@@ -179,51 +196,91 @@ async function getRsi(ticker, bot, timeframe = "1h") {
   }
 }
 //find levels
-async function findLevels(ticker, bot, timeframe = "4h") {
+async function findCompression(
+  ticker,
+  bot,
+  candles,
+  timeframe = "4h",
+  candlesCount = 10,
+  touchCount = 5,
+  tolerance = 1,
+) {
   try {
-    const {
-      symbol,
-      candlesCount = 30,
-      touchCount = 4,
-      tolerance = 0.5,
-    } = ticker;
-    const candles = await getCandles(symbol, timeframe, candlesCount);
-    if (candles.length < candlesCount) {
-      //continue;
-      return null;
-    }
     const { close } = candles[candles.length - 1];
-    const longLevels = Indicators.calculateLevels(candles, touchCount);
-    //support zone
-    if (Math.abs(longLevels.support - close) / close <= tolerance / 100) {
-      //timeframe === "4h" ? 94899148 : "-1002687531775",
-      const newLevel =
-        !ticker[`levelPriceS${timeframe}`] ||
-        Math.abs(ticker[`levelPriceS${timeframe}`] - longLevels.support) /
-          longLevels.support >=
-          (tolerance * 2) / 100;
-      if (newLevel) {
+    const { support, resistance } = Indicators.calculateLevels(
+      candles.slice(-candlesCount),
+      touchCount,
+    );
+    if (support && resistance) {
+      const newSupport =
+        !ticker[`compPriceS${timeframe}`] ||
+        Math.abs(ticker[`compPriceS${timeframe}`] - support) / support >=
+          tolerance / 100;
+      const newResistance =
+        !ticker[`compPriceR${timeframe}`] ||
+        Math.abs(ticker[`compPriceR${timeframe}`] - resistance) / resistance >=
+          tolerance / 100;
+      const rangePercent = ((resistance - support) / support) * 100;
+      if (
+        rangePercent < 2 &&
+        support <= close &&
+        resistance >= close &&
+        newSupport &&
+        newResistance
+      ) {
         return {
-          msg: `📈 Support ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          [`levelPriceS${timeframe}`]: longLevels.support,
+          msg: `📉 Compression ${rangePercent.toFixed(2)}% ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          [`compPriceR${timeframe}`]: resistance,
+          [`compPriceS${timeframe}`]: support,
         };
       }
     }
-    //resistance
-    //if (
-    //  longLevels.resistance <= high * (1 + 0.5 / 100) &&
-    //  longLevels.resistance >= low * (1 - 0.5 / 100)
-    //) {
-    if (Math.abs(longLevels.resistance - close) / close <= tolerance / 100) {
+    return null;
+  } catch (error) {
+    console.error(`Error check Levels:`, error.message);
+    await sendMsgMe(bot, { msg: `Error in findLevels ${error.message}` });
+  }
+}
+//find levels
+async function findLevels(
+  ticker,
+  candles,
+  bot,
+  timeframe = "4h",
+  candlesCount,
+  touchCount = 4,
+  tolerance = 1,
+) {
+  try {
+    //pump detect
+    const { close } = candles[candles.length - 1];
+    const { support, resistance } = Indicators.calculateLevels(
+      candles,
+      touchCount,
+    );
+    //support zone
+    if (Math.abs(support - close) / close <= tolerance / 100) {
+      const newLevel =
+        !ticker[`levelPriceS${timeframe}`] ||
+        Math.abs(ticker[`levelPriceS${timeframe}`] - support) / support >=
+          tolerance / 100;
+      if (newLevel) {
+        return {
+          msg: `📈 Support ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          [`levelPriceS${timeframe}`]: support,
+        };
+      }
+    }
+    //resistance zone
+    if (Math.abs(resistance - close) / close <= tolerance / 100) {
       const newLevel =
         !ticker[`levelPriceR${timeframe}`] ||
-        Math.abs(ticker[`levelPriceR${timeframe}`] - longLevels.resistance) /
-          longLevels.resistance >=
-          (tolerance * 2) / 100;
+        Math.abs(ticker[`levelPriceR${timeframe}`] - resistance) / resistance >=
+          tolerance / 100;
       if (newLevel) {
         return {
           msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          [`levelPriceR${timeframe}`]: longLevels.resistance,
+          [`levelPriceR${timeframe}`]: resistance,
         };
       }
     }

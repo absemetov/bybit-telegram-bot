@@ -67,12 +67,12 @@ class Ticker {
   //create default Alerts
   static async createAlerts(symbol, support, resistance) {
     const alerts = {
-      alert0: support * (1 - 1 / 100),
+      alert0: support * (1 - 1.5 / 100),
       alert1: support,
       alert2: support * (1 + 1 / 100),
       alert3: resistance * (1 - 1 / 100),
       alert4: resistance,
-      alert5: resistance * (1 + 1 / 100),
+      alert5: resistance * (1 + 1.5 / 100),
     };
     await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
   }
@@ -95,7 +95,7 @@ class Ticker {
       : [];
   }
   // get all alerts
-  static async getAlerts(symbol, user) {
+  static async getAlerts(symbol, user, read) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     //const config = await Scan.getConfig(timeframe);
@@ -103,6 +103,9 @@ class Ticker {
     //get limit orders
     const orders = await bybitUsers[user].getTickerOrders(symbol);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
+    if (symbolDoc.exists && read) {
+      await Ticker.updateField(symbol, "read", !read);
+    }
     //const closedPositions =
     //  await bybitUsers[user].getClosedPositionsHistory(symbol);
     return {
@@ -176,8 +179,8 @@ class Ticker {
                 .collection("crypto")
                 .where(
                   Filter.or(
-                    Filter.where("tradingType", ">", 1),
-                    Filter.where("tradingTypeSub", ">", 1),
+                    Filter.where("tradingType", ">", 0),
+                    Filter.where("tradingTypeSub", ">", 0),
                   ),
                 )
             : db.collection("crypto").orderBy("updatedAt", "desc");

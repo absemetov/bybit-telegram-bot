@@ -69,7 +69,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     const {
       tradingType,
       tradingTypeSub,
-      enterTf,
+      //enterTf,
       tp,
       sl,
       size,
@@ -82,7 +82,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     await Ticker.update(symbol, {
       tradingType,
       tradingTypeSub,
-      enterTf,
+      //enterTf,
       tp,
       sl,
       size,
@@ -177,10 +177,10 @@ app.post("/alerts/:symbol", protectPage, async (req, res) => {
       //set default alerts
       await Ticker.createAlerts(symbol, support, resistance);
     }
-    if (read) {
-      await Ticker.updateField(symbol, "read", !read);
-    }
-    const alerts = await Ticker.getAlerts(symbol, user);
+    //if (read) {
+    //  await Ticker.updateField(symbol, "read", !read);
+    //}
+    const alerts = await Ticker.getAlerts(symbol, user, read);
     return res.json(alerts);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -415,12 +415,13 @@ app.post("/position/list", protectPage, async (req, res) => {
 app.post("/position/edit/:field/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol, field } = req.params;
-    const { side, stopLoss, takeProfit, user } = req.body;
+    const { side, stopLoss, takeProfit, user, tp } = req.body;
     if (field === "sl") {
       await bybitUsers[user].editStopLoss(symbol, side, stopLoss);
     }
     if (field === "tp") {
       await bybitUsers[user].editTakeProfit(symbol, side, takeProfit);
+      await Ticker.updateField(symbol, "tp", tp);
     }
     const response = await bybitUsers[user].getPositions();
     return res.json(response);
