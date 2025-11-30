@@ -3,7 +3,7 @@ import Ticker from "../models/Ticker.js";
 import { sendMsgMe } from "../helpers/helpers.js";
 //const balance = await getBybitBalance();
 //leverage
-const MAX_POSITION_USDT = 3000;
+const MAX_POSITION_USDT = 10000;
 const TAKE_PROFIT = 16;
 const STOP_LOSS = 2;
 //trading btn render
@@ -16,8 +16,6 @@ function renderTradingBtn(tradingType, user) {
       return `${icon} 2h`;
     case 4:
       return `${icon} 4h`;
-    case 13:
-      return "⭕️";
     default:
       return "🔴";
   }
@@ -56,8 +54,8 @@ export const checkPositions = async (
       await Ticker.incrementField(symbol, "attemptsCount", 1);
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
-        msg: `${account} Cancel ${order.side} order Price ${order.price}$ Sum: ${order.sum}$ ${renderTradingBtn(tradingType, account)}\n[${candlesCount} ${touchCount}, ${tolerance}]`,
-        footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Cancel_Order_${account}`,
+        msg: `${account} Cancel ${order.side} order Price ${order.price}$ Sum: ${order.sum}$ ${renderTradingBtn(tradingType, account)}\n[${candlesCount}, ${touchCount}, ${tolerance}]`,
+        footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Cancel_Order_${order.side}`,
       });
     }
   }
@@ -82,7 +80,7 @@ export const checkPositions = async (
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
         msg: `${account} Orders closed! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$`,
-        footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Close_Fomo`,
+        footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Fomo`,
       });
     }
     if (side === "Sell") {
@@ -118,7 +116,7 @@ export const checkPositions = async (
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
             msg:
-              `Breakeven 30% 🔴 Short ${account} ${renderTradingBtn(tradingType, account)} breakeven ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `Breakeven30% ${(pnlPersent * 0.3).toFixed(2)}% 🔴 Short ${account} ${renderTradingBtn(tradingType, account)} breakeven start ${breakeven}%, pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
             footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Short_Breakeven`,
           });
@@ -188,7 +186,7 @@ export const checkPositions = async (
           await sendMsgMe(bot, {
             header: `<code>${symbol.slice(0, -4)}</code>`,
             msg:
-              `Breakeven 30% 🟢 Long ${account} ${renderTradingBtn(tradingType, account)} breakeven ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `Breakeven30% ${(pnlPersent * 0.3).toFixed(2)}% 🟢 Long ${account} ${renderTradingBtn(tradingType, account)} breakeven start ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
             footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Long_Breakeven`,
           });
@@ -238,6 +236,7 @@ export const algoTrading = async (
   bot,
   account,
   tradingType,
+  shortLevels,
 ) => {
   try {
     const {
@@ -264,10 +263,10 @@ export const algoTrading = async (
     //create LONG orders main account
     if (
       longLevels.support > 0 &&
+      shortLevels.support > 0 &&
       [1, 2, 4].includes(tradingType) &&
       account === "main" &&
-      longOrders.length === 0 &&
-      attemptsCount > 0
+      longOrders.length === 0
     ) {
       if (Math.abs(longLevels.support - price) / price <= tolerance / 100) {
         if (
@@ -305,10 +304,10 @@ export const algoTrading = async (
     //create SHORT orders sub account
     if (
       longLevels.resistance > 0 &&
+      shortLevels.resistance > 0 &&
       [1, 2, 4].includes(tradingType) &&
       account === "sub" &&
-      shortOrders.length === 0 &&
-      attemptsCount > 0
+      shortOrders.length === 0
     ) {
       if (Math.abs(longLevels.resistance - price) / price <= tolerance / 100) {
         if (

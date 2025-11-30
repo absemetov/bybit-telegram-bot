@@ -177,13 +177,15 @@ class Ticker {
           : tab === "trading"
             ? db
                 .collection("crypto")
-                .where(
-                  Filter.or(
-                    Filter.where("tradingType", ">", 0),
-                    Filter.where("tradingTypeSub", ">", 0),
-                  ),
-                )
-            : db.collection("crypto").orderBy("updatedAt", "desc");
+                .where("attemptsCount", ">=", 0)
+                .orderBy("attemptsCount")
+            : //.where(
+              //  Filter.or(
+              //    Filter.where("tradingType", ">", 0),
+              //    Filter.where("tradingTypeSub", ">", 0),
+              //  ),
+              //)
+              db.collection("crypto").orderBy("updatedAt", "desc");
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {

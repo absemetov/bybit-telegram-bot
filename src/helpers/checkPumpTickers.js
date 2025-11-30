@@ -20,10 +20,10 @@ export const runTimeframeScan = async (timeframe, bot) => {
           "all",
         );
         const arrayNotify = [];
-        //const candlesCount = 20;
         for (const ticker of tickers) {
-          const { symbol, candlesCount = 20 } = ticker;
-          for (const tf of ["4h", "6h", "12h", "1d"]) {
+          const candlesCount = 20;
+          const { symbol } = ticker;
+          for (const tf of ["4h", "1d"]) {
             const candles = await getCandles(symbol, tf, candlesCount);
             if (candles.length < candlesCount) {
               continue;
@@ -36,16 +36,16 @@ export const runTimeframeScan = async (timeframe, bot) => {
               tf,
               candlesCount,
               3,
-              1,
+              0.5,
             );
             const shortLevels = await findLevels(
               ticker,
-              candles.slice(-2),
+              candles.slice(-3),
               bot,
               tf,
+              3,
               2,
-              2,
-              1,
+              0.5,
             );
             //const rsi = await getRsi(ticker, bot, tf);
             if (levels && shortLevels) {
@@ -76,7 +76,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
               );
             }
             //pause 1 seconds
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         }
         //save batch
@@ -254,10 +254,7 @@ async function findLevels(
   try {
     //pump detect
     const { close } = candles[candles.length - 1];
-    const { support, resistance } = Indicators.calculateLevels(
-      candles,
-      touchCount,
-    );
+    const { support } = Indicators.calculateLevels(candles, touchCount);
     //support zone
     if (Math.abs(support - close) / close <= tolerance / 100) {
       const newLevel =
@@ -272,18 +269,18 @@ async function findLevels(
       }
     }
     //resistance zone
-    if (Math.abs(resistance - close) / close <= tolerance / 100) {
-      const newLevel =
-        !ticker[`levelPriceR${timeframe}`] ||
-        Math.abs(ticker[`levelPriceR${timeframe}`] - resistance) / resistance >=
-          tolerance / 100;
-      if (newLevel) {
-        return {
-          msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          [`levelPriceR${timeframe}`]: resistance,
-        };
-      }
-    }
+    //if (Math.abs(resistance - close) / close <= tolerance / 100) {
+    //  const newLevel =
+    //    !ticker[`levelPriceR${timeframe}`] ||
+    //    Math.abs(ticker[`levelPriceR${timeframe}`] - resistance) / resistance >=
+    //      tolerance / 100;
+    //  if (newLevel) {
+    //    return {
+    //      msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+    //      [`levelPriceR${timeframe}`]: resistance,
+    //    };
+    //  }
+    //}
     return null;
   } catch (error) {
     console.error(`Error check Levels:`, error.message);

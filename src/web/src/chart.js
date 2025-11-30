@@ -662,7 +662,7 @@ class Order {
   static state = {
     TAKE_PROFIT: 10,
     STOP_LOSS: 1.5,
-    MAX_POSITION: 1000,
+    MAX_POSITION: 10000,
   };
   constructor() {
     this.initEventListeners();
@@ -678,7 +678,6 @@ class Order {
           { value: 1, name: "↗️  Long 1h" },
           { value: 2, name: "↗️  Long 2h" },
           { value: 4, name: "↗️  Long 4h" },
-          { value: 13, name: "⭕️ Position check" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingType) {
             el.checked = true;
@@ -692,7 +691,6 @@ class Order {
           { value: 1, name: "↘️  Short 1h" },
           { value: 2, name: "↘️  Short 2h" },
           { value: 4, name: "↘️  Short 4h" },
-          { value: 13, name: "⭕️ Position check" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingTypeSub) {
             el.checked = true;
@@ -2258,9 +2256,9 @@ class App {
     });
     window.Handlebars.registerHelper(
       "algoIcon",
-      function (tradingType, tradingTypeSub, candlesCount) {
-        if (!candlesCount) return "";
-        return `(${App.renderTradingBtn(tradingType, tradingTypeSub)} ${candlesCount})`;
+      function (tradingType, tradingTypeSub, attemptsCount, size) {
+        if (!attemptsCount || attemptsCount < 0) return "";
+        return `(${App.renderTradingBtn(tradingType, tradingTypeSub)}, ${size}$, ${attemptsCount}a)`;
       },
     );
     window.Handlebars.registerHelper("multiply", function (a, b) {
@@ -2482,7 +2480,7 @@ class App {
       : "📭";
     if (this.state.algoTrading) {
       document.querySelector(".display-symbol").textContent =
-        `${this.state.symbol} ${this.state.timeframe} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
+        `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
     }
   }
   static async renderChart() {
@@ -2745,10 +2743,8 @@ class App {
         return `${icon} 2h`;
       case 4:
         return `${icon} 4h`;
-      case 13:
-        return "⭕️";
       default:
-        return "💰";
+        return "🔴";
     }
   }
   // Функция для обработки нажатий клавиш

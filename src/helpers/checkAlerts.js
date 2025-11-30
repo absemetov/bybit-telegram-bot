@@ -42,7 +42,19 @@ export const checkAlerts = async (bot) => {
           const { close } = candles[candles.length - 1];
           await checkPositions(ticker, close, bot, levels, "main", tradingType);
           if (attemptsCount > 0) {
-            await algoTrading(ticker, levels, close, bot, "main", tradingType);
+            const shortLevels = Indicators.calculateLevels(
+              candles.slice(-3),
+              2,
+            );
+            await algoTrading(
+              ticker,
+              levels,
+              close,
+              bot,
+              "main",
+              tradingType,
+              shortLevels,
+            );
           }
         }
         //sub account
@@ -66,6 +78,10 @@ export const checkAlerts = async (bot) => {
             tradingTypeSub,
           );
           if (attemptsCount > 0) {
+            const shortLevels = Indicators.calculateLevels(
+              candles.slice(-3),
+              2,
+            );
             await algoTrading(
               ticker,
               levels,
@@ -73,10 +89,11 @@ export const checkAlerts = async (bot) => {
               bot,
               "sub",
               tradingTypeSub,
+              shortLevels,
             );
           }
         }
-        await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5 second pause
+        await new Promise((resolve) => setTimeout(resolve, 100)); // 0.5 second pause
       } catch (error) {
         console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
         await sendMsgMe(bot, {
