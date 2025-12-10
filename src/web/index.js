@@ -68,8 +68,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     const { symbol } = req.params;
     const {
       tradingType,
-      tradingTypeSub,
-      //enterTf,
+      tradingTypeShort,
       tp,
       sl,
       size,
@@ -78,19 +77,21 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       touchCount,
       tolerance,
       breakeven,
+      user,
     } = req.body;
     await Ticker.update(symbol, {
-      tradingType,
-      tradingTypeSub,
-      //enterTf,
-      tp,
-      sl,
-      size,
-      attemptsCount,
-      candlesCount,
-      touchCount,
-      tolerance,
-      breakeven,
+      [user]: {
+        attemptsCount,
+        tradingType,
+        tradingTypeShort,
+        tp,
+        sl,
+        size,
+        candlesCount,
+        touchCount,
+        tolerance,
+        breakeven,
+      },
     });
     return res.json({ ok: "Googluck!" });
   } catch (error) {
@@ -123,13 +124,13 @@ app.post("/win-rate/:symbol?", protectPage, async (req, res) => {
   }
 });
 app.get("/api/tickers", protectPage, async (req, res) => {
-  const { direction, lastVisibleId, tab, timeframe } = req.query;
+  const { direction, lastVisibleId, tab, user } = req.query;
   const paginate = await Ticker.paginate(
     10,
     direction,
     lastVisibleId,
     tab,
-    timeframe,
+    user,
   );
   return res.json({ paginate });
 });
@@ -415,13 +416,20 @@ app.post("/position/list", protectPage, async (req, res) => {
 app.post("/position/edit/:field/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol, field } = req.params;
-    const { side, stopLoss, takeProfit, user, tp } = req.body;
+    const { side, stopLoss, takeProfit, user, tp, sl } = req.body;
     if (field === "sl") {
-      await bybitUsers[user].editStopLoss(symbol, side, stopLoss);
+      if (sl) {
+        await Ticker.updateField(symbol, `${user}.sl`, sl);
+      } else {
+        await bybitUsers[user].editStopLoss(symbol, side, stopLoss);
+      }
     }
     if (field === "tp") {
-      await bybitUsers[user].editTakeProfit(symbol, side, takeProfit);
-      await Ticker.updateField(symbol, "tp", tp);
+      if (tp) {
+        await Ticker.updateField(symbol, `${user}.tp`, tp);
+      } else {
+        await bybitUsers[user].editTakeProfit(symbol, side, takeProfit);
+      }
     }
     const response = await bybitUsers[user].getPositions();
     return res.json(response);

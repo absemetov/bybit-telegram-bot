@@ -133,27 +133,27 @@ class Indicators {
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
-    ChartManager.state.markerRsi.setMarkers([]);
-    ChartManager.state.markRSI = [];
-    ChartManager.state.markRSI.push({
-      time: firstCandle.time,
-      //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
-      position: "inBar",
-      color: "blue",
-      //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      shape: "circle",
-      text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
-    });
-    ChartManager.state.markRSI.push({
-      time: lastCandle.time,
-      //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
-      position: "inBar",
-      color: "blue",
-      //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      shape: "circle",
-      text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
-    });
-    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    //ChartManager.state.markerRsi.setMarkers([]);
+    //ChartManager.state.markRSI = [];
+    //ChartManager.state.markRSI.push({
+    //  time: firstCandle.time,
+    //  //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+    //  position: "inBar",
+    //  color: "blue",
+    //  //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+    //  shape: "circle",
+    //  text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
+    //});
+    //ChartManager.state.markRSI.push({
+    //  time: lastCandle.time,
+    //  //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+    //  position: "inBar",
+    //  color: "blue",
+    //  //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+    //  shape: "circle",
+    //  text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
+    //});
+    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     App.state.resistanceMax = App.state.resistance || max;
     ChartManager.state.levelsArray[1].line.applyOptions({
@@ -438,48 +438,48 @@ class ChartManager {
       },
     });
     //indicators
-    ChartManager.state.rsiSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "#FF6D00",
-        lineWidth: 2,
-        priceLineVisible: false,
-      },
-      1,
-    );
-    ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
-      ChartManager.state.rsiSeries,
-    );
-    ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "blue",
-        lineWidth: 2,
-        priceLineVisible: false,
-      },
-      1,
-    );
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 30,
-      color: "green",
-      lineWidth: 2,
-      lineStyle: 1,
-      axisLabelVisible: false,
-    });
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 50,
-      color: "black",
-      lineWidth: 2,
-      lineStyle: 1,
-      axisLabelVisible: false,
-    });
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 70,
-      color: "red",
-      lineWidth: 2,
-      lineStyle: 1,
-      axisLabelVisible: false,
-    });
+    //ChartManager.state.rsiSeries = ChartManager.state.chart.addSeries(
+    //  window.LightweightCharts.LineSeries,
+    //  {
+    //    color: "#FF6D00",
+    //    lineWidth: 2,
+    //    priceLineVisible: false,
+    //  },
+    //  1,
+    //);
+    //ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
+    //  ChartManager.state.rsiSeries,
+    //);
+    //ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
+    //  window.LightweightCharts.LineSeries,
+    //  {
+    //    color: "blue",
+    //    lineWidth: 2,
+    //    priceLineVisible: false,
+    //  },
+    //  1,
+    //);
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 30,
+    //  color: "green",
+    //  lineWidth: 2,
+    //  lineStyle: 1,
+    //  axisLabelVisible: false,
+    //});
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 50,
+    //  color: "black",
+    //  lineWidth: 2,
+    //  lineStyle: 1,
+    //  axisLabelVisible: false,
+    //});
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 70,
+    //  color: "red",
+    //  lineWidth: 2,
+    //  lineStyle: 1,
+    //  axisLabelVisible: false,
+    //});
     // ChartManager.state.macdLineSeries = ChartManager.state.chart.addSeries(
     //   window.LightweightCharts.LineSeries,
     //   {
@@ -659,7 +659,7 @@ class ChartManager {
       ChartManager.state.candles = formattedData;
       ChartManager.state.candlestickSeries.setData([]);
       ChartManager.state.volumeSeries.setData([]);
-      ChartManager.state.rsiSeries.setData([]);
+      //ChartManager.state.rsiSeries.setData([]);
       // ChartManager.state.macdLineSeries.setData([]);
       // ChartManager.state.signalLineSeries.setData([]);
       // ChartManager.state.macdHistogramSeries.setData([]);
@@ -747,15 +747,15 @@ class ChartManager {
       })),
     );
     // Рассчитываем и отображаем исторические индикаторы
-    if (history.length > 14) {
-      ChartManager.state.rsi = Indicators.calculateRSI(history);
-      ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
-      ChartManager.state.rsiEMA = Indicators.calculateEMA(
-        ChartManager.state.rsi,
-        14,
-      );
-      ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
-    }
+    //if (history.length > 14) {
+    //  ChartManager.state.rsi = Indicators.calculateRSI(history);
+    //  ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
+    //  ChartManager.state.rsiEMA = Indicators.calculateEMA(
+    //    ChartManager.state.rsi,
+    //    14,
+    //  );
+    //  ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
+    //}
 
     // if (history.length >= 35) {
     //   const macdData = Indicators.calculateMACD(history);
@@ -778,6 +778,8 @@ class ChartManager {
       ?.classList.add("bg-primary");
   }
   updateRealtime(newCandle) {
+    //set doc title
+    document.title = `${newCandle.close}$ - ${App.state.symbol}`;
     if (!ChartManager.state.point) {
       const date = new Date(newCandle.time * 1000).toLocaleString("ru-RU");
       App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)}`;
@@ -802,12 +804,12 @@ class ChartManager {
       color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
     });
     // Расчет и обновление RSI
-    if (ChartManager.state.candles.length > 14) {
-      const rsi = Indicators.calculateRSI(ChartManager.state.candles);
-      ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
-      const rsiEma10 = Indicators.calculateEMA(rsi, 10);
-      ChartManager.state.rsiSeriesEMA.update(rsiEma10[rsiEma10.length - 1]);
-    }
+    //if (ChartManager.state.candles.length > 14) {
+    //  const rsi = Indicators.calculateRSI(ChartManager.state.candles);
+    //  ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
+    //  const rsiEma10 = Indicators.calculateEMA(rsi, 10);
+    //  ChartManager.state.rsiSeriesEMA.update(rsiEma10[rsiEma10.length - 1]);
+    //}
 
     // // Расчет и обновление MACD
     // if (ChartManager.state.candles.length > 35) {

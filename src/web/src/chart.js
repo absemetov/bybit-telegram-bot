@@ -67,7 +67,7 @@ class ModalManager {
       <form data-form-type="algo">
         <div class="row">
             <div class="col-md-6 mb-3">
-              <legend class="col-form-label pt-0">Main account</legend>
+              <legend class="col-form-label pt-0">Trading type Long</legend>
               {{#each algoTypes}}
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="tradingType" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
@@ -78,11 +78,11 @@ class ModalManager {
               {{/each}}
             </div>
             <div class="col-md-6 mb-3">
-              <legend class="col-form-label pt-0">Sub account</legend>
-              {{#each algoTypesSub}}
+              <legend class="col-form-label pt-0">Trading type Short</legend>
+              {{#each algoTypesShort}}
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="tradingTypeSub" id="radioDefaultSub{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
-                  <label class="form-check-label" for="radioDefaultSub{{value}}">
+                  <input class="form-check-input" type="radio" name="tradingTypeShort" id="radioDefaultShort{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+                  <label class="form-check-label" for="radioDefaultShort{{value}}">
                     {{name}}
                   </label>
                 </div>
@@ -99,14 +99,14 @@ class ModalManager {
                 <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" for="breakeven">Breakeven 30 (%)</label>
+                <label class="form-label" for="breakeven">Breakeven 20 (%)</label>
                 <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" required>
             </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="attemptsCount">Attempts count</label>
-                <input type="number" class="form-control" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" max="100">
+                <input type="number" class="form-control" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" required max="10">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="tp">Take Profit (%)</label>
@@ -120,7 +120,7 @@ class ModalManager {
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="candlesCount">Candles count</label>
-                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="7">
+                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="2">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label" for="touchCount">Touch count</label>
@@ -174,7 +174,6 @@ class ModalManager {
         return this.templates.orderForm({
           orderType: config.orderType,
           buttonText: config.orderType.toUpperCase(),
-          //sl: Order.state.STOP_LOSS,
           sl: config.sl.toFixed(2),
           tp: Order.state.TAKE_PROFIT,
           size: Order.state.MAX_POSITION,
@@ -182,17 +181,9 @@ class ModalManager {
       case "algo-form":
         return this.templates.algoForm({
           algoTypes: config.algoTypes,
-          algoTypesSub: config.algoTypesSub,
-          //enterTf: config.enterTf,
-          sl: App.state.algoTrading.sl || Order.state.STOP_LOSS,
-          tp: App.state.algoTrading.tp || Order.state.TAKE_PROFIT,
-          size: App.state.algoTrading.size,
+          algoTypesShort: config.algoTypesShort,
+          ...App.state.algoTrading,
           maxSize: Order.state.MAX_POSITION,
-          candlesCount: App.state.algoTrading.candlesCount,
-          touchCount: App.state.algoTrading.touchCount,
-          tolerance: App.state.algoTrading.tolerance,
-          attemptsCount: App.state.algoTrading.attemptsCount,
-          breakeven: App.state.algoTrading.breakeven,
           loss:
             (App.state.algoTrading.size *
               App.state.algoTrading.sl *
@@ -240,12 +231,23 @@ class ModalManager {
       document.querySelector("#loss").value = lossOrder.toFixed(2);
     }
     if (e.target.id === "sizeAlgo") {
+      const attemptsCount = Math.floor(
+        App.state.algoTrading.balance /
+          ((e.target.value * document.querySelector("#sl").value) / 100),
+      );
+      document.querySelector("#attemptsCount").value = attemptsCount;
       const lossAlgo =
         (e.target.value *
           document.querySelector("#sl").value *
           document.querySelector("#attemptsCount").value) /
         100;
-      document.querySelector("#loss").value = lossAlgo.toFixed(2);
+      document.querySelector("#loss").value =
+        attemptsCount > 0
+          ? lossAlgo.toFixed(2)
+          : App.state.algoTrading.balance.toFixed(1);
+      if (!attemptsCount) {
+        alert("Liquidation! Stop!");
+      }
     }
     if (e.target.id === "attemptsCount") {
       const lossAlgo =
@@ -256,6 +258,11 @@ class ModalManager {
       document.querySelector("#loss").value = lossAlgo.toFixed(2);
     }
     if (e.target.id === "sl") {
+      const attemptsCount = Math.floor(
+        App.state.algoTrading.balance /
+          ((e.target.value * document.querySelector("#sizeAlgo").value) / 100),
+      );
+      document.querySelector("#attemptsCount").value = attemptsCount;
       const lossAlgo =
         (e.target.value *
           document.querySelector("#attemptsCount").value *
@@ -609,16 +616,15 @@ class ModalManager {
     const attemptsCount = parseFloat(data.get("attemptsCount"));
     const breakeven = parseFloat(data.get("breakeven"));
     const tradingType = parseFloat(data.get("tradingType"));
-    const tradingTypeSub = parseFloat(data.get("tradingTypeSub"));
+    const tradingTypeShort = parseFloat(data.get("tradingTypeShort"));
     //const enterTf = data.get("enterTf");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
     App.state.algoTrading = {
       tradingType,
-      tradingTypeSub,
+      tradingTypeShort,
       breakeven,
-      //enterTf,
       tp,
       sl,
       size,
@@ -626,6 +632,8 @@ class ModalManager {
       candlesCount,
       touchCount,
       tolerance,
+      balance: App.state.algoTrading.balance,
+      user: App.state.user,
     };
     App.setState({});
     try {
@@ -641,10 +649,9 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      document.querySelector(".trading-btn").textContent = App.renderTradingBtn(
-        tradingType,
-        tradingTypeSub,
-      );
+      document.querySelector(".trading-btn").textContent =
+        App.renderTradingBtn(tradingType) +
+        App.renderTradingBtn(tradingTypeShort, "short");
       Indicators.calculateLevels(
         ChartManager.state.candles,
         App.state.algoTrading.candlesCount,
@@ -661,7 +668,7 @@ class ModalManager {
 class Order {
   static state = {
     TAKE_PROFIT: 10,
-    STOP_LOSS: 1.5,
+    STOP_LOSS: 3,
     MAX_POSITION: 10000,
   };
   constructor() {
@@ -675,9 +682,9 @@ class Order {
         Order.state.symbol = App.state.symbol;
         const algoTypes = [
           { value: 0, name: "🔴 Off" },
-          { value: 1, name: "↗️  Long 1h" },
-          { value: 2, name: "↗️  Long 2h" },
-          { value: 4, name: "↗️  Long 4h" },
+          { value: 1, name: `↗️ Long 1h` },
+          { value: 2, name: `↗️ Long 2h` },
+          { value: 4, name: `↗️ Long 4h` },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingType) {
             el.checked = true;
@@ -686,13 +693,13 @@ class Order {
           }
           return el;
         });
-        const algoTypesSub = [
+        const algoTypesShort = [
           { value: 0, name: "🔴 Off" },
           { value: 1, name: "↘️  Short 1h" },
           { value: 2, name: "↘️  Short 2h" },
           { value: 4, name: "↘️  Short 4h" },
         ].map((el) => {
-          if (el.value === App.state.algoTrading.tradingTypeSub) {
+          if (el.value === App.state.algoTrading.tradingTypeShort) {
             el.checked = true;
           } else {
             el.checked = false;
@@ -715,9 +722,9 @@ class Order {
         //});
         App.modal.render({
           type: "algo-form",
-          title: `AlgoTrading ${Order.state.symbol}`,
+          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "Swing" : "Scalping"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
           algoTypes,
-          algoTypesSub,
+          algoTypesShort,
           //enterTf,
         });
       });
@@ -1133,27 +1140,27 @@ class Indicators {
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
-    ChartManager.state.markerRsi.setMarkers([]);
-    ChartManager.state.markRSI = [];
-    ChartManager.state.markRSI.push({
-      time: firstCandle.time,
-      //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
-      position: "inBar",
-      color: "blue",
-      //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      shape: "circle",
-      text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
-    });
-    ChartManager.state.markRSI.push({
-      time: lastCandle.time,
-      //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
-      position: "inBar",
-      color: "blue",
-      //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-      shape: "circle",
-      text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
-    });
-    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
+    //ChartManager.state.markerRsi.setMarkers([]);
+    //ChartManager.state.markRSI = [];
+    //ChartManager.state.markRSI.push({
+    //  time: firstCandle.time,
+    //  //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
+    //  position: "inBar",
+    //  color: "blue",
+    //  //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
+    //  shape: "circle",
+    //  text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
+    //});
+    //ChartManager.state.markRSI.push({
+    //  time: lastCandle.time,
+    //  //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
+    //  position: "inBar",
+    //  color: "blue",
+    //  //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
+    //  shape: "circle",
+    //  text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
+    //});
+    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     App.state.resistanceMax = App.state.resistance || max;
     ChartManager.state.levelsArray[1].line.applyOptions({
@@ -1358,7 +1365,7 @@ class ChartManager {
   };
   constructor() {
     this.container = document.getElementById("chart");
-    this.volumeContainer = document.getElementById("volumeEl");
+    //this.volumeContainer = document.getElementById("volumeEl");
     this.candleContainer = document.getElementById("candleEl");
     this.prevSymbolKlineTopic = null;
     this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
@@ -1464,66 +1471,66 @@ class ChartManager {
         }),
       },
     ];
-    ChartManager.state.volumeSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.HistogramSeries,
-      {
-        priceFormat: { type: "volume" },
-        priceScaleId: "",
-      },
-      0,
-    );
-    ChartManager.state.volumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.75, // highest point of the series will be 70% away from the top
-        bottom: 0,
-      },
-    });
+    //ChartManager.state.volumeSeries = ChartManager.state.chart.addSeries(
+    //  window.LightweightCharts.HistogramSeries,
+    //  {
+    //    priceFormat: { type: "volume" },
+    //    priceScaleId: "",
+    //  },
+    //  0,
+    //);
+    //ChartManager.state.volumeSeries.priceScale().applyOptions({
+    //  scaleMargins: {
+    //    top: 0.95, // highest point of the series will be 70% away from the top
+    //    bottom: 0,
+    //  },
+    //});
     //indicators
-    ChartManager.state.rsiSeries = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "#FF6D00",
-        lineWidth: 2,
-        priceLineVisible: false,
-      },
-      1,
-    );
-    ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
-      window.LightweightCharts.LineSeries,
-      {
-        color: "green",
-        lineWidth: 2,
-        priceLineVisible: false,
-      },
-      1,
-    );
-    ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
-      ChartManager.state.rsiSeries,
-    );
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 30,
-      color: "green",
-      lineWidth: 2,
-      lineStyle: 2,
-      axisLabelVisible: false,
-    });
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 50,
-      color: "black",
-      lineWidth: 2,
-      lineStyle: 2,
-      axisLabelVisible: false,
-    });
-    ChartManager.state.rsiSeries.createPriceLine({
-      price: 70,
-      color: "red",
-      lineWidth: 2,
-      lineStyle: 2,
-      axisLabelVisible: false,
-    });
-    ChartManager.state.chart
-      .panes()[0]
-      .setHeight(document.documentElement.scrollHeight - 300);
+    //ChartManager.state.rsiSeries = ChartManager.state.chart.addSeries(
+    //  window.LightweightCharts.LineSeries,
+    //  {
+    //    color: "#FF6D00",
+    //    lineWidth: 2,
+    //    priceLineVisible: false,
+    //  },
+    //  1,
+    //);
+    //ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
+    //  window.LightweightCharts.LineSeries,
+    //  {
+    //    color: "green",
+    //    lineWidth: 2,
+    //    priceLineVisible: false,
+    //  },
+    //  1,
+    //);
+    //ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
+    //  ChartManager.state.rsiSeries,
+    //);
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 30,
+    //  color: "green",
+    //  lineWidth: 2,
+    //  lineStyle: 2,
+    //  axisLabelVisible: false,
+    //});
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 50,
+    //  color: "black",
+    //  lineWidth: 2,
+    //  lineStyle: 2,
+    //  axisLabelVisible: false,
+    //});
+    //ChartManager.state.rsiSeries.createPriceLine({
+    //  price: 70,
+    //  color: "red",
+    //  lineWidth: 2,
+    //  lineStyle: 2,
+    //  axisLabelVisible: false,
+    //});
+    //ChartManager.state.chart
+    //  .panes()[0]
+    //  .setHeight(document.documentElement.scrollHeight - 200);
     ChartManager.state.chart.subscribeClick(this.defaultAlerts);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
@@ -1556,6 +1563,8 @@ class ChartManager {
     const alertName = ChartManager.state.selectedAlert;
     ChartManager.state.selectedAlert = null;
     if (alertName) {
+      const { close } =
+        ChartManager.state.candles[ChartManager.state.candles.length - 1];
       //save alert
       for (const alert of ChartManager.state.alerts) {
         if (alertName === alert.name) {
@@ -1566,7 +1575,7 @@ class ChartManager {
           );
         }
       }
-      //change tp sl Long
+      //change tp sl Long position
       const positionLong = ChartManager.state.positions.find(
         (p) => p.side === "Buy",
       );
@@ -1587,7 +1596,7 @@ class ChartManager {
             .find((p) => p.name === "slLong")
             .line.applyOptions({
               price: stopLoss,
-              title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+              title: `SL/Long: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
             });
           return alert(`SL Long > ${Order.state.STOP_LOSS}%!!!`);
         }
@@ -1597,13 +1606,36 @@ class ChartManager {
             return;
           }
           params.stopLoss = stopLossNew;
+          if (price > close) {
+            ChartManager.state.positions
+              .find((p) => p.name === "slLong")
+              .line.applyOptions({
+                price: stopLoss,
+                title: `SL/Long: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+              });
+            return alert(`SL Long ${price}$ > ${close}$!!!`);
+          }
+          //change algo trading settings
+          if (pricePercent < 0) {
+            params.sl = +Math.abs(pricePercent).toFixed(1);
+            App.state.algoTrading.sl = +Math.abs(pricePercent).toFixed(1);
+          }
         } else {
           if (takeProfitNew === takeProfit) {
             return;
           }
+          if (price < close) {
+            ChartManager.state.positions
+              .find((p) => p.name === "tpLong")
+              .line.applyOptions({
+                price: takeProfit,
+                title: `TP/Long: ${(((takeProfit - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+              });
+            return alert(`TP ${price}$ < ${close}$!!!`);
+          }
           params.takeProfit = takeProfitNew;
-          params.tp = +pricePercent.toFixed(1);
-          App.state.algoTrading.tp = +pricePercent.toFixed(1);
+          params.tp = +Math.abs(pricePercent).toFixed(1);
+          App.state.algoTrading.tp = +Math.abs(pricePercent).toFixed(1);
         }
         try {
           const response = await fetch(
@@ -1624,6 +1656,7 @@ class ChartManager {
             alert(resJson.message);
             return false;
           }
+          //await App.loadAlerts();
         } catch (error) {
           alert(`Error: ${error.message}`);
         }
@@ -1660,10 +1693,33 @@ class ChartManager {
           if (stopLossNew === stopLoss) {
             return;
           }
+          if (price < close) {
+            ChartManager.state.positions
+              .find((p) => p.name === "slShort")
+              .line.applyOptions({
+                price: stopLoss,
+                title: `SL/Short: ${(((stopLoss - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+              });
+            return alert(`SL Short ${price}$ < ${close}$!!!`);
+          }
+          //change algo trading SL
           params.stopLoss = stopLossNew;
+          if (pricePercent > 0) {
+            params.sl = +pricePercent.toFixed(1);
+            App.state.algoTrading.sl = +pricePercent.toFixed(1);
+          }
         } else {
           if (takeProfitNew === takeProfit) {
             return;
+          }
+          if (price > close) {
+            ChartManager.state.positions
+              .find((p) => p.name === "tpShort")
+              .line.applyOptions({
+                price: takeProfit,
+                title: `TP/Short: ${(((takeProfit - avgPrice) / avgPrice) * 100).toFixed(2)}%`,
+              });
+            return alert(`TP Short ${price}$ > ${close}$!!!`);
           }
           params.takeProfit = takeProfitNew;
           params.tp = +Math.abs(pricePercent).toFixed(1);
@@ -1688,6 +1744,7 @@ class ChartManager {
             alert(resJson.message);
             return false;
           }
+          //await App.loadAlerts();
         } catch (error) {
           alert(`Error: ${error.message}`);
         }
@@ -1787,8 +1844,8 @@ class ChartManager {
       }));
       ChartManager.state.candles = formattedData;
       ChartManager.state.candlestickSeries.setData([]);
-      ChartManager.state.volumeSeries.setData([]);
-      ChartManager.state.rsiSeries.setData([]);
+      //ChartManager.state.volumeSeries.setData([]);
+      //ChartManager.state.rsiSeries.setData([]);
       this.updateData(formattedData);
       ChartManager.state.chart.timeScale().scrollToPosition(10);
     } catch (error) {
@@ -1849,7 +1906,6 @@ class ChartManager {
     this.prevSymbolKlineTopic = [
       `kline.${App.state.intervalKline}.${App.state.symbol}`,
     ];
-    //this.ws.send(JSON.stringify(subscribeMsg));
     this.sendSubscription(subscribeMsg);
   }
   // Обновление параметров графика
@@ -1860,8 +1916,6 @@ class ChartManager {
 
   // Подписка на данные
   subscribeToData() {
-    //const args = App.state.coins.map((coin) => `tickers.${coin.symbol}`);
-    //todo use D timeframe % by 03:00
     const args = App.state.coins.map((coin) => `kline.D.${coin.symbol}`);
     const subscribeMsg = {
       op: "subscribe",
@@ -1878,7 +1932,6 @@ class ChartManager {
     };
 
     if (this.activeSubscriptions.size > 0) {
-      // this.ws.send(JSON.stringify(unsubscribeMsg));
       this.sendSubscription(unsubscribeMsg);
       this.activeSubscriptions.clear();
     }
@@ -1905,9 +1958,6 @@ class ChartManager {
           this.handleTickerData(symbol, message.data[0]);
         }
       }
-      // if (data.topic.startsWith("tickers")) {
-      //   this.handleTickerData(data);
-      // }
     }
   }
   handleKlineData(candle) {
@@ -1956,34 +2006,28 @@ class ChartManager {
     ChartManager.state.ema9Series.setData(ChartManager.state.emaData9);
     ChartManager.state.emaData21 = Indicators.calculateEMA(history, 21);
     ChartManager.state.ema21Series.setData(ChartManager.state.emaData21);
-    ChartManager.state.volumeSeries.setData(
-      history.map((c) => ({
-        time: c.time,
-        value: c.volume,
-        color: c.close > c.open ? "#26A69A" : "#EF5350",
-      })),
-    );
-    // Рассчитываем и отображаем исторические индикаторы
-    if (history.length > 14) {
-      ChartManager.state.rsi = Indicators.calculateRSI(history);
-      //const adxData = Indicators.calculateBaseIndicators(history);
-      ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
-      ChartManager.state.rsiPeriod = 14;
-      ChartManager.state.rsiEMA = Indicators.calculateEMA(
-        ChartManager.state.rsi,
-        ChartManager.state.rsiPeriod,
-      );
-      ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
-    }
-    //scroll chart
-    // ChartManager.state.chart
-    //   .timeScale()
-    //   .setVisibleLogicalRange({ from: 0, to: 50 });
+    //ChartManager.state.volumeSeries.setData(
+    //  history.map((c) => ({
+    //    time: c.time,
+    //    value: c.volume,
+    //    color: c.close > c.open ? "#26A69A" : "#EF5350",
+    //  })),
+    //);
+    //// Рассчитываем и отображаем исторические индикаторы
+    //if (history.length > 14) {
+    //  ChartManager.state.rsi = Indicators.calculateRSI(history);
+    //  ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
+    //  ChartManager.state.rsiPeriod = 14;
+    //  ChartManager.state.rsiEMA = Indicators.calculateEMA(
+    //    ChartManager.state.rsi,
+    //    ChartManager.state.rsiPeriod,
+    //  );
+    //  ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
+    //}
   }
   updateRealtime(newCandle) {
     if (!ChartManager.state.point) {
-      //const date = new Date(newCandle.time * 1000).toLocaleString("ru-RU");
-      App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)}`;
+      //App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)}`;
       App.chartManager.candleContainer.textContent = `L${newCandle.low}$ H${newCandle.high}$ (${newCandle.close > newCandle.open ? `+${(((newCandle.high - newCandle.low) / newCandle.low) * 100).toFixed(2)}` : `${(((newCandle.low - newCandle.high) / newCandle.high) * 100).toFixed(2)}`}%)`;
     }
     const prevCandle =
@@ -1999,18 +2043,18 @@ class ChartManager {
     const ema21 = Indicators.calculateEMA(ChartManager.state.candles, 21);
     ChartManager.state.ema9Series.update(ema9[ema9.length - 1]);
     ChartManager.state.ema21Series.update(ema21[ema21.length - 1]);
-    ChartManager.state.volumeSeries.update({
-      time: newCandle.time,
-      value: newCandle.volume,
-      color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
-    });
+    //ChartManager.state.volumeSeries.update({
+    //  time: newCandle.time,
+    //  value: newCandle.volume,
+    //  color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
+    //});
     // Расчет и обновление RSI
-    if (ChartManager.state.candles.length > 14) {
-      const rsi = Indicators.calculateRSI(ChartManager.state.candles);
-      ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
-      const rsiEma = Indicators.calculateEMA(rsi, ChartManager.state.rsiPeriod);
-      ChartManager.state.rsiSeriesEMA.update(rsiEma[rsiEma.length - 1]);
-    }
+    //if (ChartManager.state.candles.length > 14) {
+    //  const rsi = Indicators.calculateRSI(ChartManager.state.candles);
+    //  ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
+    //  const rsiEma = Indicators.calculateEMA(rsi, ChartManager.state.rsiPeriod);
+    //  ChartManager.state.rsiSeriesEMA.update(rsiEma[rsiEma.length - 1]);
+    //}
     //positions
     const positionLong = ChartManager.state.positions.find(
       (p) => p.side === "Buy",
@@ -2059,20 +2103,21 @@ class ChartManager {
       App.chartManager.candleContainer.textContent = `L${candle.low}$ H${candle.high}$ (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
     }
     //update volume
-    if (param.time) {
-      const datapoints = param.seriesData.get(ChartManager.state.volumeSeries);
-      if (datapoints) {
-        App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)}`;
-      }
-    }
+    //if (param.time) {
+    //  const datapoints = param.seriesData.get(ChartManager.state.volumeSeries);
+    //  if (datapoints) {
+    //    App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)}`;
+    //  }
+    //}
     //price lines
     if (ChartManager.state.candlestickSeries) {
       ChartManager.state.currentPriceMove =
-        param.paneIndex === 0
-          ? ChartManager.state.candlestickSeries.coordinateToPrice(
-              param.point.y,
-            )
-          : ChartManager.state.rsiSeries.coordinateToPrice(param.point.y);
+        ChartManager.state.candlestickSeries.coordinateToPrice(param.point.y);
+      // param.paneIndex === 0
+      //   ? ChartManager.state.candlestickSeries.coordinateToPrice(
+      //       param.point.y,
+      //     )
+      //   : ChartManager.state.rsiSeries.coordinateToPrice(param.point.y);
       //App.state.hideAlerts
       if (ChartManager.state.currentPriceMove > 0) {
         App.chartManager.checkHover(ChartManager.state.currentPriceMove, [
@@ -2254,13 +2299,16 @@ class App {
       if (!updatedAt) return "";
       return window.moment(updatedAt._seconds * 1000).fromNow();
     });
-    window.Handlebars.registerHelper(
-      "algoIcon",
-      function (tradingType, tradingTypeSub, attemptsCount, size) {
-        if (!attemptsCount || attemptsCount < 0) return "";
-        return `(${App.renderTradingBtn(tradingType, tradingTypeSub)}, ${size}$, ${attemptsCount}a)`;
-      },
-    );
+    window.Handlebars.registerHelper("algoIcon", function (ticker) {
+      const {
+        attemptsCount = -1,
+        tradingType,
+        tradingTypeShort,
+        size,
+      } = ticker[App.state.user] || {};
+      if (attemptsCount < 0) return "";
+      return `(${App.renderTradingBtn(tradingType)}${App.renderTradingBtn(tradingTypeShort, "short")} ${size}$, ${attemptsCount}a)`;
+    });
     window.Handlebars.registerHelper("multiply", function (a, b) {
       return (a * b).toFixed(2);
     });
@@ -2426,7 +2474,7 @@ class App {
   }
   //my coins
   static async loadCoins(direction = null, lastVisibleId = null) {
-    const url = `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.state.activeTab}`;
+    const url = `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.state.activeTab}&user=${this.state.user}`;
     try {
       const response = await fetch(url);
       const data = await response.json();
@@ -2480,7 +2528,8 @@ class App {
       : "📭";
     if (this.state.algoTrading) {
       document.querySelector(".display-symbol").textContent =
-        `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
+        `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}] ` +
+        `${App.state.algoTrading.balance.toFixed(1)}$`;
     }
   }
   static async renderChart() {
@@ -2562,6 +2611,7 @@ class App {
   }
   static async loadAlerts(defaultAlerts = false) {
     Indicators.state.countLoads = 0;
+    document.querySelector(".trading-btn").classList.add("d-none");
     if (defaultAlerts) {
       App.state.supportMin =
         ChartManager.state.levelsArray[0].line.options().price;
@@ -2636,20 +2686,33 @@ class App {
     if (defaultAlerts) {
       return;
     }
+    const {
+      tradingType = 0,
+      tradingTypeShort = 0,
+      sl = Order.state.STOP_LOSS,
+      tp = Order.state.TAKE_PROFIT,
+      size = 0,
+      attemptsCount = -1,
+      breakeven = 6,
+      candlesCount = 25,
+      touchCount = 3,
+      tolerance = 0.1,
+    } = alertsDataJson[App.state.user] || {};
     App.state.algoTrading = {
-      tradingType: alertsDataJson.tradingType || 0,
-      tradingTypeSub: alertsDataJson.tradingTypeSub || 0,
-      //enterTf: alertsDataJson.enterTf || "4h",
-      sl: alertsDataJson.sl || Order.state.STOP_LOSS,
-      tp: alertsDataJson.tp || Order.state.TAKE_PROFIT,
-      size: alertsDataJson.size,
-      attemptsCount: alertsDataJson.attemptsCount,
-      breakeven: alertsDataJson.breakeven || 6,
-      candlesCount: alertsDataJson.candlesCount || 25,
-      touchCount: alertsDataJson.touchCount || 3,
-      tolerance: alertsDataJson.tolerance || 0.2,
+      tradingType,
+      tradingTypeShort,
+      sl,
+      tp,
+      size,
+      attemptsCount,
+      breakeven,
+      candlesCount,
+      touchCount,
+      tolerance,
+      balance: alertsDataJson.balance || 0,
     };
     App.setState({});
+    document.querySelector(".trading-btn").classList.remove("d-none");
     if (item) {
       item.querySelector(".add-btn").classList.remove("d-none");
       item
@@ -2700,10 +2763,8 @@ class App {
     //show hide btn
     if (alertsDataJson.exists) {
       document.querySelector(".trading-btn").textContent =
-        this.renderTradingBtn(
-          alertsDataJson.tradingType,
-          alertsDataJson.tradingTypeSub,
-        );
+        this.renderTradingBtn(App.state.algoTrading.tradingType) +
+        this.renderTradingBtn(App.state.algoTrading.tradingTypeShort);
     }
     document
       .querySelector(".trading-btn")
@@ -2734,15 +2795,15 @@ class App {
       ?.classList.add("bg-primary");
   }
   //trading btn render
-  static renderTradingBtn(tradingType, tradingTypeSub) {
-    const icon = App.state.user === "main" ? "↗️" : "↘️";
-    switch (App.state.user === "main" ? tradingType : tradingTypeSub) {
+  static renderTradingBtn(tradingType, side = "long") {
+    const icon = side === "long" ? "↗️" : "↘️";
+    switch (tradingType) {
       case 1:
-        return `${icon} 1h`;
+        return `${icon}1h`;
       case 2:
-        return `${icon} 2h`;
+        return `${icon}2h`;
       case 4:
-        return `${icon} 4h`;
+        return `${icon}4h`;
       default:
         return "🔴";
     }
@@ -2829,6 +2890,12 @@ class App {
         if (addBtn) {
           const { add } = addBtn.dataset;
           const fieldData = !(add === "true");
+          //confirm delete ticker
+          if (!fieldData) {
+            if (!confirm(`Delete ticker ${symbol}?`)) {
+              return;
+            }
+          }
           const response = await fetch(`/add/${symbol}`, {
             method: "POST",
             headers: {
@@ -3029,7 +3096,9 @@ class App {
         event.preventDefault();
         App.state.user = App.state.user === "main" ? "sub" : "main";
         event.target.textContent = App.state.user;
+        await this.loadCoins();
         await this.loadAlerts();
+        App.renderLevels();
       });
     //reset hide info btns
     document.querySelector(".reset-btn").addEventListener("click", async () => {

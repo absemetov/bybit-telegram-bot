@@ -1,4 +1,4 @@
-import { db, FieldValue, Filter } from "../firebase.js";
+import { db, FieldValue } from "../firebase.js";
 import Joi from "joi";
 import { getTicker, bybitUsers } from "../helpers/bybitV5.js";
 
@@ -103,6 +103,7 @@ class Ticker {
     //get limit orders
     const orders = await bybitUsers[user].getTickerOrders(symbol);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
+    const balance = await bybitUsers[user].getBybitBalance();
     if (symbolDoc.exists && read) {
       await Ticker.updateField(symbol, "read", !read);
     }
@@ -123,7 +124,7 @@ class Ticker {
       ...(symbolDoc.exists ? symbolDoc.data() : {}),
       orders,
       positions,
-      //closedPositions,
+      balance,
     };
   }
   //update alert
@@ -168,6 +169,7 @@ class Ticker {
     direction = null,
     lastVisibleId = null,
     tab = "favorites",
+    user = "main",
   ) {
     const mainQuery =
       tab === "favorites"
@@ -177,8 +179,8 @@ class Ticker {
           : tab === "trading"
             ? db
                 .collection("crypto")
-                .where("attemptsCount", ">=", 0)
-                .orderBy("attemptsCount")
+                .where(`${user}.attemptsCount`, ">=", 0)
+                .orderBy(`${user}.attemptsCount`)
             : //.where(
               //  Filter.or(
               //    Filter.where("tradingType", ">", 0),

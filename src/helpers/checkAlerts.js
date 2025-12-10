@@ -8,104 +8,129 @@ import { sendMsgMe } from "../helpers/helpers.js";
 //new algotrading and alerts
 export const checkAlerts = async (bot) => {
   //algoTrading
-  let direction = null;
-  let lastVisible = null;
-  //algotrading
-  do {
-    const { tickers, hasNext, lastVisibleId } = await Ticker.paginate(
-      100,
-      direction,
-      lastVisible,
-      "trading",
-    );
-    for (const ticker of tickers) {
-      try {
-        const {
-          symbol,
-          candlesCount = 25,
-          touchCount = 3,
-          tradingType = 0,
-          tradingTypeSub = 0,
-          attemptsCount = 0,
-        } = ticker;
-        //main account
-        if (tradingType > 0) {
-          const candles = await getCandles(
-            symbol,
-            `${tradingType}h`,
-            candlesCount,
-          );
-          if (candles.length < candlesCount) {
-            continue;
-          }
-          const levels = Indicators.calculateLevels(candles, touchCount);
-          const { close } = candles[candles.length - 1];
-          await checkPositions(ticker, close, bot, levels, "main", tradingType);
-          if (attemptsCount > 0) {
-            const shortLevels = Indicators.calculateLevels(
-              candles.slice(-3),
-              2,
-            );
-            await algoTrading(
-              ticker,
-              levels,
-              close,
-              bot,
-              "main",
-              tradingType,
-              shortLevels,
-            );
+  try {
+    //scalp and swing accounts
+    for (const user of ["main", "sub"]) {
+      let direction = null;
+      let lastVisible = null;
+      //algotrading
+      do {
+        const { tickers, hasNext, lastVisibleId } = await Ticker.paginate(
+          100,
+          direction,
+          lastVisible,
+          "trading",
+          user,
+        );
+        for (const ticker of tickers) {
+          try {
+            const { symbol } = ticker;
+            const {
+              candlesCount = 25,
+              touchCount = 3,
+              tradingType = 0,
+              tradingTypeShort = 0,
+              attemptsCount = 0,
+            } = ticker[user] || {};
+            //long side
+            if (tradingType > 0) {
+              const candles = await getCandles(
+                symbol,
+                `${tradingType}h`,
+                candlesCount,
+              );
+              if (candles.length < candlesCount) {
+                continue;
+              }
+              const levels = Indicators.calculateLevels(candles, touchCount);
+              const { close } = candles[candles.length - 1];
+              await checkPositions(
+                ticker,
+                close,
+                bot,
+                levels,
+                user,
+                tradingType,
+              );
+              if (attemptsCount > 0) {
+                const shortLevels = Indicators.calculateLevels(
+                  candles.slice(-2),
+                  2,
+                );
+                await algoTrading(
+                  ticker,
+                  levels,
+                  close,
+                  bot,
+                  user,
+                  tradingType,
+                  shortLevels,
+                  "long",
+                  attemptsCount,
+                );
+              }
+            }
+            //short side
+            if (tradingTypeShort > 0) {
+              const candles = await getCandles(
+                symbol,
+                `${tradingTypeShort}h`,
+                candlesCount,
+              );
+              if (candles.length < candlesCount) {
+                continue;
+              }
+              const levels = Indicators.calculateLevels(candles, touchCount);
+              const { close } = candles[candles.length - 1];
+              await checkPositions(
+                ticker,
+                close,
+                bot,
+                levels,
+                user,
+                tradingTypeShort,
+              );
+              if (attemptsCount > 0) {
+                const shortLevels = Indicators.calculateLevels(
+                  candles.slice(-2),
+                  2,
+                );
+                await algoTrading(
+                  ticker,
+                  levels,
+                  close,
+                  bot,
+                  user,
+                  tradingTypeShort,
+                  shortLevels,
+                  "short",
+                  attemptsCount,
+                );
+              }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100)); // 0.5 second pause
+          } catch (error) {
+            console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
+            await sendMsgMe(bot, {
+              msg: `Error in AlgoTrading ${ticker.symbol} ${error.message}`,
+            });
           }
         }
-        //sub account
-        if (tradingTypeSub > 0) {
-          const candles = await getCandles(
-            symbol,
-            `${tradingTypeSub}h`,
-            candlesCount,
-          );
-          if (candles.length < candlesCount) {
-            continue;
-          }
-          const levels = Indicators.calculateLevels(candles, touchCount);
-          const { close } = candles[candles.length - 1];
-          await checkPositions(
-            ticker,
-            close,
-            bot,
-            levels,
-            "sub",
-            tradingTypeSub,
-          );
-          if (attemptsCount > 0) {
-            const shortLevels = Indicators.calculateLevels(
-              candles.slice(-3),
-              2,
-            );
-            await algoTrading(
-              ticker,
-              levels,
-              close,
-              bot,
-              "sub",
-              tradingTypeSub,
-              shortLevels,
-            );
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100)); // 0.5 second pause
-      } catch (error) {
-        console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
-        await sendMsgMe(bot, {
-          msg: `Error in AlgoTrading ${ticker.symbol} ${error.message}`,
-        });
-      }
+        direction = hasNext ? "next" : null;
+        lastVisible = lastVisibleId;
+        // Пауза между пагинациями 1sec
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } while (direction);
     }
-    direction = hasNext ? "next" : null;
-    lastVisible = lastVisibleId;
-    // Пауза между пагинациями 1sec
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } while (direction);
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error in cron job checkAlerts:`,
+      error.message,
+    );
+    await sendMsgMe(bot, {
+      msg: `Error in AlgoTrading ${error.message}`,
+    });
+  }
   //alerts
   try {
     //const interval = "1min";

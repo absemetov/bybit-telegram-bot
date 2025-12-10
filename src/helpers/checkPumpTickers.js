@@ -21,7 +21,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
         );
         const arrayNotify = [];
         for (const ticker of tickers) {
-          const candlesCount = 20;
+          const candlesCount = 10;
           const { symbol } = ticker;
           for (const tf of ["4h", "1d"]) {
             const candles = await getCandles(symbol, tf, candlesCount);
@@ -40,10 +40,10 @@ export const runTimeframeScan = async (timeframe, bot) => {
             );
             const shortLevels = await findLevels(
               ticker,
-              candles.slice(-3),
+              candles.slice(-2),
               bot,
               tf,
-              3,
+              2,
               2,
               0.5,
             );
@@ -75,6 +75,35 @@ export const runTimeframeScan = async (timeframe, bot) => {
                 ]),
               );
             }
+            //volumeUp
+            //const volumeUp = findPumpVolumes(ticker, candles, 1, tf);
+            //if (volumeUp) {
+            //  arrayNotify.push({
+            //    symbol,
+            //    data: {
+            //      ...volumeUp,
+            //      updatedAt: new Date(),
+            //      read: true,
+            //    },
+            //  });
+            //  const { msg } = volumeUp;
+            //  await sendMsgChannel(
+            //    bot,
+            //    {
+            //      header: `<code>${symbol.slice(0, -4)}</code> `,
+            //      msg,
+            //      footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)}_volumes #${symbol} #volumes`,
+            //    },
+            //    Markup.inlineKeyboard([
+            //      [
+            //        Markup.button.url(
+            //          `${symbol} chart`,
+            //          `https://bybit.rzk.com.ru/chart/${symbol}`,
+            //        ),
+            //      ],
+            //    ]),
+            //  );
+            //}
             //pause 1 seconds
             await new Promise((resolve) => setTimeout(resolve, 1000));
           }
@@ -150,12 +179,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
   }
 };
 //find pump volumes
-function findPumpVolumes(
-  ticker,
-  candles,
-  multiplier = 2.5,
-  timeframe = "15min",
-) {
+function findPumpVolumes(ticker, candles, multiplier = 2, timeframe = "4h") {
   try {
     const previousVolumes = candles.slice(-5, -1);
     //prev candle
@@ -166,13 +190,16 @@ function findPumpVolumes(
     const volumeRatio = volume / averageVolume;
     const isSpike = volumeRatio >= multiplier;
     const newVolume =
-      !ticker[`volumeRatio${timeframe}`] ||
-      Math.abs(ticker[`volumeRatio${timeframe}`] - volumeRatio) / volumeRatio >=
-        2 / 100;
+      !ticker["volume"]?.[`volumeRatio${timeframe}`] ||
+      Math.abs(ticker["volume"][`volumeRatio${timeframe}`] - volumeRatio) /
+        volumeRatio >=
+        10 / 100;
     if (isSpike && newVolume) {
       return {
-        msg: `📊 Volume Up x${volumeRatio.toFixed(1)} ${timeframe} Price ${close}$`,
-        [`volumeRatio${timeframe}`]: volumeRatio,
+        msg: `📊 Volume Up x${volumeRatio.toFixed(1)} tf ${timeframe} Price ${close}$`,
+        volume: {
+          [`volumeRatio${timeframe}`]: volumeRatio,
+        },
       };
     }
     return null;
@@ -254,33 +281,42 @@ async function findLevels(
   try {
     //pump detect
     const { close } = candles[candles.length - 1];
-    const { support } = Indicators.calculateLevels(candles, touchCount);
+    const { support, resistance } = Indicators.calculateLevels(
+      candles,
+      touchCount,
+    );
     //support zone
     if (Math.abs(support - close) / close <= tolerance / 100) {
       const newLevel =
-        !ticker[`levelPriceS${timeframe}`] ||
-        Math.abs(ticker[`levelPriceS${timeframe}`] - support) / support >=
+        !ticker["levels"]?.[`levelPriceS${timeframe}`] ||
+        Math.abs(ticker["levels"][`levelPriceS${timeframe}`] - support) /
+          support >=
           tolerance / 100;
       if (newLevel) {
         return {
           msg: `📈 Support ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          [`levelPriceS${timeframe}`]: support,
+          levels: {
+            [`levelPriceS${timeframe}`]: support,
+          },
         };
       }
     }
     //resistance zone
-    //if (Math.abs(resistance - close) / close <= tolerance / 100) {
-    //  const newLevel =
-    //    !ticker[`levelPriceR${timeframe}`] ||
-    //    Math.abs(ticker[`levelPriceR${timeframe}`] - resistance) / resistance >=
-    //      tolerance / 100;
-    //  if (newLevel) {
-    //    return {
-    //      msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-    //      [`levelPriceR${timeframe}`]: resistance,
-    //    };
-    //  }
-    //}
+    if (Math.abs(resistance - close) / close <= tolerance / 100) {
+      const newLevel =
+        !ticker["levels"]?.[`levelPriceR${timeframe}`] ||
+        Math.abs(ticker["levels"][`levelPriceR${timeframe}`] - resistance) /
+          resistance >=
+          tolerance / 100;
+      if (newLevel) {
+        return {
+          msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          levels: {
+            [`levelPriceR${timeframe}`]: resistance,
+          },
+        };
+      }
+    }
     return null;
   } catch (error) {
     console.error(`Error check Levels:`, error.message);
