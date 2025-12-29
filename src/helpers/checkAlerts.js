@@ -33,10 +33,10 @@ export const checkAlerts = async (bot) => {
               attemptsCount = 0,
             } = ticker[user] || {};
             //long side
-            if (tradingType > 0) {
+            if (tradingType !== "off") {
               const candles = await getCandles(
                 symbol,
-                `${tradingType}h`,
+                tradingType,
                 candlesCount,
               );
               if (candles.length < candlesCount) {
@@ -53,10 +53,6 @@ export const checkAlerts = async (bot) => {
                 tradingType,
               );
               if (attemptsCount > 0) {
-                const shortLevels = Indicators.calculateLevels(
-                  candles.slice(-2),
-                  2,
-                );
                 await algoTrading(
                   ticker,
                   levels,
@@ -64,17 +60,16 @@ export const checkAlerts = async (bot) => {
                   bot,
                   user,
                   tradingType,
-                  shortLevels,
-                  "long",
+                  "Buy",
                   attemptsCount,
                 );
               }
             }
             //short side
-            if (tradingTypeShort > 0) {
+            if (tradingTypeShort !== "off") {
               const candles = await getCandles(
                 symbol,
-                `${tradingTypeShort}h`,
+                tradingTypeShort,
                 candlesCount,
               );
               if (candles.length < candlesCount) {
@@ -82,6 +77,11 @@ export const checkAlerts = async (bot) => {
               }
               const levels = Indicators.calculateLevels(candles, touchCount);
               const { close } = candles[candles.length - 1];
+              //const minTouches = candles
+              //  .slice(-4)
+              //  .filter(
+              //    (candle) => close >= candle.low && close <= candle.high,
+              //  ).length;
               await checkPositions(
                 ticker,
                 close,
@@ -91,10 +91,6 @@ export const checkAlerts = async (bot) => {
                 tradingTypeShort,
               );
               if (attemptsCount > 0) {
-                const shortLevels = Indicators.calculateLevels(
-                  candles.slice(-2),
-                  2,
-                );
                 await algoTrading(
                   ticker,
                   levels,
@@ -102,8 +98,7 @@ export const checkAlerts = async (bot) => {
                   bot,
                   user,
                   tradingTypeShort,
-                  shortLevels,
-                  "short",
+                  "Sell",
                   attemptsCount,
                 );
               }
@@ -149,7 +144,7 @@ export const checkAlerts = async (bot) => {
       //edit delete ticker fields
       //await Ticker.changeFields(paginate.tickers);
       for (const ticker of paginate.tickers) {
-        const { symbol, priceScale } = ticker;
+        const { symbol, priceScale, lastNotified = null, alerts = {} } = ticker;
         const candlesArray = await getCandles(symbol, interval, 10);
         if (candlesArray.length === 0) {
           continue;
@@ -157,33 +152,39 @@ export const checkAlerts = async (bot) => {
         const { low, high } = candlesArray[candlesArray.length - 1];
         //set tp sl default!!!
         //calc indicators
-        const { lastNotified = null } = await Ticker.getAlertMessage(symbol);
+        //const { lastNotified = null } = await Ticker.getAlertMessage(symbol);
         const timestampSeconds = Math.round(Date.now() / 1000);
         const silent10min =
           !lastNotified || timestampSeconds - lastNotified._seconds >= 60 * 30;
-        //send Alerts
-        const alerts = await Ticker.getOnlyAlerts(symbol);
-        const alertNames = {
-          0: "slBuy",
-          1: "endBuy",
-          2: "startBuy",
-          3: "startSell",
-          4: "endSell",
-          5: "slSell",
-        };
-        //check alerts [0,5]
-        for (const [index, value] of alerts.entries()) {
-          if (low <= value && value <= high && index <= 5) {
+        //get Alerts
+        //const alerts = await Ticker.getOnlyAlerts(symbol);
+        for (const [index, value] of Object.entries(alerts)) {
+          if (low <= value && value <= high) {
+            //trigger algo trade
+            for (const user of ["main", "sub"]) {
+              const { alertTrigger = false } = ticker[user] || {};
+              if (alertTrigger) {
+                await Ticker.update(symbol, {
+                  [`${user}.attemptsCount`]: 3,
+                  [`${user}.alertTrigger`]: false,
+                });
+                await sendMsgMe(bot, {
+                  header: `<code>${symbol.slice(0, -4)}</code>`,
+                  msg: `[${user}] alertTrigger "${index}" ${value.toFixed(priceScale)}$\nAlgoTrading attemptsCount = 3`,
+                  footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Trigger_Alert`,
+                });
+              }
+            }
             if (silent10min) {
               await sendMsgMe(
                 bot,
                 {
                   header: `<code>${symbol.slice(0, -4)}</code>`,
-                  msg: `[#ALERT ${alertNames[index]} cross ${value.toFixed(priceScale)}$]`,
+                  msg: `[#ALERT ${index} cross ${value.toFixed(priceScale)}$]`,
                   footer: `#${symbol.slice(0, -4)} #${symbol} /${symbol}`,
                 },
                 Markup.inlineKeyboard([
-                  [Markup.button.callback("🗑 Delete message", "delete/msg")],
+                  //[Markup.button.callback("🗑 Delete message", "delete/msg")],
                   [
                     Markup.button.url(
                       `${symbol} chart`,
@@ -196,47 +197,18 @@ export const checkAlerts = async (bot) => {
                 symbol,
                 data: {
                   lastNotified: new Date(),
-                  //alertIndex: index + 1,
                 },
               });
             }
           }
         }
-        //volumeUp
-        //const volume = await volumeUp(symbol);
-        //if (volume && silent10min) {
-        //  tickerNotifyArray.push({
-        //    symbol,
-        //    data: {
-        //      ...volume,
-        //      lastNotified: new Date(),
-        //      //alertIndex: index + 1,
-        //    },
-        //  });
-        //  await sendMsgMe(
-        //    bot,
-        //    {
-        //      header: `<code>${symbol.slice(0, -4)}</code>`,
-        //      msg: `[${volume.msg}]`,
-        //      footer: `#${symbol.slice(0, -4)} #${symbol} #volumeUp`,
-        //    },
-        //    Markup.inlineKeyboard([
-        //      [Markup.button.callback("🗑 Delete message", "delete/msg")],
-        //      [
-        //        Markup.button.url(
-        //          `${symbol} chart`,
-        //          `https://bybit.rzk.com.ru/chart/${symbol}`,
-        //        ),
-        //      ],
-        //    ]),
-        //  );
-        //}
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
       direction = paginate.hasNext ? "next" : null;
       lastVisibleId = paginate.lastVisibleId;
       //save batch
-      await Ticker.sendNotifyAlert(tickerNotifyArray);
+      //await Ticker.sendNotifyAlert(tickerNotifyArray);
+      await Ticker.saveLevelBatch(tickerNotifyArray);
     } while (direction);
   } catch (error) {
     console.error(

@@ -1,4 +1,5 @@
 import express from "express";
+import { Telegraf } from "telegraf";
 import cors from "cors";
 import { create } from "express-handlebars";
 import Ticker from "../models/Ticker.js";
@@ -9,6 +10,11 @@ import { bybitUsers } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
 
+import { tasks } from "../schedule.js";
+
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+// Cron tasks
+tasks(bot);
 const app = express();
 // Use CORS middleware
 app.use(cors());
@@ -67,6 +73,8 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const {
+      alert,
+      alertTrigger,
       tradingType,
       tradingTypeShort,
       tp,
@@ -81,6 +89,7 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     } = req.body;
     await Ticker.update(symbol, {
       [user]: {
+        alertTrigger,
         attemptsCount,
         tradingType,
         tradingTypeShort,
@@ -93,6 +102,12 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
         breakeven,
       },
     });
+    //enable alert scan for alertTrigger
+    if (alertTrigger && !alert) {
+      await Ticker.update(symbol, {
+        alert: true,
+      });
+    }
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });

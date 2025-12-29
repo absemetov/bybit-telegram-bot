@@ -61,12 +61,12 @@ class Indicators {
       const touchesLow = candles.filter(
         (candle) =>
           crossLine >= candle.low &&
-          crossLine <= candle.low + (candle.high - candle.low) / 2,
+          crossLine <= candle.low + (candle.high - candle.low) / 3,
       ).length;
       const touchesHigh = candles.filter(
         (candle) =>
           crossLine <= candle.high &&
-          crossLine >= candle.high - (candle.high - candle.low) / 2,
+          crossLine >= candle.high - (candle.high - candle.low) / 3,
       ).length;
       if (touchesLow >= touchCount) {
         levelsLow.push({
@@ -316,7 +316,7 @@ class ChartManager {
   constructor() {
     this.container = document.getElementById("chart");
     this.volumeContainer = document.getElementById("volumeEl");
-    this.candleContainer = document.getElementById("candleEl");
+    //this.candleContainer = document.getElementById("candleEl");
     this.prevSymbolKlineTopic = null;
     this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
   }
@@ -781,9 +781,10 @@ class ChartManager {
     //set doc title
     document.title = `${newCandle.close}$ - ${App.state.symbol}`;
     if (!ChartManager.state.point) {
-      const date = new Date(newCandle.time * 1000).toLocaleString("ru-RU");
-      App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)}`;
-      App.chartManager.candleContainer.textContent = `${(((newCandle.close - newCandle.open) / newCandle.open) * 100).toFixed(2)}%, ${date}`;
+      //const date = new Date(newCandle.time * 1000).toLocaleString("ru-RU");
+      //App.chartManager.volumeContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)} (${(((newCandle.close - newCandle.open) / newCandle.open) * 100).toFixed(2)}%)`;
+      App.chartManager.volumeContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)} (${newCandle.close > newCandle.open ? `+${(((newCandle.high - newCandle.low) / newCandle.low) * 100).toFixed(2)}` : `${(((newCandle.low - newCandle.high) / newCandle.high) * 100).toFixed(2)}`}%)`;
+      //App.chartManager.candleContainer.textContent = `${(((newCandle.close - newCandle.open) / newCandle.open) * 100).toFixed(2)}%, ${date}`;
     }
     const prevCandle =
       ChartManager.state.candles[ChartManager.state.candles.length - 1];
@@ -841,15 +842,16 @@ class ChartManager {
       return;
     }
     const candle = param.seriesData.get(ChartManager.state.candlestickSeries);
-    if (candle) {
-      const date = new Date(candle.time * 1000).toLocaleString("ru-RU");
-      App.chartManager.candleContainer.textContent = `${(((candle.close - candle.open) / candle.open) * 100).toFixed(2)}%, ${date}`;
-    }
+    //if (candle) {
+    //  const date = new Date(candle.time * 1000).toLocaleString("ru-RU");
+    //  App.chartManager.candleContainer.textContent = `${(((candle.close - candle.open) / candle.open) * 100).toFixed(2)}%, ${date}`;
+    //}
     //update volume
-    if (param.time) {
+    if (param.time && candle) {
       const datapoints = param.seriesData.get(ChartManager.state.volumeSeries);
       if (datapoints) {
-        App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)}`;
+        //App.chartManager.volumeContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)} (${(((candle.close - candle.open) / candle.open) * 100).toFixed(2)}%)`;
+        App.chartManager.volumeContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)} (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
       }
     }
     if (ChartManager.state.candlestickSeries) {

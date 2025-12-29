@@ -13,21 +13,20 @@ export const runTimeframeScan = async (timeframe, bot) => {
       let direction = null;
       let lastVisible = null;
       do {
+        //scan fav tickers
         const { tickers, hasNext, lastVisibleId } = await Ticker.paginate(
           100,
           direction,
           lastVisible,
-          "all",
         );
         const arrayNotify = [];
         for (const ticker of tickers) {
-          const candlesCount = 10;
+          const candlesCount = 15;
           const { symbol } = ticker;
-          for (const tf of ["4h", "1d"]) {
+          for (const tf of ["2h", "4h", "1d"]) {
             const candles = await getCandles(symbol, tf, candlesCount);
             if (candles.length < candlesCount) {
               continue;
-              //return null;
             }
             const levels = await findLevels(
               ticker,
@@ -38,17 +37,8 @@ export const runTimeframeScan = async (timeframe, bot) => {
               3,
               0.5,
             );
-            const shortLevels = await findLevels(
-              ticker,
-              candles.slice(-2),
-              bot,
-              tf,
-              2,
-              2,
-              0.5,
-            );
             //const rsi = await getRsi(ticker, bot, tf);
-            if (levels && shortLevels) {
+            if (levels) {
               arrayNotify.push({
                 symbol,
                 data: {
@@ -75,24 +65,33 @@ export const runTimeframeScan = async (timeframe, bot) => {
                 ]),
               );
             }
-            //volumeUp
-            //const volumeUp = findPumpVolumes(ticker, candles, 1, tf);
-            //if (volumeUp) {
+            //compression 3%
+            //const compression = await findCompression(
+            //  ticker,
+            //  candles,
+            //  bot,
+            //  tf,
+            //  5,
+            //  3,
+            //  0.5,
+            //  1.5,
+            //);
+            //if (compression) {
             //  arrayNotify.push({
             //    symbol,
             //    data: {
-            //      ...volumeUp,
+            //      ...compression,
             //      updatedAt: new Date(),
             //      read: true,
             //    },
             //  });
-            //  const { msg } = volumeUp;
+            //  const { msg } = compression;
             //  await sendMsgChannel(
             //    bot,
             //    {
             //      header: `<code>${symbol.slice(0, -4)}</code> `,
             //      msg,
-            //      footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)}_volumes #${symbol} #volumes`,
+            //      footer: `${new Date().toLocaleString("ru-RU")} ${symbol}\n#${symbol.slice(0, -4)}_compression #${symbol} #compression`,
             //    },
             //    Markup.inlineKeyboard([
             //      [
@@ -225,12 +224,13 @@ async function getRsi(ticker, bot, timeframe = "1h") {
 //find levels
 async function findCompression(
   ticker,
-  bot,
   candles,
+  bot,
   timeframe = "4h",
   candlesCount = 10,
   touchCount = 5,
-  tolerance = 1,
+  tolerance = 0.5,
+  range = 5,
 ) {
   try {
     const { close } = candles[candles.length - 1];
@@ -240,16 +240,16 @@ async function findCompression(
     );
     if (support && resistance) {
       const newSupport =
-        !ticker[`compPriceS${timeframe}`] ||
-        Math.abs(ticker[`compPriceS${timeframe}`] - support) / support >=
+        !ticker["compression"]?.[`support${timeframe}`] ||
+        Math.abs(ticker[`support${timeframe}`] - support) / support >=
           tolerance / 100;
       const newResistance =
-        !ticker[`compPriceR${timeframe}`] ||
-        Math.abs(ticker[`compPriceR${timeframe}`] - resistance) / resistance >=
+        !ticker["compression"]?.[`resistance${timeframe}`] ||
+        Math.abs(ticker[`resistance${timeframe}`] - resistance) / resistance >=
           tolerance / 100;
       const rangePercent = ((resistance - support) / support) * 100;
       if (
-        rangePercent < 2 &&
+        rangePercent < range &&
         support <= close &&
         resistance >= close &&
         newSupport &&
@@ -257,8 +257,10 @@ async function findCompression(
       ) {
         return {
           msg: `📉 Compression ${rangePercent.toFixed(2)}% ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          [`compPriceR${timeframe}`]: resistance,
-          [`compPriceS${timeframe}`]: support,
+          compression: {
+            [`resistance${timeframe}`]: resistance,
+            [`support${timeframe}`]: support,
+          },
         };
       }
     }
@@ -285,6 +287,10 @@ async function findLevels(
       candles,
       touchCount,
     );
+    const { priceScale } = ticker;
+    //const timestampSeconds = Math.round(Date.now() / 1000);
+    //const silentMore30min =
+    //  !updatedAt || timestampSeconds - updatedAt._seconds >= 60 * 30;
     //support zone
     if (Math.abs(support - close) / close <= tolerance / 100) {
       const newLevel =
@@ -294,7 +300,7 @@ async function findLevels(
           tolerance / 100;
       if (newLevel) {
         return {
-          msg: `📈 Support ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          msg: `📈 Support zone ${timeframe} ${support.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
           levels: {
             [`levelPriceS${timeframe}`]: support,
           },
@@ -310,7 +316,7 @@ async function findLevels(
           tolerance / 100;
       if (newLevel) {
         return {
-          msg: `📉 Resistance ${timeframe} ${close}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          msg: `📉 Resistance zone ${timeframe} ${resistance.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}, ${tolerance}]`,
           levels: {
             [`levelPriceR${timeframe}`]: resistance,
           },

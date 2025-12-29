@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { runTimeframeScan } from "./helpers/checkPumpTickers.js";
-import { db } from "./firebase.js";
+//import { db } from "./firebase.js";
 import { checkAlerts } from "./helpers/checkAlerts.js";
 
 export const tasks = (bot) => {
@@ -9,18 +9,28 @@ export const tasks = (bot) => {
   let isProcessing = false;
   let isProcessing1min = false;
   // Слушатель изменений в Firestore
-  db.collection("settings")
-    .doc("scanCronPaginate")
-    .collection("scanner")
-    .onSnapshot((snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        const timeframe = change.doc.id;
-        const config = change.doc.data();
-        timeframe === "1min"
-          ? update1minJob(config)
-          : updateQueuedJob(timeframe, config);
-      });
-    });
+  //db.collection("settings")
+  //  .doc("scanCronPaginate")
+  //  .collection("scanner")
+  //  .onSnapshot((snapshot) => {
+  //    snapshot.docChanges().forEach((change) => {
+  //      const timeframe = change.doc.id;
+  //      const config = change.doc.data();
+  //      timeframe === "1min"
+  //        ? update1minJob(config)
+  //        : updateQueuedJob(timeframe, config);
+  //    });
+  //  });
+  // AlgoTrading + Alerts
+  update1minJob({
+    active: true,
+    schedule: "* * * * * *",
+  });
+  // Scan 4h 1d levels
+  updateQueuedJob("4h", {
+    active: true,
+    schedule: "16 */15 * * * *",
+  });
   function update1minJob(config) {
     removeJob("1min");
     if (config.active && config.schedule) {

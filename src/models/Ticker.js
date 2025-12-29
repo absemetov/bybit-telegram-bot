@@ -67,14 +67,14 @@ class Ticker {
   //create default Alerts
   static async createAlerts(symbol, support, resistance) {
     const alerts = {
-      alert0: support * (1 - 1.5 / 100),
-      alert1: support,
-      alert2: support * (1 + 1 / 100),
-      alert3: resistance * (1 - 1 / 100),
-      alert4: resistance,
-      alert5: resistance * (1 + 1.5 / 100),
+      longSl: support * (1 - 1.5 / 100),
+      longEnd: support,
+      longStart: support * (1 + 1 / 100),
+      shortStart: resistance * (1 - 1 / 100),
+      shortEnd: resistance,
+      shortSl: resistance * (1 + 1.5 / 100),
     };
-    await db.doc(`crypto/${symbol}/alerts/triggers`).set(alerts);
+    await Ticker.update(symbol, { alerts });
   }
   static async alertsExist(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
@@ -97,7 +97,7 @@ class Ticker {
   // get all alerts
   static async getAlerts(symbol, user, read) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
-    const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
+    //const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     //const config = await Scan.getConfig(timeframe);
     //const pumpMsg = await this.getLevels(symbol);
     //get limit orders
@@ -110,16 +110,6 @@ class Ticker {
     //const closedPositions =
     //  await bybitUsers[user].getClosedPositionsHistory(symbol);
     return {
-      alerts: alertsDoc.exists
-        ? [
-            alertsDoc.data().alert0,
-            alertsDoc.data().alert1,
-            alertsDoc.data().alert2,
-            alertsDoc.data().alert3,
-            alertsDoc.data().alert4,
-            alertsDoc.data().alert5,
-          ]
-        : [],
       exists: symbolDoc.exists,
       ...(symbolDoc.exists ? symbolDoc.data() : {}),
       orders,
@@ -133,10 +123,10 @@ class Ticker {
     if (error) {
       throw new Error(`Invalid ticker data ${alertName} must be numeric!`);
     }
-    const editTickerField = {
-      [alertName]: value,
+    const alerts = {
+      [`alerts.${alertName}`]: value,
     };
-    await db.doc(`crypto/${symbol}/alerts/triggers`).update(editTickerField);
+    await Ticker.update(symbol, alerts);
   }
   //new update
   static async update(symbol, data) {
