@@ -1,6 +1,6 @@
 {
   "name": "bybit-telegram-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "status": "pm2 list",
     "start": "pm2 start ecosystem.config.cjs",
     "stop": "pm2 stop ecosystem.config.cjs",
+    "reload": "pm2 reload ecosystem.config.cjs",
     "logs": "pm2 logs",
     "deploy": "firebase deploy --only functions"
   },
@@ -32,7 +33,6 @@
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
-    "node-cron": "^3.0.3",
     "path-to-regexp": "^8.2.0",
     "telegraf": "^4.16.3"
   },

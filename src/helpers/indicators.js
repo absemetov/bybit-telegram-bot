@@ -133,44 +133,26 @@ class Indicators {
   }
   //levels
   static calculateLevels(candles, touchCount = 4) {
-    const max = Math.max(...candles.map((c) => c.high));
-    const min = Math.min(...candles.map((c) => c.low));
-    let checkPercent = 0;
     const levelsLow = [];
     const levelsHigh = [];
-    let crossLine = min;
-    do {
-      crossLine = crossLine * (1 + checkPercent / 100);
+    candles.forEach((candle) => {
       const touchesLow = candles.filter(
-        (candle) =>
-          crossLine >= candle.low &&
-          crossLine <= candle.low + (candle.high - candle.low) / 3,
+        (c) =>
+          candle.low >= c.low && candle.low <= c.low + (c.high - c.low) / 3,
       ).length;
       const touchesHigh = candles.filter(
-        (candle) =>
-          crossLine <= candle.high &&
-          crossLine >= candle.high - (candle.high - candle.low) / 3,
+        (c) =>
+          candle.high <= c.high && candle.high >= c.high - (c.high - c.low) / 3,
       ).length;
       if (touchesLow >= touchCount) {
-        levelsLow.push({
-          crossLine,
-          touchesLow,
-        });
+        levelsLow.push(candle.low);
       }
       if (touchesHigh >= touchCount) {
-        levelsHigh.push({
-          crossLine,
-          touchesHigh,
-        });
+        levelsHigh.push(candle.high);
       }
-      checkPercent += 0.001;
-    } while (crossLine <= max);
-    let support =
-      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
-    let resistance =
-      levelsHigh.length > 0
-        ? Math.max(...levelsHigh.map((l) => l.crossLine))
-        : 0;
+    });
+    let support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
+    let resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
     return {
       support,
       resistance,

@@ -326,7 +326,8 @@ class ChartManager {
       this.container,
       {
         //width: this.container.offsetWidth,
-        height: document.documentElement.scrollHeight - 80,
+        //height: document.documentElement.scrollHeight - 80,
+        autoSize: true,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },
@@ -935,6 +936,7 @@ class App {
       container: "#autocomplete",
       placeholder: "Search cryptocurrencies...",
       detachedMediaQuery: "(max-width: 991.98px)",
+      insights: false,
       openOnFocus: true,
       plugins: [recentSearchesPlugin],
       onSubmit({ state }) {

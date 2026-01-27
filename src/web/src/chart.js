@@ -73,65 +73,57 @@ class ModalManager {
       algoForm: window.Handlebars.compile(`
       <form data-form-type="algo">
         <div class="row">
-          <div class="col-md-12 mb-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" value="on" name="alertTrigger" id="checkNativeSwitch" switch{{#if alertTrigger}} checked{{/if}}>
-              <label class="form-check-label" for="checkNativeSwitch">
-                ⏱Trigger by 🔔Alerts => set attempts = 3
-              </label>
+            <div class="col-md-12 mb-3">
+              <legend class="col-form-label pt-0 text-success">Side</legend>
+              {{#each algoTypes}}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="tradingType" id="radio{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+                  <label class="form-check-label" for="radio{{value}}">
+                    {{name}}
+                  </label>
+                </div>
+              {{/each}}
             </div>
-          </div>
         </div>
         <div class="row">
-            <div class="col-md-6 mb-3">
-              <legend class="col-form-label pt-0">Long ↗️</legend>
-              {{#each algoTypes}}
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="tradingType" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
+            <div class="col-md-12 mb-3">
+              <legend class="col-form-label pt-0 text-success">Enter TF</legend>
+              {{#each algoEnterTf}}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="enterTf" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
                   <label class="form-check-label" for="radioDefault{{value}}">
                     {{name}}
                   </label>
                 </div>
               {{/each}}
             </div>
-            <div class="col-md-6 mb-3">
-              <legend class="col-form-label pt-0">Short ↘️</legend>
-              {{#each algoTypesShort}}
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="tradingTypeShort" id="radioDefaultShort{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
-                  <label class="form-check-label" for="radioDefaultShort{{value}}">
-                    {{name}}
-                  </label>
-                </div>
-              {{/each}}
-            </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
+                <label class="form-label text-success" for="attemptsCount">🎲Attempts -1</label>
+                <input type="number" class="form-control is-invalid" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" required max="3">
+            </div>
+            <div class="col-md-4 mb-3">
                 <label class="form-label text-primary" for="sizeAlgo">💰Position size ($)</label>
-                <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" required>
+                <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label text-danger">⚖️MAX LOSS ($)</label>
                 <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
             </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label text-danger" for="breakeven">🤟Break 20 (%)</label>
-                <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" required>
-            </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
-                <label class="form-label text-success" for="attemptsCount">🎲Attempts count</label>
-                <input type="number" class="form-control" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" required max="3">
-            </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label text-success" for="tp">💵TP (%)</label>
-                <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.1"required>
+                <label class="form-label text-success" for="tp">💵TP (%), 1 = scalp</label>
+                <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.01" min="1" required>
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label text-danger" for="sl">💸Stop Loss (%)</label>
-                <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.1" max="3" required>
+                <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" max="3" min="0.5" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label text-danger" for="breakeven">🤟Break 20 (%)</label>
+                <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" step="0.01" min="1" required>
             </div>
         </div>
         <div class="row">
@@ -145,7 +137,7 @@ class ModalManager {
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
-                <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4">
+                <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
             </div>
         </div>
         <div class="d-grid gap-2">
@@ -199,7 +191,8 @@ class ModalManager {
       case "algo-form":
         return this.templates.algoForm({
           algoTypes: config.algoTypes,
-          algoTypesShort: config.algoTypesShort,
+          //algoTypesShort: config.algoTypesShort,
+          algoEnterTf: config.enterTf,
           ...App.state.algoTrading,
           maxSize: Order.state.MAX_POSITION,
           loss:
@@ -635,20 +628,20 @@ class ModalManager {
     const attemptsCount = parseFloat(data.get("attemptsCount"));
     const breakeven = parseFloat(data.get("breakeven"));
     const tradingType = data.get("tradingType");
-    const tradingTypeShort = data.get("tradingTypeShort");
-    const alertTrigger = data.get("alertTrigger");
-    //const enterTf = data.get("enterTf");
+    //const tradingTypeShort = data.get("tradingTypeShort");
+    //const alertTrigger = data.get("alertTrigger");
+    const enterTf = data.get("enterTf");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
-    if (alertTrigger && ChartManager.state.alerts.length === 0) {
-      alert("First create alerts!");
-      return;
-    }
+    //if (alertTrigger && ChartManager.state.alerts.length === 0) {
+    //  alert("First create alerts!");
+    //  return;
+    //}
     App.state.algoTrading = {
-      alertTrigger: alertTrigger ? true : false,
+      //alertTrigger: alertTrigger ? true : false,
       tradingType,
-      tradingTypeShort,
+      enterTf,
       breakeven,
       tp,
       sl,
@@ -659,7 +652,7 @@ class ModalManager {
       tolerance,
       balance: App.state.algoTrading.balance,
       user: App.state.user,
-      alert: App.state.alertTicker,
+      //alert: App.state.alertTicker,
     };
     App.setState({});
     try {
@@ -675,9 +668,11 @@ class ModalManager {
         alert(resJson.message);
         return false;
       }
-      document.querySelector(".trading-btn").textContent =
-        App.renderTradingBtn(tradingType) +
-        App.renderTradingBtn(tradingTypeShort, "short");
+      document.querySelector(".trading-btn").textContent = App.renderTradingBtn(
+        tradingType,
+        attemptsCount,
+        enterTf,
+      );
       Indicators.calculateLevels(
         ChartManager.state.candles,
         App.state.algoTrading.candlesCount,
@@ -707,13 +702,9 @@ class Order {
       .addEventListener("click", async () => {
         Order.state.symbol = App.state.symbol;
         const algoTypes = [
-          { value: "off", name: "🔴 Off" },
-          { value: "5min", name: `↗️ Long 5m` },
-          { value: "15min", name: `↗️ Long 15m` },
-          { value: "30min", name: `↗️ Long 30m` },
-          { value: "1h", name: `↗️ Long 1h` },
-          { value: "2h", name: `↗️ Long 2h` },
-          { value: "4h", name: `↗️ Long 4h` },
+          { value: "Buy", name: "↗️ Long" },
+          { value: "Sell", name: "↘️ Short" },
+          { value: "Flat", name: "↗️ ↘️ Hedge" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.tradingType) {
             el.checked = true;
@@ -722,42 +713,43 @@ class Order {
           }
           return el;
         });
-        const algoTypesShort = [
-          { value: "off", name: "🔴 Off" },
-          { value: "5min", name: `↘️  Short 5m` },
-          { value: "15min", name: `↘️  Short 15m` },
-          { value: "30min", name: `↘️  Short 30m` },
-          { value: "1h", name: "↘️  Short 1h" },
-          { value: "2h", name: "↘️  Short 2h" },
-          { value: "4h", name: "↘️  Short 4h" },
-        ].map((el) => {
-          if (el.value === App.state.algoTrading.tradingTypeShort) {
-            el.checked = true;
-          } else {
-            el.checked = false;
-          }
-          return el;
-        });
-        //const enterTf = [
-        //  { value: "1h", name: "🟰 1h" },
-        //  { value: "2h", name: "🟰 2h" },
-        //  { value: "4h", name: "🟰 4h" },
-        //  { value: "6h", name: "🟰 6h" },
-        //  { value: "12h", name: "🟰 12h" },
+        //const algoTypesShort = [
+        //  { value: "off", name: "🔴 Off" },
+        //  { value: "5min", name: `↘️  Short 5m` },
+        //  { value: "15min", name: `↘️  Short 15m` },
+        //  { value: "30min", name: `↘️  Short 30m` },
+        //  { value: "1h", name: "↘️  Short 1h" },
+        //  { value: "2h", name: "↘️  Short 2h" },
+        //  { value: "4h", name: "↘️  Short 4h" },
         //].map((el) => {
-        //  if (el.value === App.state.algoTrading.enterTf) {
+        //  if (el.value === App.state.algoTrading.tradingTypeShort) {
         //    el.checked = true;
         //  } else {
         //    el.checked = false;
         //  }
         //  return el;
         //});
+        const enterTf = [
+          { value: "5min", name: "5m" },
+          { value: "15min", name: "15m" },
+          { value: "30min", name: "30m" },
+          { value: "1h", name: "1h" },
+          { value: "2h", name: "2h" },
+          { value: "4h", name: "4h" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.enterTf) {
+            el.checked = true;
+          } else {
+            el.checked = false;
+          }
+          return el;
+        });
         App.modal.render({
           type: "algo-form",
-          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "Long" : "Short"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
+          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "🐮Swing" : "🐻Scalp"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
           algoTypes,
-          algoTypesShort,
-          //enterTf,
+          //algoTypesShort,
+          enterTf,
         });
       });
     //long btn
@@ -1087,44 +1079,26 @@ class Indicators {
     countLoads: 0,
   };
   static findLevels(candles, touchCount = 4) {
-    const max = Math.max(...candles.map((c) => c.high));
-    const min = Math.min(...candles.map((c) => c.low));
-    let checkPercent = 0;
     const levelsHigh = [];
     const levelsLow = [];
-    let crossLine = min;
-    do {
-      crossLine = crossLine * (1 + checkPercent / 100);
+    candles.forEach((candle) => {
       const touchesLow = candles.filter(
-        (candle) =>
-          crossLine >= candle.low &&
-          crossLine <= candle.low + (candle.high - candle.low) / 3,
+        (c) =>
+          candle.low >= c.low && candle.low <= c.low + (c.high - c.low) / 3,
       ).length;
       const touchesHigh = candles.filter(
-        (candle) =>
-          crossLine <= candle.high &&
-          crossLine >= candle.high - (candle.high - candle.low) / 3,
+        (c) =>
+          candle.high <= c.high && candle.high >= c.high - (c.high - c.low) / 3,
       ).length;
       if (touchesLow >= touchCount) {
-        levelsLow.push({
-          crossLine,
-          touchesLow,
-        });
+        levelsLow.push(candle.low);
       }
       if (touchesHigh >= touchCount) {
-        levelsHigh.push({
-          crossLine,
-          touchesHigh,
-        });
+        levelsHigh.push(candle.high);
       }
-      checkPercent += 0.001;
-    } while (crossLine <= max);
-    const support =
-      levelsLow.length > 0 ? Math.min(...levelsLow.map((l) => l.crossLine)) : 0;
-    const resistance =
-      levelsHigh.length > 0
-        ? Math.max(...levelsHigh.map((l) => l.crossLine))
-        : 0;
+    });
+    const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
+    const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
     return { support, resistance };
   }
   static calculateLevels(candles, candlesCount = 10, touchCount = 4) {
@@ -1409,7 +1383,8 @@ class ChartManager {
       this.container,
       {
         //width: this.container.offsetWidth,
-        height: document.documentElement.scrollHeight - 110,
+        //height: document.documentElement.scrollHeight - 115,
+        autoSize: true,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },
@@ -2188,6 +2163,9 @@ class ChartManager {
         ChartManager.state.levelsArray[0].line.applyOptions({
           title: `${(((resistance - support) / support) * 100).toFixed(2)}%`,
         });
+        ChartManager.state.levelsArray[1].line.applyOptions({
+          title: "Short",
+        });
         ChartManager.state.chart.applyOptions({
           handleScroll: false,
           handleScale: false,
@@ -2263,9 +2241,7 @@ class ChartManager {
   defaultAlerts() {
     for (const alert of ChartManager.state.alerts) {
       alert.line.applyOptions({
-        color: ["longStart", "shortStart"].includes(alert.name)
-          ? "green"
-          : "red",
+        color: [2, 4, 6].includes(alert.name) ? "green" : "red",
       });
     }
     ChartManager.state.positions
@@ -2334,15 +2310,15 @@ class App {
     //});
     window.Handlebars.registerHelper("algoIcon", function (ticker) {
       const {
-        alertTrigger = false,
+        tradingType = "Buy",
+        //alertTrigger = false,
         attemptsCount = -1,
-        tradingType = "off",
-        tradingTypeShort = "off",
+        enterTf = "4h",
         size,
       } = ticker[App.state.user] || {};
-      const triggerIcon = `${alertTrigger ? "🔔" : ""}`;
-      if (attemptsCount < 0) return triggerIcon;
-      return `(${triggerIcon}${App.renderTradingBtn(tradingType)}${App.renderTradingBtn(tradingTypeShort, "short")} ${size}$, ${attemptsCount}a)`;
+      //const triggerIcon = `${alertTrigger ? "🔔" : ""}`;
+      if (attemptsCount < 0) return "";
+      return `AlgoTrading ${App.renderTradingBtn(tradingType, attemptsCount, enterTf)} ${size}$`;
     });
     window.Handlebars.registerHelper("multiply", function (a, b) {
       return (a * b).toFixed(2);
@@ -2418,6 +2394,7 @@ class App {
       placeholder: "Search cryptocurrencies...",
       detachedMediaQuery: "(max-width: 991.98px)",
       openOnFocus: true,
+      insights: false,
       plugins: [recentSearchesPlugin],
       onSubmit({ state }) {
         const symbol = state.query.toUpperCase();
@@ -2565,7 +2542,7 @@ class App {
       document.querySelector(".display-symbol").textContent =
         `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
       document.querySelector(".switch-user").textContent =
-        `${App.state.user} (${App.state.algoTrading.balance.toFixed(1)}$)`;
+        `${App.state.user === "main" ? "🐮Long" : "🐻Short"} (${App.state.algoTrading.balance.toFixed(1)}$)`;
     }
   }
   static async renderChart() {
@@ -2616,54 +2593,28 @@ class App {
     if (ChartManager.state.alerts.length === 0) {
       return;
     }
-    const slBuy = ChartManager.state.alerts
-      .find((alert) => alert.name === "longSl")
+    const alert1 = ChartManager.state.alerts
+      .find((alert) => alert.name === 1)
       .line.options().price;
-    const stopBuy = ChartManager.state.alerts
-      .find((alert) => alert.name === "longEnd")
-      .line.options().price;
-    const startBuy = ChartManager.state.alerts
-      .find((alert) => alert.name === "longStart")
-      .line.options().price;
-    ChartManager.state.alerts[1].line.applyOptions({
-      title: `longEnd ${(((startBuy - stopBuy) / stopBuy) * 100).toFixed(2)}%`,
+    ChartManager.state.alerts
+      .find((alert) => alert.name === 1)
+      .line.applyOptions({
+        title: `1| 0%`,
+      });
+    [2, 3, 4, 5, 6].forEach((alertNumber) => {
+      const alertPrice = ChartManager.state.alerts
+        .find((alert) => alert.name === alertNumber)
+        .line.options().price;
+      ChartManager.state.alerts
+        .find((alert) => alert.name === alertNumber)
+        .line.applyOptions({
+          title: `${alertNumber}| ${(((alertPrice - alert1) / alert1) * 100).toFixed(2)}%`,
+        });
     });
-    ChartManager.state.alerts[0].line.applyOptions({
-      title: `longSl ${(((stopBuy - slBuy) / slBuy) * 100).toFixed(2)}%`,
-    });
-    const startSell = ChartManager.state.alerts
-      .find((alert) => alert.name === "shortStart")
-      .line.options().price;
-    const stopSell = ChartManager.state.alerts
-      .find((alert) => alert.name === "shortEnd")
-      .line.options().price;
-    const slSell = ChartManager.state.alerts
-      .find((alert) => alert.name === "shortSl")
-      .line.options().price;
-    ChartManager.state.alerts
-      .find((alert) => alert.name === "shortEnd")
-      .line.applyOptions({
-        title: `shortEnd ${(((startSell - stopSell) / stopSell) * 100).toFixed(2)}%`,
-      });
-    ChartManager.state.alerts
-      .find((alert) => alert.name === "shortSl")
-      .line.applyOptions({
-        title: `shortSl ${(((stopSell - slSell) / slSell) * 100).toFixed(2)}%`,
-      });
-    ChartManager.state.alerts
-      .find((alert) => alert.name === "shortStart")
-      .line.applyOptions({
-        title: `shortStart ${(((startSell - startBuy) / startBuy) * 100).toFixed(2)}%`,
-      });
-    ChartManager.state.alerts
-      .find((alert) => alert.name === "longStart")
-      .line.applyOptions({
-        title: `longStart ${(((startSell - startBuy) / startBuy) * 100).toFixed(2)}%`,
-      });
-    Order.state.slBuyPercent =
-      (((startBuy + stopBuy) / 2 - slBuy) / slBuy) * 100;
-    Order.state.slSellPercent =
-      (((startSell + stopSell) / 2 - slSell) / slSell) * 100;
+    //Order.state.slBuyPercent =
+    //  (((startBuy + stopBuy) / 2 - slBuy) / slBuy) * 100;
+    //Order.state.slSellPercent =
+    //  (((startSell + stopSell) / 2 - slSell) / slSell) * 100;
   }
   static async loadAlerts(defaultAlerts = false) {
     Indicators.state.countLoads = 0;
@@ -2718,10 +2669,10 @@ class App {
     ChartManager.state.alerts = [];
     for (const [index, value] of Object.entries(alertsDataJson.alerts || {})) {
       ChartManager.state.alerts.push({
-        name: index,
+        name: +index,
         line: ChartManager.state.candlestickSeries.createPriceLine({
           price: value,
-          color: ["longStart", "shortStart"].includes(index) ? "green" : "red",
+          color: [2, 4, 6].includes(+index) ? "green" : "red",
           lineWidth: 2,
           lineStyle: window.LightweightCharts.LineStyle.Dashed,
           title: index,
@@ -2735,22 +2686,22 @@ class App {
     //  return;
     //}
     const {
-      alertTrigger = false,
-      tradingType = "off",
-      tradingTypeShort = "off",
-      sl = 0.5,
+      tradingType = "Buy",
+      //alertTrigger = false,
+      enterTf = "4h",
+      sl = 0.7,
       tp = Order.state.TAKE_PROFIT,
       size = 0,
       attemptsCount = -1,
       breakeven = 6,
       candlesCount = 25,
       touchCount = 3,
-      tolerance = 0.1,
+      tolerance = 0.05,
     } = alertsDataJson[App.state.user] || {};
     App.state.algoTrading = {
-      alertTrigger,
       tradingType,
-      tradingTypeShort,
+      //alertTrigger,
+      enterTf,
       sl,
       tp,
       size,
@@ -2813,8 +2764,11 @@ class App {
     //show hide btn
     if (alertsDataJson.exists) {
       document.querySelector(".trading-btn").textContent =
-        this.renderTradingBtn(App.state.algoTrading.tradingType) +
-        this.renderTradingBtn(App.state.algoTrading.tradingTypeShort, "short");
+        this.renderTradingBtn(
+          App.state.algoTrading.tradingType,
+          App.state.algoTrading.attemptsCount,
+          App.state.algoTrading.enterTf,
+        );
       App.state.alertTicker = alertsDataJson.alert;
     }
     document
@@ -2845,10 +2799,13 @@ class App {
       ?.classList.add("bg-primary");
   }
   //trading btn render
-  static renderTradingBtn(tradingType, side = "long") {
-    if (tradingType !== "off") {
-      const icon = side === "long" ? "↗️" : "↘️";
-      return `${icon}${tradingType}`;
+  static renderTradingBtn(tradingType, attemptsCount, enterTf) {
+    if (attemptsCount > 0) {
+      const icon = tradingType === "Buy" ? "↗️" : tradingType === "Sell" ? "↘️" : "↗️↘️";
+      return `${icon}${enterTf}(${attemptsCount})`;
+    }
+    if (attemptsCount === 0) {
+      return "🟢";
     }
     return "🔴";
   }
@@ -3172,7 +3129,8 @@ class App {
       .addEventListener("click", async (event) => {
         event.preventDefault();
         App.state.user = App.state.user === "main" ? "sub" : "main";
-        event.target.textContent = App.state.user;
+        event.target.textContent =
+          App.state.user === "main" ? "🐂Long" : "🐻Short";
         await this.loadCoins();
         await this.loadAlerts();
         App.renderLevels();

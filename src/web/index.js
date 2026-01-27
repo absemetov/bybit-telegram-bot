@@ -73,10 +73,8 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const {
-      alert,
-      alertTrigger,
       tradingType,
-      tradingTypeShort,
+      enterTf,
       tp,
       sl,
       size,
@@ -89,10 +87,9 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
     } = req.body;
     await Ticker.update(symbol, {
       [user]: {
-        alertTrigger,
-        attemptsCount,
         tradingType,
-        tradingTypeShort,
+        enterTf,
+        attemptsCount,
         tp,
         sl,
         size,
@@ -103,11 +100,11 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       },
     });
     //enable alert scan for alertTrigger
-    if (alertTrigger && !alert) {
-      await Ticker.update(symbol, {
-        alert: true,
-      });
-    }
+    //if (alertTrigger && !alert) {
+    //  await Ticker.update(symbol, {
+    //    alert: true,
+    //  });
+    //}
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -188,7 +185,7 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts, support, resistance, read, user } = req.body;
+    const { defaultAlerts, support, resistance, user } = req.body;
     if (defaultAlerts) {
       //set default alerts
       await Ticker.createAlerts(symbol, support, resistance);
@@ -196,7 +193,7 @@ app.post("/alerts/:symbol", protectPage, async (req, res) => {
     //if (read) {
     //  await Ticker.updateField(symbol, "read", !read);
     //}
-    const alerts = await Ticker.getAlerts(symbol, user, read);
+    const alerts = await Ticker.getAlerts(symbol, user);
     return res.json(alerts);
   } catch (error) {
     return res.status(422).json({ message: error.message });

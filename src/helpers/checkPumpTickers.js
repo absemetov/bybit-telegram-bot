@@ -271,7 +271,7 @@ async function findCompression(
   }
 }
 //find levels
-async function findLevels(
+export const findLevels = async (
   ticker,
   candles,
   bot,
@@ -279,7 +279,7 @@ async function findLevels(
   candlesCount,
   touchCount = 4,
   tolerance = 1,
-) {
+) => {
   try {
     //pump detect
     const { close } = candles[candles.length - 1];
@@ -328,4 +328,4 @@ async function findLevels(
     console.error(`Error check Levels:`, error.message);
     await sendMsgMe(bot, { msg: `Error in findLevels ${error.message}` });
   }
-}
+};

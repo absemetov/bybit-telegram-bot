@@ -1,4 +1,4 @@
-import { db, FieldValue } from "../firebase.js";
+import { db, FieldValue, FieldPath } from "../firebase.js";
 import Joi from "joi";
 import { getTicker, bybitUsers } from "../helpers/bybitV5.js";
 
@@ -66,13 +66,14 @@ class Ticker {
   }
   //create default Alerts
   static async createAlerts(symbol, support, resistance) {
+    const step = (support - resistance) / 5;
     const alerts = {
-      longSl: support * (1 - 1.5 / 100),
-      longEnd: support,
-      longStart: support * (1 + 1 / 100),
-      shortStart: resistance * (1 - 1 / 100),
-      shortEnd: resistance,
-      shortSl: resistance * (1 + 1.5 / 100),
+      1: support,
+      2: support - step,
+      3: support - step * 2,
+      4: support - step * 3,
+      5: support - step * 4,
+      6: resistance,
     };
     await Ticker.update(symbol, { alerts });
   }
@@ -80,7 +81,7 @@ class Ticker {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     return alertsDoc.exists;
   }
-  //for check cross
+  //for check cross deprecated
   static async getOnlyAlerts(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     return alertsDoc.exists
@@ -95,7 +96,7 @@ class Ticker {
       : [];
   }
   // get all alerts
-  static async getAlerts(symbol, user, read) {
+  static async getAlerts(symbol, user) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
     //const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     //const config = await Scan.getConfig(timeframe);
@@ -104,9 +105,9 @@ class Ticker {
     const orders = await bybitUsers[user].getTickerOrders(symbol);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const balance = await bybitUsers[user].getBybitBalance();
-    if (symbolDoc.exists && read) {
-      await Ticker.updateField(symbol, "read", !read);
-    }
+    //if (symbolDoc.exists && read) {
+    //  await Ticker.updateField(symbol, "read", !read);
+    //}
     //const closedPositions =
     //  await bybitUsers[user].getClosedPositionsHistory(symbol);
     return {
@@ -177,7 +178,8 @@ class Ticker {
               //    Filter.where("tradingTypeSub", ">", 0),
               //  ),
               //)
-              db.collection("crypto").orderBy("updatedAt", "desc");
+              //db.collection("crypto").orderBy("updatedAt", "desc");
+              db.collection("crypto").orderBy(FieldPath.documentId());
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {

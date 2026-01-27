@@ -14,21 +14,24 @@
       .aa-Panel {
         z-index: 1000;
       }
+      .min-vh-dynamic-100 {
+        height: 100dvh !important;
+      }
     </style>
   </head>
-  <body>
-    <nav class="navbar navbar-expand navbar-dark  bg-secondary">
+  <body class="d-flex flex-column min-vh-dynamic-100">
+    <nav class="navbar navbar-expand navbar-dark bg-secondary">
       <div class="container-fluid">
         <button class="navbar-toggler d-lg-none d-inline" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasNavbar">
           <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand mx-2" href="/">🚀 Bot</a>
+        <a class="navbar-brand mx-2" href="/">🗜 Vice</a>
         <div id="autocomplete" class="overflow-hidden w-100"></div>
         <ul class="navbar-nav">
         </ul>
       </div>
     </nav>
-    <div class="container-fluid mt-2">
+    <div class="container-fluid mt-2 d-flex flex-column flex-grow-1">
       {{{body}}}
     </div>
     <!-- modal for render content -->

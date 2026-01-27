@@ -475,10 +475,39 @@ class UserAPI {
       console.error("Failed to get wallet balance:", error);
     }
   }
+  async getCandles(symbol, timeframe = "1h", limit = 200) {
+    try {
+      const response = await this.bybitClient.getKline({
+        category: "linear",
+        symbol: symbol,
+        interval: intervalKline[timeframe],
+        limit,
+      });
+      if (response.retCode !== 0) {
+        throw new Error(`Error API: ${response.retMsg}`);
+      }
+      return response.result.list
+        .map((candle) => ({
+          time: parseInt(candle[0]),
+          localTime: new Date(parseInt(candle[0])).toLocaleString("ru-RU"),
+          open: parseFloat(candle[1]),
+          high: parseFloat(candle[2]),
+          low: parseFloat(candle[3]),
+          close: parseFloat(candle[4]),
+          color: candle[4] > candle[1] ? "green" : "red",
+          volume: parseFloat(candle[5]),
+        }))
+        .reverse();
+    } catch (error) {
+      console.error(`Error getting candles for ${symbol}:`, error);
+      throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
+      //return [];
+    }
+  }
 }
 export const getCandles = async (symbol, timeframe = "1h", limit = 200) => {
   try {
-    const response = await restMain.getKline({
+    const response = await this.bybitClient.getKline({
       category: "linear",
       symbol: symbol,
       interval: intervalKline[timeframe],
@@ -501,7 +530,8 @@ export const getCandles = async (symbol, timeframe = "1h", limit = 200) => {
       .reverse();
   } catch (error) {
     console.error(`Error getting candles for ${symbol}:`, error);
-    return [];
+    throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
+    //return [];
   }
 };
 export const getTicker = async (symbol) => {
