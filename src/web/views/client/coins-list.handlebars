@@ -1,13 +1,28 @@
+<ul class="list-group mb-1">
+  <div class="list-group-item cursor-pointer coin-item d-none" id="load-coin">
+    <div class="d-flex w-100 justify-content-between">
+      <h6>
+        <span class="coin-symbol"></span>
+      </h6>
+      <div class="btn-group" role="group" aria-label="Basic example">
+        <button type="button" class="btn btn-sm btn-light star-btn d-none"></button>
+        <button type="button" class="btn btn-sm btn-light alert-btn d-none"></button>
+        <button type="button" class="btn btn-sm btn-light add-btn" data-add="false">➕</button>
+      </div>
+    </div>
+  </div>
+</ul>
 <ul class="list-group">
   {{#each coins}}
-    <div class="list-group-item cursor-pointer coin-item{{#if active}} list-group-item-primary{{else}}{{#if read}} list-group-item-success{{/if}}{{/if}}" data-symbol="{{symbol}}" data-read="{{read}}">
+    <div class="list-group-item cursor-pointer coin-item{{#if active}} list-group-item-primary{{else}}{{/if}}" data-symbol="{{symbol}}">
       <div class="d-flex w-100 justify-content-between">
         <h6>
           <span class="coin-symbol">
             {{symbol}} 
           </span>
           <span class="coin-price"></span>
-          (<span class="coin-change"></span>)<br/>
+          (<span class="coin-change"></span>)
+          <span class="coin-levels"></span><br/>
           <small>{{algoIcon this}}</small>
         </h6>
         <div class="btn-group" role="group" aria-label="Basic example">

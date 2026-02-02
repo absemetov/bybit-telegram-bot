@@ -500,7 +500,8 @@ class UserAPI {
         .reverse();
     } catch (error) {
       console.error(`Error getting candles for ${symbol}:`, error);
-      throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
+      //disable this return many api rates error 
+      //throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
       //return [];
     }
   }

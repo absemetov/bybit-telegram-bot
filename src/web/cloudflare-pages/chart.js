@@ -321,7 +321,7 @@ class ChartManager {
     this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
   }
 
-  init() {
+  async init() {
     ChartManager.state.chart = window.LightweightCharts.createChart(
       this.container,
       {
@@ -529,7 +529,7 @@ class ChartManager {
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
     //start WS
     this.initEventListeners();
-    this.initWebSocket();
+    await this.initWebSocket();
   }
   dragAlert() {
     //choose alert
@@ -673,14 +673,20 @@ class ChartManager {
   }
   // Инициализация WebSocket
   initWebSocket() {
-    this.ws.onopen = () => {
-      console.log("WebSocket connected");
-      //this.resubscribe();
-    };
-    this.ws.onmessage = (e) => this.handleMessage(e);
-    this.ws.onclose = () => {
-      setTimeout(() => this.initWebSocket(), 3000);
-    };
+    return new Promise((resolve, reject) => {
+      this.ws.onopen = () => {
+        console.log("WebSocket connected");
+        resolve();
+        //this.resubscribe();
+      };
+      this.ws.onmessage = (e) => this.handleMessage(e);
+      this.ws.onclose = () => {
+        setTimeout(() => this.initWebSocket(), 3000);
+      };
+      this.ws.onerror = (error) => {
+        reject(error);
+      };
+    });
   }
   updateWebsocketSymbol() {
     if (this.prevSymbolKlineTopic) {
@@ -903,7 +909,8 @@ class App {
     this.chartManager = new ChartManager();
     this.router = new Router();
     this.initAutocomplete();
-    this.initChart();
+    //this.initChart();
+    await this.chartManager.init();
     this.initEventListeners();
   }
   static initAutocomplete() {
@@ -1009,9 +1016,9 @@ class App {
       },
     });
   }
-  static initChart() {
-    this.chartManager.init();
-  }
+  //static initChart() {
+  //  this.chartManager.init();
+  //}
   static async renderChart() {
     await this.chartManager.loadChartData();
   }

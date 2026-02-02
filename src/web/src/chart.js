@@ -3,7 +3,6 @@ class ModalManager {
   constructor() {
     this.modal = new window.bootstrap.Modal("#universalModal");
     this.modalElement = document.getElementById("universalModal");
-    // Компиляция шаблонов
     this.templates = {
       modal: window.Handlebars.compile(`
       <div class="modal-dialog">
@@ -18,7 +17,7 @@ class ModalManager {
         </div>
       </div>`),
       links: window.Handlebars.compile(`
-      <ul class="list-group">
+      <ul class="list-group mb-2">
         {{#each data}}
           <li class="list-group-item">
             {{field}}: {{value}} {{unit}}
@@ -34,6 +33,36 @@ class ModalManager {
           </a>
         {{/each}}
       </div>`),
+      scanerForm: window.Handlebars.compile(`
+      <form data-form-type="scaner">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label text-success" for="attemptsCount">⏰Timeframe</label>
+              <select class="form-select" name="timeframe" id="timeframe">
+                {{#each scanerTf}}
+                  <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-primary" for="candlesCount">🕯Candles count</label>
+                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="2">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-primary" for="touchCount">🧲Touch count</label>
+                <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="2">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
+                <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.1" min="0.1">
+            </div>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success">Save</button>
+        </div>
+      </form>`),
       orderForm: window.Handlebars.compile(`
       <form data-form-type="order">
         <div class="row">
@@ -73,36 +102,32 @@ class ModalManager {
       algoForm: window.Handlebars.compile(`
       <form data-form-type="algo">
         <div class="row">
-            <div class="col-md-12 mb-3">
-              <legend class="col-form-label pt-0 text-success">Side</legend>
-              {{#each algoTypes}}
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="tradingType" id="radio{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
-                  <label class="form-check-label" for="radio{{value}}">
-                    {{name}}
-                  </label>
-                </div>
-              {{/each}}
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12 mb-3">
-              <legend class="col-form-label pt-0 text-success">Enter TF</legend>
-              {{#each algoEnterTf}}
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="enterTf" id="radioDefault{{value}}" value="{{value}}"{{#if checked}} checked{{/if}}>
-                  <label class="form-check-label" for="radioDefault{{value}}">
-                    {{name}}
-                  </label>
-                </div>
-              {{/each}}
-            </div>
-        </div>
-        <div class="row">
             <div class="col-md-4 mb-3">
-                <label class="form-label text-success" for="attemptsCount">🎲Attempts -1</label>
-                <input type="number" class="form-control is-invalid" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" required max="3">
+                <label class="form-label text-success" for="attemptsCount">🎲Attempts <span id="attemptsSpan" class="h5">{{attemptsSpan}}</span></label>
+                <select class="form-select" name="attemptsCount" id="attemptsCount">
+                  {{#each attemptsList}}
+                    <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+                  {{/each}}
+                </select>
             </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label text-success" for="tradingType">📈Side</label>
+              <select class="form-select" name="tradingType" id="tradingType">
+                {{#each algoTypes}}
+                  <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label text-success" for="enterTf">⏰Timeframe</label>
+              <select class="form-select" name="enterTf" id="enterTf">
+                {{#each algoEnterTf}}
+                  <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </div>
+        </div>
+        <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label text-primary" for="sizeAlgo">💰Position size ($)</label>
                 <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
@@ -111,10 +136,18 @@ class ModalManager {
                 <label class="form-label text-danger">⚖️MAX LOSS ($)</label>
                 <input type="number" class="form-control is-invalid" id="loss" value="{{loss}}" disabled>
             </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label text-danger">Funding rate</label>
+                <h6>{{fundingRate}}%</h6>
+                <h6>Time left: {{countDownTime}}</h6>
+            </div>
+        </div>
+        <div class="row">
+          <h6>Position settings</h6>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
-                <label class="form-label text-success" for="tp">💵TP (%), 1 = scalp</label>
+                <label class="form-label text-success" for="tp">💵TP (%)</label>
                 <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.01" min="1" required>
             </div>
             <div class="col-md-4 mb-3">
@@ -125,6 +158,9 @@ class ModalManager {
                 <label class="form-label text-danger" for="breakeven">🤟Break 20 (%)</label>
                 <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" step="0.01" min="1" required>
             </div>
+        </div>
+        <div class="row">
+          <h6>Levels settings</h6>
         </div>
         <div class="row">
             <div class="col-md-4 mb-3">
@@ -149,8 +185,6 @@ class ModalManager {
       positions: window.Handlebars.templates["positions"],
       history: window.Handlebars.templates["history-positions"],
     };
-
-    // Делегирование событий
     this.modalElement.addEventListener("hide.bs.modal", function () {
       // Remove the focus from the active element
       if (document.activeElement) {
@@ -188,13 +222,24 @@ class ModalManager {
           tp: Order.state.TAKE_PROFIT,
           size: Order.state.MAX_POSITION,
         });
+      case "scaner-form":
+        return this.templates.scanerForm({
+          scanerTf: config.enterTf,
+          ...App.state.scaner,
+        });
       case "algo-form":
         return this.templates.algoForm({
-          algoTypes: config.algoTypes,
-          //algoTypesShort: config.algoTypesShort,
-          algoEnterTf: config.enterTf,
+          ...config,
           ...App.state.algoTrading,
           maxSize: Order.state.MAX_POSITION,
+          attemptsSpan:
+            App.state.algoTrading.size > 0
+              ? Math.floor(
+                  App.state.algoTrading.balance /
+                    ((App.state.algoTrading.size * App.state.algoTrading.sl) /
+                      100),
+                )
+              : "",
           loss:
             (App.state.algoTrading.size *
               App.state.algoTrading.sl *
@@ -241,12 +286,13 @@ class ModalManager {
           : (e.target.value * Order.state.slSellPercent) / 100;
       document.querySelector("#loss").value = lossOrder.toFixed(2);
     }
-    if (e.target.id === "sizeAlgo") {
+    if (e.target.id === "sizeAlgo" && e.target.value > 0) {
       const attemptsCount = Math.floor(
         App.state.algoTrading.balance /
           ((e.target.value * document.querySelector("#sl").value) / 100),
       );
-      document.querySelector("#attemptsCount").value = attemptsCount;
+      document.querySelector("#attemptsSpan").textContent =
+        attemptsCount < 999 ? attemptsCount : ">999";
       const lossAlgo =
         (e.target.value *
           document.querySelector("#sl").value *
@@ -268,18 +314,22 @@ class ModalManager {
         100;
       document.querySelector("#loss").value = lossAlgo.toFixed(2);
     }
-    if (e.target.id === "sl") {
+    if (e.target.id === "sl" && e.target.value > 0) {
       const attemptsCount = Math.floor(
         App.state.algoTrading.balance /
           ((e.target.value * document.querySelector("#sizeAlgo").value) / 100),
       );
-      document.querySelector("#attemptsCount").value = attemptsCount;
+      document.querySelector("#attemptsSpan").textContent =
+        attemptsCount < 999 ? attemptsCount : ">999";
       const lossAlgo =
         (e.target.value *
           document.querySelector("#attemptsCount").value *
           document.querySelector("#sizeAlgo").value) /
         100;
       document.querySelector("#loss").value = lossAlgo.toFixed(2);
+      if (!attemptsCount) {
+        alert("Liquidation! Stop!");
+      }
     }
   }
   handleSubmit(e) {
@@ -292,19 +342,12 @@ class ModalManager {
     if (form.dataset.formType === "algo") {
       this._handleAlgoSubmit(formData);
     }
+    if (form.dataset.formType === "scaner") {
+      this._handleScanerSubmit(formData);
+    }
   }
 
   async handleClick(e) {
-    // const clickedLink = e.target.closest('a.nav-link');
-    // if (!clickedLink) return; // Если клик не по ссылке - выходим
-    // // Находим контейнер меню (ближайший ul с классом nav)
-    // const navContainer = clickedLink.closest('ul.nav');
-    // // Находим все ссылки в текущем меню
-    // const allLinks = navContainer.querySelectorAll('a.nav-link');
-    // // Удаляем active у всех ссылок
-    // allLinks.forEach(link => link.classList.remove('active'));
-    // // Добавляем active кликнутой ссылке
-    // clickedLink.classList.add('active');
     const orderElement = e.target.closest(".order-item");
     if (orderElement) {
       this._handleOrderClick(orderElement, e);
@@ -346,20 +389,9 @@ class ModalManager {
     const entryPrice = +item.dataset.entryPrice;
     const closedPnl = item.dataset.closedPnl;
     const side = item.dataset.side;
-    // Обработка кнопок внутри строки
-    // if (e.target.classList.contains('btn-edit')) {
-    //   handleEdit(itemId);
-    // } else if (e.target.classList.contains('btn-delete')) {
-    //   handleDelete(itemId);
-    // }
-    // Клик по всей строке
     if (symbol !== App.state.symbol) {
       App.router.navigate(`/chart/${symbol}`);
     }
-    //document
-    //  .querySelectorAll(".history-item")
-    //  .forEach((n) => n.classList.remove("table-info"));
-    //item.classList.add("table-info");
     if (e.target.tagName === "TD") {
       this.showHistoryPriceLines(
         updatedTime,
@@ -550,6 +582,24 @@ class ModalManager {
     App.router.navigate(`/chart/${symbol}`);
     App.state.bsOffcanvas.hide();
   }
+  async _handleScanerSubmit(data) {
+    const timeframe = data.get("timeframe");
+    const candlesCount = parseFloat(data.get("candlesCount"));
+    const touchCount = parseFloat(data.get("touchCount"));
+    const tolerance = parseFloat(data.get("tolerance"));
+    try {
+      App.state.scaner = {
+        timeframe,
+        candlesCount,
+        touchCount,
+        tolerance,
+      };
+      this.modal.hide();
+      await App.scanLevels(App.state.coins);
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
   async _handleOrderSubmit(data) {
     const { side, symbol } = Order.state;
     const orderType = data.get("orderType");
@@ -628,18 +678,11 @@ class ModalManager {
     const attemptsCount = parseFloat(data.get("attemptsCount"));
     const breakeven = parseFloat(data.get("breakeven"));
     const tradingType = data.get("tradingType");
-    //const tradingTypeShort = data.get("tradingTypeShort");
-    //const alertTrigger = data.get("alertTrigger");
     const enterTf = data.get("enterTf");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
-    //if (alertTrigger && ChartManager.state.alerts.length === 0) {
-    //  alert("First create alerts!");
-    //  return;
-    //}
     App.state.algoTrading = {
-      //alertTrigger: alertTrigger ? true : false,
       tradingType,
       enterTf,
       breakeven,
@@ -652,7 +695,6 @@ class ModalManager {
       tolerance,
       balance: App.state.algoTrading.balance,
       user: App.state.user,
-      //alert: App.state.alertTicker,
     };
     App.setState({});
     try {
@@ -696,65 +738,8 @@ class Order {
     this.initEventListeners();
   }
   initEventListeners() {
-    //algo-trading
-    document
-      .querySelector(".trading-btn")
-      .addEventListener("click", async () => {
-        Order.state.symbol = App.state.symbol;
-        const algoTypes = [
-          { value: "Buy", name: "↗️ Long" },
-          { value: "Sell", name: "↘️ Short" },
-          { value: "Flat", name: "↗️ ↘️ Hedge" },
-        ].map((el) => {
-          if (el.value === App.state.algoTrading.tradingType) {
-            el.checked = true;
-          } else {
-            el.checked = false;
-          }
-          return el;
-        });
-        //const algoTypesShort = [
-        //  { value: "off", name: "🔴 Off" },
-        //  { value: "5min", name: `↘️  Short 5m` },
-        //  { value: "15min", name: `↘️  Short 15m` },
-        //  { value: "30min", name: `↘️  Short 30m` },
-        //  { value: "1h", name: "↘️  Short 1h" },
-        //  { value: "2h", name: "↘️  Short 2h" },
-        //  { value: "4h", name: "↘️  Short 4h" },
-        //].map((el) => {
-        //  if (el.value === App.state.algoTrading.tradingTypeShort) {
-        //    el.checked = true;
-        //  } else {
-        //    el.checked = false;
-        //  }
-        //  return el;
-        //});
-        const enterTf = [
-          { value: "5min", name: "5m" },
-          { value: "15min", name: "15m" },
-          { value: "30min", name: "30m" },
-          { value: "1h", name: "1h" },
-          { value: "2h", name: "2h" },
-          { value: "4h", name: "4h" },
-        ].map((el) => {
-          if (el.value === App.state.algoTrading.enterTf) {
-            el.checked = true;
-          } else {
-            el.checked = false;
-          }
-          return el;
-        });
-        App.modal.render({
-          type: "algo-form",
-          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "🐮Swing" : "🐻Scalp"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
-          algoTypes,
-          //algoTypesShort,
-          enterTf,
-        });
-      });
     //long btn
     document.querySelector(".long-btn").addEventListener("click", async () => {
-      //validate!!!
       if (ChartManager.state.alerts.length === 0) {
         alert("First create alerts!");
         return;
@@ -762,7 +747,6 @@ class Order {
       Order.state.side = "Buy";
       Order.state.symbol = App.state.symbol;
       if (!App.state.hideAlerts) {
-        //App.setState({ hideAlerts: true });
         App.hideAlerts();
       }
       App.modal.render({
@@ -774,7 +758,6 @@ class Order {
     });
     //short btn
     document.querySelector(".short-btn").addEventListener("click", async () => {
-      //validate!!!
       if (ChartManager.state.alerts.length === 0) {
         alert("First create alerts!");
         return;
@@ -782,7 +765,6 @@ class Order {
       Order.state.side = "Sell";
       Order.state.symbol = App.state.symbol;
       if (!App.state.hideAlerts) {
-        //App.setState({ hideAlerts: true });
         App.hideAlerts();
       }
       App.modal.render({
@@ -801,7 +783,6 @@ class Order {
     //find ticker positions
     const positionLong = positions.find((p) => p.side === "Buy");
     const positionShort = positions.find((p) => p.side === "Sell");
-    //console.log(positionLong, positionShort);
     //clear old data
     ChartManager.state.positions = [];
     if (positionLong) {
@@ -1061,8 +1042,8 @@ class Router {
   async handleRoute(data) {
     const state = {
       symbol: data.symbol || "BTCUSDT",
-      timeframe: App.state.timeframe || "4h",
-      intervalKline: App.state.intervalKline || "240",
+      timeframe: App.state.timeframe,
+      intervalKline: App.state.intervalToKline[App.state.timeframe],
     };
     App.setState(state);
     await App.renderChart();
@@ -1146,33 +1127,11 @@ class Indicators {
       shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
     });
     ChartManager.state.markerSeries.setMarkers(ChartManager.state.markLevels);
-    //ChartManager.state.markerRsi.setMarkers([]);
-    //ChartManager.state.markRSI = [];
-    //ChartManager.state.markRSI.push({
-    //  time: firstCandle.time,
-    //  //position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
-    //  position: "inBar",
-    //  color: "blue",
-    //  //shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-    //  shape: "circle",
-    //  text: `${ChartManager.state.rsi[firstIndex - 14]?.value.toFixed(1)}`,
-    //});
-    //ChartManager.state.markRSI.push({
-    //  time: lastCandle.time,
-    //  //position: firstCandle.high < lastCandle.high ? "aboveBar" : "belowBar",
-    //  position: "inBar",
-    //  color: "blue",
-    //  //shape: firstCandle.high < lastCandle.high ? "arrowDown" : "arrowUp",
-    //  shape: "circle",
-    //  text: `${ChartManager.state.rsi[lastIndex - 14 - 1]?.value.toFixed(1)}`,
-    //});
-    //ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
     //resistance line
     App.state.resistanceMax = App.state.resistance || max;
     ChartManager.state.levelsArray[1].line.applyOptions({
       price: App.state.resistanceMax,
       color: App.state.resistance ? "red" : "black",
-      //lineStyle: resistance ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
     });
@@ -1181,7 +1140,6 @@ class Indicators {
     ChartManager.state.levelsArray[0].line.applyOptions({
       price: App.state.supportMin,
       color: App.state.support ? "green" : "black",
-      //lineStyle: support ? 1 : 2,
       lineVisible: true,
       axisLabelVisible: true,
       title: `${(((App.state.resistanceMax - App.state.supportMin) / App.state.supportMin) * 100).toFixed(2)}%`,
@@ -1189,93 +1147,7 @@ class Indicators {
     ChartManager.state.levelsArray[1].line.applyOptions({
       title: "Short",
     });
-    // const coordinateY = ChartManager.state.candlestickSeries.priceToCoordinate(
-    //   Math.max(firstCandle.high, lastCandle.high),
-    // );
-    // const coordinateX = ChartManager.state.chart
-    //   .timeScale()
-    //   .timeToCoordinate(firstCandle.time);
-    //Indicators.renderMarkersRSI(lastIndex);
   }
-  //render markers bmw
-  static renderMarkersRSI(lastIndex) {
-    const lastRsiEma =
-      ChartManager.state.rsiEMA[lastIndex - 14 - ChartManager.state.rsiPeriod];
-    const firstRsiEma =
-      ChartManager.state.rsiEMA[lastIndex - 14 - ChartManager.state.rsiPeriod];
-    const lastRsi = ChartManager.state.rsi[lastIndex - 14 - 1];
-    const firstRsi = ChartManager.state.rsi[lastIndex - 14 - 2];
-    //const currentPrice = ChartManager.state.candles[lastIndex - 1].close;
-    //set markers to rsi ema
-    ChartManager.state.markerRsi.setMarkers([]);
-    ChartManager.state.markRSI = [];
-    //bmw series
-    if (firstRsiEma && lastRsiEma && firstRsi && lastRsi) {
-      // const rsiPercentFirst =
-      //   ((firstRsi.value - firstRsiEma.value) / firstRsiEma.value) * 100;
-      const rsiPercentLast =
-        ((lastRsi.value - lastRsiEma.value) / lastRsiEma.value) * 100;
-      const trend =
-        ((lastRsiEma.value - firstRsiEma.value) / firstRsiEma.value) * 100;
-      ChartManager.state.markRSI.push({
-        price:
-          rsiPercentLast < 0 ? lastRsiEma.value * 1.1 : lastRsiEma.value * 0.9,
-        time: lastRsi.time,
-        position: rsiPercentLast > 0 ? "atPriceBottom" : "atPriceTop",
-        color: "black",
-        shape: "circle",
-        text: `Trend ${trend.toFixed(2)}`,
-      });
-    }
-    ChartManager.state.markerRsi.setMarkers(ChartManager.state.markRSI);
-  }
-  // RSI для всех свечей
-  static calculateRSI(candles, period = 14) {
-    if (candles.length < period + 1) return [];
-    const results = [];
-    let gains = 0;
-    let losses = 0;
-
-    // Рассчитываем начальные средние gain/loss
-    for (let i = 1; i <= period; i++) {
-      const change = candles[i].close - candles[i - 1].close;
-      if (change >= 0) gains += change;
-      else losses -= change;
-    }
-
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    let rsi = 100 - 100 / (1 + rs);
-    results.push({
-      time: candles[period].time,
-      value: rsi,
-    });
-
-    // Рассчитываем последующие значения RSI
-    for (let i = period + 1; i < candles.length; i++) {
-      const change = candles[i].close - candles[i - 1].close;
-      let currentGain = 0;
-      let currentLoss = 0;
-
-      if (change >= 0) currentGain = change;
-      else currentLoss = -change;
-
-      // Сглаживаем средние значения
-      avgGain = (avgGain * (period - 1) + currentGain) / period;
-      avgLoss = (avgLoss * (period - 1) + currentLoss) / period;
-
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      rsi = 100 - 100 / (1 + rs);
-      results.push({
-        time: candles[i].time,
-        value: rsi,
-      });
-    }
-
-    return results;
-  }
-  // Вспомогательная функция для расчета EMA
   static calculateEMA(candles, period) {
     if (candles.length < period + 1) return [];
     const k = 2 / (period + 1);
@@ -1298,51 +1170,6 @@ class Indicators {
     }
 
     return emaArray;
-  }
-  static calculateMACD(
-    candles,
-    shortPeriod = 12,
-    longPeriod = 26,
-    signalPeriod = 9,
-  ) {
-    if (candles.length < longPeriod + signalPeriod) return [];
-    // Рассчитываем EMA для короткого и длинного периодов
-    const shortEMA = Indicators.calculateEMA(candles, shortPeriod);
-    const longEMA = Indicators.calculateEMA(candles, longPeriod);
-
-    // Выравниваем массивы EMA по времени
-    const macdLine = [];
-    for (let i = 0; i < longEMA.length; i++) {
-      const longItem = longEMA[i];
-      const shortItem = shortEMA.find((s) => s.time === longItem.time);
-      if (shortItem) {
-        macdLine.push({
-          time: longItem.time,
-          value: shortItem.value - longItem.value,
-        });
-      }
-    }
-
-    // Рассчитываем сигнальную линию (EMA от MACD)
-    const signalLine = Indicators.calculateEMA(macdLine, signalPeriod);
-
-    // Создаем гистограмму с цветами
-    const histogram = [];
-    for (let i = 0; i < signalLine.length; i++) {
-      const macdItem = macdLine[i + signalPeriod - 1]; // Смещение для выравнивания
-      const diff = macdItem.value - signalLine[i].value;
-      histogram.push({
-        time: signalLine[i].time,
-        value: diff,
-        color: diff >= 0 ? "green" : "red",
-      });
-    }
-
-    return {
-      macdLine,
-      signalLine,
-      histogram,
-    };
   }
 }
 //LightweightCharts
@@ -1368,22 +1195,17 @@ class ChartManager {
     positions: [],
     messages: [],
     markers: [],
+    container: document.getElementById("chart"),
+    candleContainer: document.getElementById("candleEl"),
+    prevSymbolKlineTopic: null,
+    ws: new WebSocket("wss://stream.bybit.com/v5/public/linear"),
+    activeSubscriptions: new Set(),
   };
-  constructor() {
-    this.container = document.getElementById("chart");
-    //this.volumeContainer = document.getElementById("volumeEl");
-    this.candleContainer = document.getElementById("candleEl");
-    this.prevSymbolKlineTopic = null;
-    this.ws = new WebSocket("wss://stream.bybit.com/v5/public/linear");
-    this.activeSubscriptions = new Set();
-  }
 
-  init() {
+  async init() {
     ChartManager.state.chart = window.LightweightCharts.createChart(
-      this.container,
+      ChartManager.state.container,
       {
-        //width: this.container.offsetWidth,
-        //height: document.documentElement.scrollHeight - 115,
         autoSize: true,
         layout: {
           textColor: "black",
@@ -1397,8 +1219,6 @@ class ChartManager {
         },
         timeScale: {
           timeVisible: true,
-          //borderColor: "#25282D",
-          //secondsVisible: false,
         },
         localization: {
           timeFormatter: (timestamp) => {
@@ -1492,58 +1312,12 @@ class ChartManager {
         bottom: 0,
       },
     });
-    //indicators
-    //ChartManager.state.rsiSeries = ChartManager.state.chart.addSeries(
-    //  window.LightweightCharts.LineSeries,
-    //  {
-    //    color: "#FF6D00",
-    //    lineWidth: 2,
-    //    priceLineVisible: false,
-    //  },
-    //  1,
-    //);
-    //ChartManager.state.rsiSeriesEMA = ChartManager.state.chart.addSeries(
-    //  window.LightweightCharts.LineSeries,
-    //  {
-    //    color: "green",
-    //    lineWidth: 2,
-    //    priceLineVisible: false,
-    //  },
-    //  1,
-    //);
-    //ChartManager.state.markerRsi = window.LightweightCharts.createSeriesMarkers(
-    //  ChartManager.state.rsiSeries,
-    //);
-    //ChartManager.state.rsiSeries.createPriceLine({
-    //  price: 30,
-    //  color: "green",
-    //  lineWidth: 2,
-    //  lineStyle: 2,
-    //  axisLabelVisible: false,
-    //});
-    //ChartManager.state.rsiSeries.createPriceLine({
-    //  price: 50,
-    //  color: "black",
-    //  lineWidth: 2,
-    //  lineStyle: 2,
-    //  axisLabelVisible: false,
-    //});
-    //ChartManager.state.rsiSeries.createPriceLine({
-    //  price: 70,
-    //  color: "red",
-    //  lineWidth: 2,
-    //  lineStyle: 2,
-    //  axisLabelVisible: false,
-    //});
-    //ChartManager.state.chart
-    //  .panes()[0]
-    //  .setHeight(document.documentElement.scrollHeight - 200);
     ChartManager.state.chart.subscribeClick(this.defaultAlerts);
     ChartManager.state.chart.subscribeCrosshairMove(this.handleCrosshairMove);
     ChartManager.state.chart.subscribeDblClick(this.handleDblClick);
     //start WS
     this.initEventListeners();
-    this.initWebSocket();
+    await this.initWebSocket();
   }
   dragAlert() {
     //choose alert
@@ -1762,31 +1536,30 @@ class ChartManager {
   initEventListeners() {
     let isMouseDown = false;
 
-    // Обработчик нажатия кнопки мыши
-    this.container.addEventListener("mousedown", (e) => {
+    ChartManager.state.container.addEventListener("mousedown", (e) => {
       if (e.button === 0) {
         isMouseDown = true;
-        e.preventDefault(); // Предотвращаем стандартное поведение
+        e.preventDefault();
       }
     });
 
-    // Обработчик движения мыши
-    this.container.addEventListener("mousemove", () => {
+    ChartManager.state.container.addEventListener("mousemove", () => {
       if (isMouseDown) {
         this.dragAlert();
       }
     });
 
-    // Обработчик отпускания кнопки мыши (на весь документ)
     document.addEventListener("mouseup", () => {
       this.dropAlert();
       isMouseDown = false;
     });
     //touch events
     //drag
-    this.container.addEventListener("touchmove", () => this.dragAlert());
+    ChartManager.state.container.addEventListener("touchmove", () =>
+      this.dragAlert(),
+    );
     //drop
-    this.container.addEventListener(
+    ChartManager.state.container.addEventListener(
       "touchend",
       async () => await this.dropAlert(),
     );
@@ -1809,15 +1582,30 @@ class ChartManager {
       alert(resJson.message);
     }
   }
-  async loadChartData() {
+  static async getCandles(symbol, intervalKline, limit = 1000) {
     try {
       const response = await fetch(
-        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${App.state.symbol}&interval=${App.state.intervalKline}&limit=1000`,
+        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${intervalKline}&limit=${limit}`,
       );
       const data = await response.json();
       if (data.retCode !== 0) {
         throw new Error(`Error API: ${data.retMsg}`);
       }
+      return data.result.list.reverse().map((candle) => ({
+        time: parseInt(candle[0]) / 1000,
+        open: parseFloat(candle[1]),
+        high: parseFloat(candle[2]),
+        low: parseFloat(candle[3]),
+        close: parseFloat(candle[4]),
+        volume: parseFloat(candle[5]),
+      }));
+    } catch (error) {
+      alert(`Error loading chart data:, ${error}`);
+      console.error("Error loading chart data:", error);
+    }
+  }
+  async loadChartData() {
+    try {
       const responseInfo = await fetch(
         `https://api.bybit.com/v5/market/instruments-info?category=linear&symbol=${App.state.symbol}`,
       );
@@ -1841,19 +1629,13 @@ class ChartManager {
           minMove: tickSize,
         },
       });
-      const formattedData = data.result.list.reverse().map((candle) => ({
-        time: parseInt(candle[0]) / 1000,
-        open: parseFloat(candle[1]),
-        high: parseFloat(candle[2]),
-        low: parseFloat(candle[3]),
-        close: parseFloat(candle[4]),
-        volume: parseFloat(candle[5]),
-      }));
-      ChartManager.state.candles = formattedData;
+      ChartManager.state.candles = await ChartManager.getCandles(
+        App.state.symbol,
+        App.state.intervalKline,
+      );
       ChartManager.state.candlestickSeries.setData([]);
       ChartManager.state.volumeSeries.setData([]);
-      //ChartManager.state.rsiSeries.setData([]);
-      this.updateData(formattedData);
+      this.updateData(ChartManager.state.candles);
       ChartManager.state.chart.timeScale().scrollToPosition(10);
     } catch (error) {
       alert(`Error loading chart data:, ${error}`);
@@ -1880,75 +1662,75 @@ class ChartManager {
           alert.line.applyOptions({
             color: "orange",
           });
-          this.container.style.cursor = "pointer";
+          ChartManager.state.container.style.cursor = "pointer";
           return true;
         }
       }
       this.defaultAlerts();
     }
   }
-  // Инициализация WebSocket
   initWebSocket() {
-    this.ws.onopen = () => {
-      console.log("WebSocket connected");
-      //this.resubscribe();
-    };
-    this.ws.onmessage = (e) => this.handleMessage(e);
-    this.ws.onclose = () => {
-      setTimeout(() => this.initWebSocket(), 3000);
-    };
+    return new Promise((resolve, reject) => {
+      ChartManager.state.ws.onopen = () => {
+        console.log("WebSocket connected");
+        resolve();
+      };
+      ChartManager.state.ws.onmessage = (e) => this.handleMessage(e);
+      ChartManager.state.ws.onclose = () => {
+        setTimeout(() => this.initWebSocket(), 3000);
+      };
+      ChartManager.state.ws.onerror = (error) => {
+        reject(error);
+      };
+    });
   }
   updateWebsocketSymbol() {
-    if (this.prevSymbolKlineTopic) {
+    if (ChartManager.state.prevSymbolKlineTopic) {
       const subscribeMsg = {
         op: "unsubscribe",
-        args: this.prevSymbolKlineTopic,
+        args: ChartManager.state.prevSymbolKlineTopic,
       };
-      this.sendSubscription(subscribeMsg);
+      ChartManager.sendSubscription(subscribeMsg);
     }
     const subscribeMsg = {
       op: "subscribe",
       args: [`kline.${App.state.intervalKline}.${App.state.symbol}`],
     };
-    this.prevSymbolKlineTopic = [
+    ChartManager.state.prevSymbolKlineTopic = [
       `kline.${App.state.intervalKline}.${App.state.symbol}`,
     ];
-    this.sendSubscription(subscribeMsg);
+    ChartManager.sendSubscription(subscribeMsg);
   }
-  // Обновление параметров графика
-  updateWebsocketSubs() {
+  static updateWebsocketSubs() {
     this.unsubscribeAll();
     this.subscribeToData();
   }
 
-  // Подписка на данные
-  subscribeToData() {
+  static subscribeToData() {
     const args = App.state.coins.map((coin) => `kline.D.${coin.symbol}`);
     const subscribeMsg = {
       op: "subscribe",
       args,
     };
     this.sendSubscription(subscribeMsg);
-    args.forEach((topic) => this.activeSubscriptions.add(topic));
+    args.forEach((topic) => this.state.activeSubscriptions.add(topic));
   }
-  // Отписка от всех активных подписок
-  unsubscribeAll() {
+  static unsubscribeAll() {
     const unsubscribeMsg = {
       op: "unsubscribe",
-      args: Array.from(this.activeSubscriptions),
+      args: Array.from(this.state.activeSubscriptions),
     };
 
-    if (this.activeSubscriptions.size > 0) {
+    if (this.state.activeSubscriptions.size > 0) {
       this.sendSubscription(unsubscribeMsg);
-      this.activeSubscriptions.clear();
+      this.state.activeSubscriptions.clear();
     }
   }
-  sendSubscription(message) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+  static sendSubscription(message) {
+    if (this.state.ws?.readyState === WebSocket.OPEN) {
+      this.state.ws.send(JSON.stringify(message));
     }
   }
-  // Обработка сообщений
   handleMessage(event) {
     const message = JSON.parse(event.data);
     if (message.topic) {
@@ -1979,7 +1761,9 @@ class ChartManager {
   }
   handleTickerData(symbol, candle) {
     const { close, open } = candle;
-    const element = document.querySelector(`[data-symbol="${symbol}"]`);
+    const element = document.querySelector(
+      `.coin-item[data-symbol="${symbol}"]`,
+    );
     if (element) {
       const priceElem = element.querySelector(".coin-price");
       const changeElem = element.querySelector(".coin-change");
@@ -2020,22 +1804,10 @@ class ChartManager {
         color: c.close > c.open ? "#26A69A" : "#EF5350",
       })),
     );
-    //// Рассчитываем и отображаем исторические индикаторы
-    //if (history.length > 14) {
-    //  ChartManager.state.rsi = Indicators.calculateRSI(history);
-    //  ChartManager.state.rsiSeries.setData(ChartManager.state.rsi);
-    //  ChartManager.state.rsiPeriod = 14;
-    //  ChartManager.state.rsiEMA = Indicators.calculateEMA(
-    //    ChartManager.state.rsi,
-    //    ChartManager.state.rsiPeriod,
-    //  );
-    //  ChartManager.state.rsiSeriesEMA.setData(ChartManager.state.rsiEMA);
-    //}
   }
   updateRealtime(newCandle) {
     if (!ChartManager.state.point) {
-      //App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)}`;
-      App.chartManager.candleContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)} (${newCandle.close > newCandle.open ? `+${(((newCandle.high - newCandle.low) / newCandle.low) * 100).toFixed(2)}` : `${(((newCandle.low - newCandle.high) / newCandle.high) * 100).toFixed(2)}`}%)`;
+      ChartManager.state.candleContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(newCandle.volume)} (${newCandle.close > newCandle.open ? `+${(((newCandle.high - newCandle.low) / newCandle.low) * 100).toFixed(2)}` : `${(((newCandle.low - newCandle.high) / newCandle.high) * 100).toFixed(2)}`}%)`;
     }
     const prevCandle =
       ChartManager.state.candles[ChartManager.state.candles.length - 1];
@@ -2055,13 +1827,6 @@ class ChartManager {
       value: newCandle.volume,
       color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
     });
-    // Расчет и обновление RSI
-    //if (ChartManager.state.candles.length > 14) {
-    //  const rsi = Indicators.calculateRSI(ChartManager.state.candles);
-    //  ChartManager.state.rsiSeries.update(rsi[rsi.length - 1]);
-    //  const rsiEma = Indicators.calculateEMA(rsi, ChartManager.state.rsiPeriod);
-    //  ChartManager.state.rsiSeriesEMA.update(rsiEma[rsiEma.length - 1]);
-    //}
     //positions
     const positionLong = ChartManager.state.positions.find(
       (p) => p.side === "Buy",
@@ -2106,27 +1871,17 @@ class ChartManager {
       return;
     }
     const candle = param.seriesData.get(ChartManager.state.candlestickSeries);
-    if (candle) {
-      //App.chartManager.candleContainer.textContent = `${candle.volume} (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
-    }
     //update volume
     if (param.time && candle) {
       const datapoints = param.seriesData.get(ChartManager.state.volumeSeries);
       if (datapoints) {
-        App.chartManager.candleContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)} (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
-        //App.chartManager.volumeContainer.textContent = `Volume: ${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)}`;
+        ChartManager.state.candleContainer.textContent = `${ChartManager.state.volumeSeries.priceFormatter().format(datapoints.value)} (${candle.close > candle.open ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}` : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`}%)`;
       }
     }
     //price lines
     if (ChartManager.state.candlestickSeries) {
       ChartManager.state.currentPriceMove =
         ChartManager.state.candlestickSeries.coordinateToPrice(param.point.y);
-      // param.paneIndex === 0
-      //   ? ChartManager.state.candlestickSeries.coordinateToPrice(
-      //       param.point.y,
-      //     )
-      //   : ChartManager.state.rsiSeries.coordinateToPrice(param.point.y);
-      //App.state.hideAlerts
       if (ChartManager.state.currentPriceMove > 0) {
         App.chartManager.checkHover(ChartManager.state.currentPriceMove, [
           ...ChartManager.state.alerts,
@@ -2272,7 +2027,7 @@ class ChartManager {
       color: App.state.resistance ? "red" : "black",
       //title: "Short",
     });
-    App.chartManager.container.style.cursor = "default";
+    ChartManager.state.container.style.cursor = "default";
     ChartManager.state.chart.applyOptions({
       handleScroll: true,
       handleScale: true,
@@ -2294,29 +2049,42 @@ class App {
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
     user: "main",
     statsTab: "positions",
+    scaner: {
+      timeframe: "4h",
+      candlesCount: 10,
+      touchCount: 3,
+      tolerance: 1,
+    },
+    intervalToKline: {
+      "1min": "1",
+      "5min": "5",
+      "15min": "15",
+      "30min": "30",
+      "1h": "60",
+      "2h": "120",
+      "4h": "240",
+      "6h": "360",
+      "12h": "720",
+      "1d": "D",
+      "1w": "W",
+      "1m": "M",
+    },
   };
 
   static async init() {
-    //moment
     window.Handlebars.registerHelper("date", function (updatedAt) {
       if (!updatedAt) return "";
       return new Date(updatedAt._seconds * 1000).toLocaleString("ru-RU", {
         timeZone: "Europe/Moscow",
       });
     });
-    //window.Handlebars.registerHelper("fromNow", function (updatedAt) {
-    //  if (!updatedAt) return "";
-    //  return window.moment(updatedAt._seconds * 1000).fromNow();
-    //});
     window.Handlebars.registerHelper("algoIcon", function (ticker) {
       const {
         tradingType = "Buy",
-        //alertTrigger = false,
         attemptsCount = -1,
         enterTf = "4h",
         size,
       } = ticker[App.state.user] || {};
-      //const triggerIcon = `${alertTrigger ? "🔔" : ""}`;
       if (attemptsCount < 0) return "";
       return `AlgoTrading ${App.renderTradingBtn(tradingType, attemptsCount, enterTf)} ${size}$`;
     });
@@ -2357,11 +2125,11 @@ class App {
     this.chartManager = new ChartManager();
     this.router = new Router();
     this.initAutocomplete();
-    this.initChart();
-    await this.loadCoins();
     this.initEventListeners();
+    await this.chartManager.init();
     this.modal = new ModalManager();
     this.order = new Order();
+    await this.loadCoins();
   }
   static initAutocomplete() {
     //algolia search
@@ -2466,8 +2234,41 @@ class App {
       },
     });
   }
-  static initChart() {
-    this.chartManager.init();
+  static async scanLevels(coins) {
+    //scan coin levels
+    for (const ticker of coins) {
+      const { symbol } = ticker;
+      const { timeframe, candlesCount, touchCount, tolerance } =
+        App.state.scaner;
+      const elementHtml = document.querySelector(
+        `.coin-item[data-symbol="${symbol}"]`,
+      );
+      if (elementHtml) {
+        const levelsElem = elementHtml.querySelector(".coin-levels");
+        if (levelsElem) {
+          levelsElem.textContent = "⌛️";
+        }
+      }
+      const candles = await ChartManager.getCandles(
+        symbol,
+        App.state.intervalToKline[timeframe],
+        candlesCount,
+      );
+      const { support, resistance } = Indicators.findLevels(
+        candles,
+        touchCount,
+      );
+      const { close } = candles[candles.length - 1];
+      const supportZone = Math.abs(support - close) / close <= tolerance / 100;
+      const resistanceZone =
+        Math.abs(resistance - close) / close <= tolerance / 100;
+      if (elementHtml) {
+        const levelsElem = elementHtml.querySelector(".coin-levels");
+        if (levelsElem) {
+          levelsElem.textContent = `${supportZone ? "⤴️" : ""}${resistanceZone ? "⤵️" : ""}`;
+        }
+      }
+    }
   }
   //load Bybit tickers
   static async loadCoinsBybit(cursorNext = "") {
@@ -2480,6 +2281,7 @@ class App {
       );
       this.state.cursorNext = data.result.nextPageCursor;
       this.renderCoinList();
+      await this.scanLevels(this.state.coins);
     } catch (error) {
       console.error("Error loading Bybit coins:", error);
     }
@@ -2499,7 +2301,6 @@ class App {
       if (data.paginate.hasPrev) {
         this.state.cursorPrev = data.paginate.firstVisibleId;
       }
-      //set message tab
       document
         .querySelectorAll(".tab-link")
         .forEach((n) => n.classList.remove("active"));
@@ -2507,27 +2308,30 @@ class App {
         .querySelector(`[data-tab='${this.state.activeTab}']`)
         .classList.add("active");
       this.renderCoinList();
+      await this.scanLevels(this.state.coins);
     } catch (error) {
       console.error("Error loading My coins:", error);
     }
   }
+  static setActiveTicker(symbol) {
+    document
+      .querySelectorAll(".coin-item")
+      .forEach((n) => n.classList.remove("list-group-item-primary"));
+    document
+      .querySelector(`.coin-item[data-symbol="${symbol}"]`)
+      ?.classList.add("list-group-item-primary");
+  }
   static renderCoinList() {
     const coinList = document.querySelector(".coin-list");
-    //set active coin
     const templateHbs = window.Handlebars.templates["coins-list"];
-    this.state.coins = this.state.coins.map((coin) => ({
-      ...coin,
-      active: this.state.symbol === coin.symbol,
-    }));
-    //render
     coinList.innerHTML = templateHbs({
       coins: this.state.coins,
       cursorPrev: !this.state.cursorPrev,
       cursorNext: !this.state.cursorNext,
       bybit: this.state.activeTab === "bybit",
     });
-    //ws subs
-    this.chartManager.updateWebsocketSubs();
+    this.setActiveTicker(App.state.symbol);
+    ChartManager.updateWebsocketSubs();
   }
 
   static setState(newState) {
@@ -2542,12 +2346,11 @@ class App {
       document.querySelector(".display-symbol").textContent =
         `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
       document.querySelector(".switch-user").textContent =
-        `${App.state.user === "main" ? "🐮Long" : "🐻Short"} (${App.state.algoTrading.balance.toFixed(1)}$)`;
+        `${App.state.user === "main" ? "🐮Main" : "🐻Sub"} (${App.state.algoTrading.balance.toFixed(1)}$)`;
     }
   }
   static async renderChart() {
     await this.chartManager.loadChartData();
-    //load Alerts
     await this.loadAlerts();
     this.renderLevels();
     this.chartManager.updateWebsocketSymbol();
@@ -2611,10 +2414,34 @@ class App {
           title: `${alertNumber}| ${(((alertPrice - alert1) / alert1) * 100).toFixed(2)}%`,
         });
     });
-    //Order.state.slBuyPercent =
-    //  (((startBuy + stopBuy) / 2 - slBuy) / slBuy) * 100;
-    //Order.state.slSellPercent =
-    //  (((startSell + stopSell) / 2 - slSell) / slSell) * 100;
+  }
+  static async getTickerInfo(symbol) {
+    const responseInfo = await fetch(
+      `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${symbol}`,
+    );
+    const dataInfo = await responseInfo.json();
+    if (dataInfo.retCode !== 0) {
+      throw new Error(`Error API getTickerInfo: ${dataInfo.retMsg}`);
+    }
+    const ticker = dataInfo.result.list[0];
+    const { fundingRate, fundingIntervalHour } = ticker;
+    const nextFundingTimeMs = parseInt(ticker.nextFundingTime);
+    const nowMs = Date.now();
+    const timeUntilMs = Math.max(0, nextFundingTimeMs - nowMs);
+
+    const nextTimeDate = new Date(nextFundingTimeMs);
+    const nextFundingTime = nextTimeDate.toLocaleString("ru-RU", {
+      timeZone: "Europe/Moscow",
+    });
+    const hours = Math.floor(timeUntilMs / 3_600_000);
+    const minutes = Math.floor((timeUntilMs % 3_600_000) / 60_000);
+    const countDownTime = `${hours}h ${minutes}m`;
+    return {
+      fundingRate: (fundingRate * 100).toFixed(4),
+      fundingIntervalHour,
+      nextFundingTime,
+      countDownTime,
+    };
   }
   static async loadAlerts(defaultAlerts = false) {
     Indicators.state.countLoads = 0;
@@ -2632,16 +2459,10 @@ class App {
         return;
       }
       if (!App.state.hideAlerts) {
-        //App.setState({ hideAlerts: true });
         App.hideAlerts();
       }
     }
-    const item = App.state.item;
-    const read = App.state.read;
     document.querySelector(".trading-btn").classList.add("d-none");
-    App.state.item = false;
-    App.state.read = false;
-    //get alerts
     const alertsData = await fetch(`/alerts/${App.state.symbol}`, {
       method: "POST",
       headers: {
@@ -2651,7 +2472,7 @@ class App {
         defaultAlerts,
         support: App.state.supportMin,
         resistance: App.state.resistanceMax,
-        read,
+        //read,
         user: App.state.user,
       }),
     });
@@ -2660,7 +2481,6 @@ class App {
       alert(alertsDataJson.message);
       return false;
     }
-    //clear alerts
     if (ChartManager.state.alerts.length) {
       for (const alert of ChartManager.state.alerts) {
         ChartManager.state.candlestickSeries.removePriceLine(alert.line);
@@ -2682,25 +2502,20 @@ class App {
       });
     }
     this.updateAlertsTitle();
-    //if (defaultAlerts) {
-    //  return;
-    //}
     const {
       tradingType = "Buy",
-      //alertTrigger = false,
       enterTf = "4h",
-      sl = 0.7,
+      sl = 1,
       tp = Order.state.TAKE_PROFIT,
       size = 0,
       attemptsCount = -1,
-      breakeven = 6,
-      candlesCount = 25,
+      breakeven = 5,
+      candlesCount = 10,
       touchCount = 3,
-      tolerance = 0.05,
+      tolerance = 0.04,
     } = alertsDataJson[App.state.user] || {};
     App.state.algoTrading = {
       tradingType,
-      //alertTrigger,
       enterTf,
       sl,
       tp,
@@ -2713,7 +2528,17 @@ class App {
       balance: alertsDataJson.balance || 0,
     };
     App.setState({});
-    //document.querySelector(".trading-btn").classList.remove("d-none");
+    const tickerItem = document.querySelector(
+      `.coin-item[data-symbol="${App.state.symbol}"]`,
+    );
+    const newTicker = document.getElementById("load-coin");
+    const item = tickerItem || newTicker;
+    //loaded coin
+    if (!tickerItem) {
+      newTicker.classList.remove("d-none");
+      newTicker.dataset.symbol = App.state.symbol;
+      newTicker.querySelector(".coin-symbol").textContent = App.state.symbol;
+    }
     if (item) {
       item.querySelector(".add-btn").classList.remove("d-none");
       item
@@ -2739,24 +2564,9 @@ class App {
         item.querySelector(".add-btn").textContent = "➕";
         item.querySelector(".add-btn").dataset.add = false;
       }
-    } else {
-      //add loaded coin
-      if (!this.state.coins.find((coin) => coin.symbol === this.state.symbol)) {
-        //TODO show only one coin!!!
-        const loadedCoin = {
-          symbol: this.state.symbol,
-          ...alertsDataJson,
-          loaded: true,
-        };
-        if (this.state.coins.length > 0 && this.state.coins[0].loaded) {
-          this.state.coins[0] = loadedCoin;
-        } else {
-          this.state.coins.unshift(loadedCoin);
-        }
-      }
-      //render new data
-      this.renderCoinList();
     }
+    //set active item
+    this.setActiveTicker(App.state.symbol);
     //SHOW limit orders in chart
     Order.orderPriceLines(alertsDataJson.orders);
     //SHOW positions in chart
@@ -2783,13 +2593,6 @@ class App {
     document
       .querySelector(".order-btn")
       .classList.toggle("d-none", !alertsDataJson.exists);
-    //document
-    //  .querySelector(".long-btn")
-    //  .classList.toggle("d-none", !alertsDataJson.exists);
-    //document
-    //  .querySelector(".short-btn")
-    //  .classList.toggle("d-none", !alertsDataJson.exists);
-    //this.state.bsOffcanvas.hide();
     //tf active
     document
       .querySelectorAll(".tf-btn")
@@ -2801,7 +2604,8 @@ class App {
   //trading btn render
   static renderTradingBtn(tradingType, attemptsCount, enterTf) {
     if (attemptsCount > 0) {
-      const icon = tradingType === "Buy" ? "↗️" : tradingType === "Sell" ? "↘️" : "↗️↘️";
+      const icon =
+        tradingType === "Buy" ? "↗️" : tradingType === "Sell" ? "↘️" : "↗️↘️";
       return `${icon}${enterTf}(${attemptsCount})`;
     }
     if (attemptsCount === 0) {
@@ -2809,27 +2613,21 @@ class App {
     }
     return "🔴";
   }
-  // Функция для обработки нажатий клавиш
   static handleKeyPress(event) {
-    // Проверяем, какая клавиша была нажата
     switch (event.key) {
       case "ArrowLeft":
-        // Действие при нажатии ←
         ++Indicators.state.countLoads;
         ChartManager.state.chart
           .timeScale()
           .scrollToPosition(-Indicators.state.countLoads + 15);
-        // Здесь можно добавить свою логику
         break;
       case "ArrowRight":
-        // Действие при нажатии →
         if (Indicators.state.countLoads) {
           --Indicators.state.countLoads;
         }
         ChartManager.state.chart
           .timeScale()
           .scrollToPosition(-Indicators.state.countLoads + 15);
-        // Здесь можно добавить свою логику
         break;
     }
     Indicators.calculateLevels(
@@ -2839,8 +2637,64 @@ class App {
     );
   }
   static initEventListeners() {
-    //arrows btn
-    // Добавляем слушатель события нажатия клавиш
+    //algo-trading
+    document
+      .querySelector(".trading-btn")
+      .addEventListener("click", async () => {
+        Order.state.symbol = App.state.symbol;
+        const algoTypes = [
+          { value: "Buy", name: "↗️ Long" },
+          { value: "Sell", name: "↘️ Short" },
+          { value: "Flat", name: "↗️ ↘️ Hedge" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.tradingType) {
+            el.selected = true;
+          } else {
+            el.selected = false;
+          }
+          return el;
+        });
+        const algoEnterTf = [
+          { value: "5min", name: "5m" },
+          { value: "15min", name: "15m" },
+          { value: "30min", name: "30m" },
+          { value: "1h", name: "1h" },
+          { value: "2h", name: "2h" },
+          { value: "4h", name: "4h" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.enterTf) {
+            el.selected = true;
+          } else {
+            el.selected = false;
+          }
+          return el;
+        });
+        const attemptsList = [
+          { value: -1, name: "Trading close" },
+          { value: 0, name: "Check positions" },
+          { value: 1, name: "1 attempt" },
+          { value: 2, name: "2 attempts" },
+          { value: 3, name: "3 attempts" },
+        ].map((el) => {
+          if (el.value === App.state.algoTrading.attemptsCount) {
+            el.selected = true;
+          } else {
+            el.selected = false;
+          }
+          return el;
+        });
+        const symbol = App.state.symbol;
+        const tickerInfo = await App.getTickerInfo(symbol);
+        App.modal.render({
+          type: "algo-form",
+          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "🐮Swing" : "🐻Scalp"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
+          algoTypes,
+          algoEnterTf,
+          attemptsList,
+          fundingRate: tickerInfo.fundingRate,
+          countDownTime: tickerInfo.countDownTime,
+        });
+      });
     document.addEventListener("keydown", this.handleKeyPress);
     //tabs
     document.querySelectorAll(".tab-link").forEach((btn) => {
@@ -2859,7 +2713,6 @@ class App {
         }
       });
     });
-    // Выбор монеты
     document
       .querySelector(".coin-list")
       .addEventListener("click", async (event) => {
@@ -2883,10 +2736,10 @@ class App {
           await this.loadCoinsBybit(this.state.cursorNext);
           return;
         }
+        if (!item) {
+          return;
+        }
         const symbol = item.dataset.symbol;
-        const coinInList = this.state.coins.find(
-          (coin) => coin.symbol === symbol,
-        );
         //add ticker
         if (addBtn) {
           const { add } = addBtn.dataset;
@@ -2923,7 +2776,6 @@ class App {
             document.querySelector(".reset-btn").classList.remove("d-none");
             document.querySelector(".hide-btn").classList.remove("d-none");
             document.querySelector(".order-btn").classList.remove("d-none");
-            coinInList.exists = true;
             await this.loadAlerts();
           } else {
             addBtn.textContent = "➕";
@@ -2936,7 +2788,6 @@ class App {
             document.querySelector(".trading-btn").classList.add("d-none");
             document.querySelector(".long-btn").classList.add("d-none");
             document.querySelector(".short-btn").classList.add("d-none");
-            coinInList.exists = false;
           }
           return;
         }
@@ -2959,7 +2810,6 @@ class App {
             return;
           }
           starBtn.dataset.star = fieldData;
-          coinInList.star = fieldData;
           starBtn.innerText = fieldData ? "❤️" : "🖤";
           return;
         }
@@ -2982,30 +2832,13 @@ class App {
             return;
           }
           alertBtn.dataset.alert = fieldData;
-          coinInList.alert = fieldData;
           alertBtn.innerText = fieldData ? "🔔" : "🔕";
-          //this.state.alertBtn = true;???
-          if (fieldData && this.state.symbol === symbol) {
-            this.state.item = item;
-            //await this.loadAlerts();
-          }
           return;
         }
         if (item) {
-          this.state.read = item.dataset.read === "true";
-          coinInList.read = false;
-          if (this.state.read) {
-            item.classList.remove("list-group-item-success");
-          }
-          if (this.state.symbol !== symbol) {
-            document
-              .querySelectorAll(".coin-item")
-              .forEach((n) => n.classList.remove("list-group-item-primary"));
-            item.classList.add("list-group-item-primary");
-            this.state.item = item;
-            this.router.navigate(`/chart/${symbol}`);
-            this.state.bsOffcanvas.hide();
-          }
+          this.setActiveTicker(symbol);
+          this.router.navigate(`/chart/${symbol}`);
+          this.state.bsOffcanvas.hide();
         }
       });
 
@@ -3015,20 +2848,6 @@ class App {
       .addEventListener("change", async (e) => {
         const tf = e.target.value;
         App.state.timeframe = tf;
-        const intervalKline = {
-          "1min": "1",
-          "5min": "5",
-          "15min": "15",
-          "30min": "30",
-          "1h": "60",
-          "2h": "120",
-          "4h": "240",
-          "6h": "360",
-          "12h": "720",
-          "1d": "D",
-          "1w": "W",
-          "1m": "M",
-        };
         document
           .querySelectorAll(".tf-btn")
           .forEach((n) => n.classList.remove("bg-primary"));
@@ -3036,7 +2855,7 @@ class App {
           .querySelector(`[data-tf="${App.state.timeframe}"]`)
           ?.classList.add("bg-primary");
         e.target.blur();
-        App.state.intervalKline = intervalKline[tf];
+        App.state.intervalKline = App.state.intervalToKline[tf];
         await App.chartManager.loadChartData();
         App.renderLevels();
         App.chartManager.updateWebsocketSymbol();
@@ -3050,25 +2869,10 @@ class App {
         const { tf } = event.target.dataset;
         App.state.timeframe = tf;
         document.getElementById("tf-select").value = tf;
-        const intervalKline = {
-          "1min": "1",
-          "5min": "5",
-          "15min": "15",
-          "30min": "30",
-          "1h": "60",
-          "2h": "120",
-          "4h": "240",
-          "6h": "360",
-          "12h": "720",
-          "1d": "D",
-          "1w": "W",
-          "1m": "M",
-        };
-        App.state.intervalKline = intervalKline[tf];
+        App.state.intervalKline = App.state.intervalToKline[tf];
         await App.chartManager.loadChartData();
         App.renderLevels();
         App.chartManager.updateWebsocketSymbol();
-        //this.router.navigate(`/chart/${this.state.symbol}`);
       });
     });
     //move level
@@ -3105,13 +2909,6 @@ class App {
           App.state.algoTrading.touchCount,
         );
       });
-    //show orders
-    //document
-    //  .querySelector(".show-orders")
-    //  .addEventListener("click", async (event) => {
-    //    event.preventDefault();
-    //    await Order.fetchOrders();
-    //  });
     document
       .querySelector(".show-positions")
       .addEventListener("click", async (event) => {
@@ -3124,15 +2921,36 @@ class App {
         if (App.state.statsTab === "win") await Order.fetchWin();
         if (App.state.statsTab === "winAll") await Order.fetchWin("all");
       });
+    document.querySelector(".scaner").addEventListener("click", (event) => {
+      event.preventDefault();
+      const enterTf = [
+        { value: "30min", name: "30m" },
+        { value: "1h", name: "1h" },
+        { value: "2h", name: "2h" },
+        { value: "4h", name: "4h" },
+      ].map((el) => {
+        if (el.value === App.state.scaner.timeframe) {
+          el.selected = true;
+        } else {
+          el.selected = false;
+        }
+        return el;
+      });
+      App.modal.render({
+        type: "scaner-form",
+        title: "Scan levels settings",
+        enterTf,
+      });
+    });
     document
       .querySelector(".switch-user")
       .addEventListener("click", async (event) => {
         event.preventDefault();
         App.state.user = App.state.user === "main" ? "sub" : "main";
         event.target.textContent =
-          App.state.user === "main" ? "🐂Long" : "🐻Short";
-        await this.loadCoins();
+          App.state.user === "main" ? "🐂Main" : "🐻Sub";
         await this.loadAlerts();
+        await this.loadCoins();
         App.renderLevels();
       });
     //reset hide info btns
@@ -3147,26 +2965,7 @@ class App {
     });
     document.querySelector(".info-btn").addEventListener("click", async () => {
       const symbol = this.state.symbol;
-      //GET /v5/market/tickers
-      const responseInfo = await fetch(
-        `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${App.state.symbol}`,
-      );
-      const dataInfo = await responseInfo.json();
-      if (dataInfo.retCode !== 0) {
-        throw new Error(`Error API: ${dataInfo.retMsg}`);
-      }
-      const ticker = dataInfo.result.list[0];
-      const nextFundingTimeMs = parseInt(ticker.nextFundingTime);
-      const nowMs = Date.now();
-      const timeUntilMs = Math.max(0, nextFundingTimeMs - nowMs);
-
-      // 1. Основное форматирование для Москвы
-      const nextTimeDate = new Date(nextFundingTimeMs);
-      const mskFormatted = nextTimeDate.toLocaleString("ru-RU", {
-        timeZone: "Europe/Moscow",
-      });
-      const hours = Math.floor(timeUntilMs / 3_600_000);
-      const minutes = Math.floor((timeUntilMs % 3_600_000) / 60_000);
+      const tickerInfo = await this.getTickerInfo(symbol);
       //set title
       App.modal.render({
         type: "links",
@@ -3174,21 +2973,21 @@ class App {
         data: [
           {
             field: "Funding rate",
-            value: (ticker.fundingRate * 100).toFixed(4),
+            value: tickerInfo.fundingRate,
             unit: "%",
           },
           {
             field: "Next funding time",
-            value: mskFormatted,
+            value: tickerInfo.nextFundingTime,
           },
           {
             field: "Funding interval",
-            value: ticker.fundingIntervalHour,
+            value: tickerInfo.fundingIntervalHour,
             unit: "hours",
           },
           {
             field: "Count down",
-            value: `${hours}h ${minutes}m`,
+            value: tickerInfo.countDownTime,
           },
         ],
         links: [
@@ -3218,11 +3017,9 @@ class App {
             blank: true,
           },
         ],
-        //size: "lg",
       });
     });
   }
 }
 
-// Инициализация приложения
 App.init();

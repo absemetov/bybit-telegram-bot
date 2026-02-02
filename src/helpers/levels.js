@@ -115,11 +115,11 @@ export const checkPositions = async (
         }
       }
       //set TP
-      let newTakeProfit = avgPrice * (1 - tickerTakeProfit / 100);
+      const newTakeProfit = avgPrice * (1 - tickerTakeProfit / 100);
       //tp auto for scalping
-      if (tp === 1 && levels.support > 0 && levels.support < avgPrice) {
-        newTakeProfit = levels.support * (1 + (tolerance * 2) / 100);
-      }
+      //if (tp === 1 && levels.support > 0 && levels.support < avgPrice) {
+      //  newTakeProfit = levels.support * (1 + (tolerance * 2) / 100);
+      //}
       if (
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.05
@@ -175,11 +175,11 @@ export const checkPositions = async (
         }
       }
       //set TP
-      let newTakeProfit = avgPrice * (1 + tickerTakeProfit / 100);
+      const newTakeProfit = avgPrice * (1 + tickerTakeProfit / 100);
       //auto TP for scalping
-      if (tp === 1 && levels.resistance > avgPrice) {
-        newTakeProfit = levels.resistance * (1 - (tolerance * 2) / 100);
-      }
+      //if (tp === 1 && levels.resistance > avgPrice) {
+      //  newTakeProfit = levels.resistance * (1 - (tolerance * 2) / 100);
+      //}
       if (
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.05
