@@ -34,7 +34,7 @@ export const checkAlerts = async (bot) => {
               enterTf,
               candlesCount,
             );
-            if (candles && candles.length < candlesCount) {
+            if (candles.length < candlesCount) {
               continue;
             }
             const levels = Indicators.calculateLevels(candles, touchCount);

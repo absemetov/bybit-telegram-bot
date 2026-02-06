@@ -36,25 +36,20 @@ class ModalManager {
       scanerForm: window.Handlebars.compile(`
       <form data-form-type="scaner">
         <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label text-success" for="attemptsCount">⏰Timeframe</label>
-              <select class="form-select" name="timeframe" id="timeframe">
-                {{#each scanerTf}}
-                  <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
-                {{/each}}
-              </select>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label text-primary" for="candlesCount">🕯Candles count</label>
-                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="2">
+            <div class="col-md-12 mb-3">
+              <h6>⏰Timeframe {{timeframe}}</h6>
             </div>
         </div>
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
+                <label class="form-label text-primary" for="candlesCount">🕯Candles count</label>
+                <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="2">
+            </div>
+            <div class="col-md-4 mb-3">
                 <label class="form-label text-primary" for="touchCount">🧲Touch count</label>
                 <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="2">
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
                 <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.1" min="0.1">
             </div>
@@ -224,7 +219,7 @@ class ModalManager {
         });
       case "scaner-form":
         return this.templates.scanerForm({
-          scanerTf: config.enterTf,
+          timeframe: App.state.timeframe,
           ...App.state.scaner,
         });
       case "algo-form":
@@ -243,7 +238,7 @@ class ModalManager {
           loss:
             (App.state.algoTrading.size *
               App.state.algoTrading.sl *
-              App.state.algoTrading.attemptsCount) /
+              (Math.abs(App.state.algoTrading.attemptsCount) || 1)) /
             100,
         });
       case "orders":
@@ -296,7 +291,7 @@ class ModalManager {
       const lossAlgo =
         (e.target.value *
           document.querySelector("#sl").value *
-          document.querySelector("#attemptsCount").value) /
+          (Math.abs(document.querySelector("#attemptsCount").value) || 1)) /
         100;
       document.querySelector("#loss").value =
         attemptsCount > 0
@@ -308,7 +303,7 @@ class ModalManager {
     }
     if (e.target.id === "attemptsCount") {
       const lossAlgo =
-        (e.target.value *
+        ((Math.abs(e.target.value) || 1) *
           document.querySelector("#sl").value *
           document.querySelector("#sizeAlgo").value) /
         100;
@@ -323,7 +318,7 @@ class ModalManager {
         attemptsCount < 999 ? attemptsCount : ">999";
       const lossAlgo =
         (e.target.value *
-          document.querySelector("#attemptsCount").value *
+          (Math.abs(document.querySelector("#attemptsCount").value) || 1) *
           document.querySelector("#sizeAlgo").value) /
         100;
       document.querySelector("#loss").value = lossAlgo.toFixed(2);
@@ -583,13 +578,11 @@ class ModalManager {
     App.state.bsOffcanvas.hide();
   }
   async _handleScanerSubmit(data) {
-    const timeframe = data.get("timeframe");
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
     try {
       App.state.scaner = {
-        timeframe,
         candlesCount,
         touchCount,
         tolerance,
@@ -1117,7 +1110,7 @@ class Indicators {
       position: firstCandle.high > lastCandle.high ? "aboveBar" : "belowBar",
       color: "black",
       shape: firstCandle.high > lastCandle.high ? "arrowDown" : "arrowUp",
-      text: `${currentTime.getDate()}, ${currentTime.toLocaleTimeString()}`,
+      text: `${currentTime.getDate()}, ${currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
       //text: `${analysis.marketCondition} (${analysis.strength})`,
     });
     ChartManager.state.markLevels.push({
@@ -1222,7 +1215,8 @@ class ChartManager {
         },
         localization: {
           timeFormatter: (timestamp) => {
-            return new Date(timestamp * 1000).toLocaleString("ru-RU");
+            const date = new Date(timestamp * 1000);
+            return `${date.toLocaleDateString("ru-RU")}, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
           },
         },
         crosshair: {
@@ -1437,7 +1431,6 @@ class ChartManager {
             alert(resJson.message);
             return false;
           }
-          //await App.loadAlerts();
         } catch (error) {
           alert(`Error: ${error.message}`);
         }
@@ -1525,7 +1518,6 @@ class ChartManager {
             alert(resJson.message);
             return false;
           }
-          //await App.loadAlerts();
         } catch (error) {
           alert(`Error: ${error.message}`);
         }
@@ -1582,10 +1574,10 @@ class ChartManager {
       alert(resJson.message);
     }
   }
-  static async getCandles(symbol, intervalKline, limit = 1000) {
+  static async getCandles(symbol, timeframe, limit = 1000) {
     try {
       const response = await fetch(
-        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${intervalKline}&limit=${limit}`,
+        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${App.state.intervalToKline[timeframe]}&limit=${limit}`,
       );
       const data = await response.json();
       if (data.retCode !== 0) {
@@ -1631,7 +1623,7 @@ class ChartManager {
       });
       ChartManager.state.candles = await ChartManager.getCandles(
         App.state.symbol,
-        App.state.intervalKline,
+        App.state.timeframe,
       );
       ChartManager.state.candlestickSeries.setData([]);
       ChartManager.state.volumeSeries.setData([]);
@@ -2050,7 +2042,6 @@ class App {
     user: "main",
     statsTab: "positions",
     scaner: {
-      timeframe: "4h",
       candlesCount: 10,
       touchCount: 3,
       tolerance: 1,
@@ -2123,13 +2114,15 @@ class App {
       return date.toLocaleString("ru-RU");
     });
     this.chartManager = new ChartManager();
-    this.router = new Router();
     this.initAutocomplete();
     this.initEventListeners();
     await this.chartManager.init();
     this.modal = new ModalManager();
     this.order = new Order();
     await this.loadCoins();
+    this.router = new Router();
+    //find levels
+    await this.scanLevels(this.state.coins);
   }
   static initAutocomplete() {
     //algolia search
@@ -2238,8 +2231,7 @@ class App {
     //scan coin levels
     for (const ticker of coins) {
       const { symbol } = ticker;
-      const { timeframe, candlesCount, touchCount, tolerance } =
-        App.state.scaner;
+      const { candlesCount, touchCount, tolerance } = App.state.scaner;
       const elementHtml = document.querySelector(
         `.coin-item[data-symbol="${symbol}"]`,
       );
@@ -2251,7 +2243,7 @@ class App {
       }
       const candles = await ChartManager.getCandles(
         symbol,
-        App.state.intervalToKline[timeframe],
+        App.state.timeframe,
         candlesCount,
       );
       const { support, resistance } = Indicators.findLevels(
@@ -2281,7 +2273,7 @@ class App {
       );
       this.state.cursorNext = data.result.nextPageCursor;
       this.renderCoinList();
-      await this.scanLevels(this.state.coins);
+      //await this.scanLevels(this.state.coins);
     } catch (error) {
       console.error("Error loading Bybit coins:", error);
     }
@@ -2308,7 +2300,7 @@ class App {
         .querySelector(`[data-tab='${this.state.activeTab}']`)
         .classList.add("active");
       this.renderCoinList();
-      await this.scanLevels(this.state.coins);
+      //await this.scanLevels(this.state.coins);
     } catch (error) {
       console.error("Error loading My coins:", error);
     }
@@ -2661,6 +2653,8 @@ class App {
           { value: "1h", name: "1h" },
           { value: "2h", name: "2h" },
           { value: "4h", name: "4h" },
+          { value: "1d", name: "1d" },
+          { value: "1w", name: "1w" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.enterTf) {
             el.selected = true;
@@ -2711,6 +2705,8 @@ class App {
         } else {
           await this.loadCoins();
         }
+        //find levels
+        await this.scanLevels(this.state.coins);
       });
     });
     document
@@ -2726,14 +2722,20 @@ class App {
         const nextBtnBybit = event.target.closest(".next-btn-bybit");
         if (prevBtn) {
           await this.loadCoins("prev", this.state.cursorPrev);
+          //find levels
+          await this.scanLevels(this.state.coins);
           return;
         }
         if (nextBtn) {
           await this.loadCoins("next", this.state.cursorNext);
+          //find levels
+          await this.scanLevels(this.state.coins);
           return;
         }
         if (nextBtnBybit) {
           await this.loadCoinsBybit(this.state.cursorNext);
+          //find levels
+          await this.scanLevels(this.state.coins);
           return;
         }
         if (!item) {
@@ -2923,23 +2925,9 @@ class App {
       });
     document.querySelector(".scaner").addEventListener("click", (event) => {
       event.preventDefault();
-      const enterTf = [
-        { value: "30min", name: "30m" },
-        { value: "1h", name: "1h" },
-        { value: "2h", name: "2h" },
-        { value: "4h", name: "4h" },
-      ].map((el) => {
-        if (el.value === App.state.scaner.timeframe) {
-          el.selected = true;
-        } else {
-          el.selected = false;
-        }
-        return el;
-      });
       App.modal.render({
         type: "scaner-form",
         title: "Scan levels settings",
-        enterTf,
       });
     });
     document

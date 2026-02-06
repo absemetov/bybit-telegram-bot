@@ -1,11 +1,12 @@
 import Indicators from "../helpers/indicators.js";
-import { getActiveSymbols, getCandles } from "../helpers/bybitV5.js";
+import { getActiveSymbols, bybitUsers } from "../helpers/bybitV5.js";
 //import { uploadDataToAlgolia } from "../helpers/algoliaIndex.js";
 import Ticker from "../models/Ticker.js";
 import { Markup } from "telegraf";
 import { sendMsgChannel, sendMsgMe } from "../helpers/helpers.js";
 //import { algoTrading, checkPositions } from "../helpers/levels.js";
 // Основная функция сканирования
+const bybit = bybitUsers["main"];
 export const runTimeframeScan = async (timeframe, bot) => {
   try {
     //search levels in 4h tf
@@ -24,7 +25,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
           const candlesCount = 15;
           const { symbol } = ticker;
           for (const tf of ["2h", "4h", "1d"]) {
-            const candles = await getCandles(symbol, tf, candlesCount);
+            const candles = await bybit.getCandles(symbol, tf, candlesCount);
             if (candles.length < candlesCount) {
               continue;
             }
@@ -127,7 +128,7 @@ export const runTimeframeScan = async (timeframe, bot) => {
         for (const ticker of tickers) {
           const { symbol } = ticker;
           for (const tf of ["1d", "1w"]) {
-            const candles = await getCandles(symbol, tf, candlesCount);
+            const candles = await bybit.getCandles(symbol, tf, candlesCount);
             if (candles.length < candlesCount) {
               continue;
               //return null;
@@ -210,7 +211,7 @@ function findPumpVolumes(ticker, candles, multiplier = 2, timeframe = "4h") {
 async function getRsi(ticker, bot, timeframe = "1h") {
   try {
     const { symbol } = ticker;
-    const candles = await getCandles(symbol, timeframe, 200);
+    const candles = await bybit.getCandles(symbol, timeframe, 200);
     if (candles.length < 100) {
       return 0;
     }

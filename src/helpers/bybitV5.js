@@ -130,7 +130,7 @@ class UserAPI {
     }
     const response = await this.bybitClient.getClosedPnL(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error getClosedPositionsHistory: ${response.retMsg}`);
     }
     if (response.result.list && response.result.list.length > 0) {
       return {
@@ -147,7 +147,7 @@ class UserAPI {
       symbol,
     });
     if (positionResponse.retCode !== 0) {
-      throw new Error(`Error API: ${positionResponse.retMsg}`);
+      throw new Error(`Error getTickerPositions: ${positionResponse.retMsg}`);
     }
     return positionResponse.result.list
       .filter((p) => p.size > 0)
@@ -181,7 +181,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.setTradingStop(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error editStopLoss: ${response.retMsg}`);
     }
   }
   async editTakeProfit(symbol, side, takeProfit) {
@@ -197,7 +197,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.setTradingStop(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error editTakeProfit: ${response.retMsg}`);
     }
   }
   //cancel order
@@ -212,7 +212,7 @@ class UserAPI {
       reduceOnly: true,
     });
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error closePosition ${response.retMsg}`);
     }
   }
   //get positions
@@ -226,7 +226,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.getPositionInfo(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error getPositions: ${response.retMsg}`);
     }
     return {
       positions: response.result.list,
@@ -249,7 +249,7 @@ class UserAPI {
       orderId,
     });
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error cancelOrder: ${response.retMsg}`);
     }
   }
   //get order
@@ -263,7 +263,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.getActiveOrders(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error getTickersOrders: ${response.retMsg}`);
     }
     return response.result.list
       .filter((o) => o.price > 0)
@@ -294,7 +294,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.getActiveOrders(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
+      throw new Error(`Error getLimitOrders: ${response.retMsg}`);
     }
     return {
       orders: response.result.list,
@@ -484,7 +484,7 @@ class UserAPI {
         limit,
       });
       if (response.retCode !== 0) {
-        throw new Error(`Error API: ${response.retMsg}`);
+        throw new Error(`Error getCandles: ${response.retMsg}`);
       }
       return response.result.list
         .map((candle) => ({
@@ -500,41 +500,12 @@ class UserAPI {
         .reverse();
     } catch (error) {
       console.error(`Error getting candles for ${symbol}:`, error);
-      //disable this return many api rates error 
+      //disable this return many api rates error
       //throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
-      //return [];
+      return [];
     }
   }
 }
-export const getCandles = async (symbol, timeframe = "1h", limit = 200) => {
-  try {
-    const response = await this.bybitClient.getKline({
-      category: "linear",
-      symbol: symbol,
-      interval: intervalKline[timeframe],
-      limit,
-    });
-    if (response.retCode !== 0) {
-      throw new Error(`Error API: ${response.retMsg}`);
-    }
-    return response.result.list
-      .map((candle) => ({
-        time: parseInt(candle[0]),
-        localTime: new Date(parseInt(candle[0])).toLocaleString("ru-RU"),
-        open: parseFloat(candle[1]),
-        high: parseFloat(candle[2]),
-        low: parseFloat(candle[3]),
-        close: parseFloat(candle[4]),
-        color: candle[4] > candle[1] ? "green" : "red",
-        volume: parseFloat(candle[5]),
-      }))
-      .reverse();
-  } catch (error) {
-    console.error(`Error getting candles for ${symbol}:`, error);
-    throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
-    //return [];
-  }
-};
 export const getTicker = async (symbol) => {
   try {
     const response = await restMain.getInstrumentsInfo({
