@@ -36,8 +36,9 @@ class ModalManager {
       scanerForm: window.Handlebars.compile(`
       <form data-form-type="scaner">
         <div class="row">
-            <div class="col-md-12 mb-3">
-              <h6>⏰Timeframe {{timeframe}}</h6>
+            <div class="col-md-4 mb-3">
+              <label class="form-label text-primary" for="volumePercent">📊volumePercent Up, %</label>
+              <input type="number" class="form-control-plaintext" name="volumePercent" id="volumePercent" value="{{volumePercent}}" min="0">
             </div>
         </div>
         <div class="row">
@@ -54,6 +55,7 @@ class ModalManager {
                 <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.1" min="0.1">
             </div>
         </div>
+        
         <div class="d-grid gap-2">
           <button type="submit" class="btn btn-success">Save</button>
         </div>
@@ -253,14 +255,11 @@ class ModalManager {
         });
       case "history":
         return this.templates.history({
-          positions: config.positions,
-          cursor: config.cursor,
-          all: config.allCoins,
+          ...config,
         });
       case "win":
         return this.templates.win({
-          winRate: config.winRate,
-          all: config.allCoins,
+          ...config,
         });
       case "custom":
         return config.html;
@@ -566,6 +565,8 @@ class ModalManager {
             cursor: resJson.nextPageCursor,
             size: "lg",
           });
+          //SHOW positions in chart
+          Order.positionPriceLines(resJson.positions);
           App.state.bsOffcanvas.hide();
           return;
         } catch (error) {
@@ -581,11 +582,13 @@ class ModalManager {
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
+    const volumePercent = parseFloat(data.get("volumePercent"));
     try {
       App.state.scaner = {
         candlesCount,
         touchCount,
         tolerance,
+        volumePercent,
       };
       this.modal.hide();
       await App.scanLevels(App.state.coins);
@@ -1001,13 +1004,43 @@ class Order {
         return false;
       }
       const { positions, cursor } = resJson.closedPositions;
+      const profitableTrades = positions.filter(
+        (trade) => parseFloat(trade.closedPnl) > 0,
+      ).length;
+      const lossTrades = positions.filter(
+        (trade) => parseFloat(trade.closedPnl) < 0,
+      ).length;
+      const winRate = ((profitableTrades / positions.length) * 100).toFixed(2);
+      const total = {
+        pnl: 0,
+        lossPrcnt: 0,
+        profPrcnt: 0,
+      };
+      const totalData = positions.reduce((acc, trade) => {
+        acc.pnl = acc.pnl + +trade.closedPnl;
+        const changePrcnt =
+          Math.abs(
+            (trade.avgExitPrice - trade.avgEntryPrice) / trade.avgEntryPrice,
+          ) * 100;
+        if (trade.closedPnl > 0) {
+          acc.profPrcnt += changePrcnt;
+        } else {
+          acc.lossPrcnt = acc.lossPrcnt + changePrcnt;
+        }
+        return acc;
+      }, total);
+      totalData.totalPrcnt = totalData.profPrcnt - totalData.lossPrcnt;
       App.modal.render({
         type: "history",
-        title: `Positions history ${allCoins ? "" : App.state.symbol} - User ${App.state.user}`,
+        title: `Trade history ${allCoins ? "" : App.state.symbol} - User ${App.state.user}`,
         size: "lg",
         positions,
         cursor,
         allCoins,
+        totalData,
+        lossTrades,
+        profitableTrades,
+        winRate,
       });
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -1074,6 +1107,24 @@ class Indicators {
     const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
     const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
     return { support, resistance };
+  }
+  //find pump volumes
+  static findPumpVolumes(candles, percent = 100) {
+    try {
+      const previousVolumes = candles.slice(-5, -1);
+      const { volume } = candles[candles.length - 1];
+      const averageVolume =
+        previousVolumes.reduce((sum, candle) => sum + candle.volume, 0) /
+        previousVolumes.length;
+      const volumeChange = ((volume - averageVolume) / averageVolume) * 100;
+      const isSpike = volumeChange >= percent;
+      if (isSpike) {
+        return `📊${volumeChange.toFixed(1)}%`;
+      }
+      return "";
+    } catch (error) {
+      console.error(`Error in findPumpvolumes`, error.message);
+    }
   }
   static calculateLevels(candles, candlesCount = 10, touchCount = 4) {
     if (ChartManager.state.hideSr) {
@@ -2045,6 +2096,7 @@ class App {
       candlesCount: 10,
       touchCount: 3,
       tolerance: 1,
+      volumePercent: 50,
     },
     intervalToKline: {
       "1min": "1",
@@ -2063,6 +2115,9 @@ class App {
   };
 
   static async init() {
+    window.Handlebars.registerHelper("inc", function (value) {
+      return parseInt(value) + 1;
+    });
     window.Handlebars.registerHelper("date", function (updatedAt) {
       if (!updatedAt) return "";
       return new Date(updatedAt._seconds * 1000).toLocaleString("ru-RU", {
@@ -2083,8 +2138,8 @@ class App {
       return (a * b).toFixed(2);
     });
 
-    window.Handlebars.registerHelper("changepercent", function (a, b) {
-      return (((a - b) / b) * 100).toFixed(2);
+    window.Handlebars.registerHelper("changePercent", function (a, b) {
+      return ((Math.abs(a - b) / b) * 100).toFixed(2);
     });
 
     window.Handlebars.registerHelper(
@@ -2231,7 +2286,8 @@ class App {
     //scan coin levels
     for (const ticker of coins) {
       const { symbol } = ticker;
-      const { candlesCount, touchCount, tolerance } = App.state.scaner;
+      const { candlesCount, touchCount, tolerance, volumePercent } =
+        App.state.scaner;
       const elementHtml = document.querySelector(
         `.coin-item[data-symbol="${symbol}"]`,
       );
@@ -2254,10 +2310,12 @@ class App {
       const supportZone = Math.abs(support - close) / close <= tolerance / 100;
       const resistanceZone =
         Math.abs(resistance - close) / close <= tolerance / 100;
+      //check volumes
+      const volumeUp = Indicators.findPumpVolumes(candles, volumePercent);
       if (elementHtml) {
         const levelsElem = elementHtml.querySelector(".coin-levels");
         if (levelsElem) {
-          levelsElem.textContent = `${supportZone ? "⤴️" : ""}${resistanceZone ? "⤵️" : ""}`;
+          levelsElem.textContent = `${supportZone ? `⤴️` : ""}${resistanceZone ? `⤵️` : ""}${volumeUp}`;
         }
       }
     }
@@ -2669,6 +2727,8 @@ class App {
           { value: 1, name: "1 attempt" },
           { value: 2, name: "2 attempts" },
           { value: 3, name: "3 attempts" },
+          { value: 4, name: "4 attempts" },
+          { value: 5, name: "5 attempts" },
         ].map((el) => {
           if (el.value === App.state.algoTrading.attemptsCount) {
             el.selected = true;
@@ -2861,6 +2921,7 @@ class App {
         await App.chartManager.loadChartData();
         App.renderLevels();
         App.chartManager.updateWebsocketSymbol();
+        await this.scanLevels(this.state.coins);
       });
     document.querySelectorAll(".tf-btn").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
@@ -2875,6 +2936,7 @@ class App {
         await App.chartManager.loadChartData();
         App.renderLevels();
         App.chartManager.updateWebsocketSymbol();
+        await this.scanLevels(this.state.coins);
       });
     });
     //move level
@@ -2927,7 +2989,7 @@ class App {
       event.preventDefault();
       App.modal.render({
         type: "scaner-form",
-        title: "Scan levels settings",
+        title: `Scan levels settings, timeframe ${App.state.timeframe}`,
       });
     });
     document
@@ -2937,8 +2999,8 @@ class App {
         App.state.user = App.state.user === "main" ? "sub" : "main";
         event.target.textContent =
           App.state.user === "main" ? "🐂Main" : "🐻Sub";
-        await this.loadAlerts();
         await this.loadCoins();
+        await this.loadAlerts();
         App.renderLevels();
       });
     //reset hide info btns

@@ -6,10 +6,10 @@
     <a class="nav-link position-item get-positions" href="#">Positions</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link history-item load-more{{#unless all}} active{{/unless}}" href="#">History</a>
+    <a class="nav-link history-item load-more{{#unless allCoins}} active{{/unless}}" href="#">History</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link history-item load-more all{{#if all}} active{{/if}}" href="#">All</a>
+    <a class="nav-link history-item load-more all{{#if allCoins}} active{{/if}}" href="#">All</a>
   </li>
   <li class="nav-item">
     <a class="nav-link win-item load-more" href="#">W/R</a>
@@ -21,6 +21,30 @@
 <div class="row">
   <div class="col-12">
     <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Pnl, $ (%)</th>
+            <th>winRate, %</th>
+            <th>profitableTrades, (%) </th>
+            <th>lossTrades, (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}">
+              <td>{{#if (gt totalData.pnl 0)}}+{{/if}}{{formatPrice totalData.pnl}}$ ({{#if (gt totalData.totalPrcnt 0)}}+{{/if}}{{formatPrice totalData.totalPrcnt}}%)</td>
+              <td>
+                {{winRate}}%
+              </td>
+              <td>
+                +{{profitableTrades}} (+{{formatPrice totalData.profPrcnt}}%)</td>
+              </td>
+              <td>
+                -{{lossTrades}} (-{{formatPrice totalData.lossPrcnt}}%)</td>
+              </td>
+            </tr>
+        </tbody>
+      </table>
       <table class="table table-hover">
         <thead class="table-dark">
           <tr>
@@ -37,7 +61,7 @@
         <tbody>
           {{#each positions}}
             <tr class="history-item cursor-pointer{{#if (gt closedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
-              <td>{{formatDate updatedTime}}</td>
+              <td>{{inc @index}}) {{formatDate updatedTime}}</td>
               <td>{{symbol}}</td>
               <td class="{{#if (eq side 'Buy')}}text-danger{{else}}text-success{{/if}}">
                 {{#if (eq side 'Buy')}}Short{{else}}Long{{/if}}
@@ -51,7 +75,7 @@
               <td>{{formatPrice avgEntryPrice 4}}$</td>
               <td>{{formatPrice avgExitPrice 4}}$</td>
               <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
-                {{changepercent avgExitPrice avgEntryPrice}}%
+                {{#if (gt closedPnl 0)}}+{{else}}-{{/if}}{{changePercent avgExitPrice avgEntryPrice}}%
               </td>
             </tr>
           {{else}}
@@ -68,7 +92,7 @@
 <div class="row my-2">
   <div class="col-12 text-center">
     {{#if cursor}}
-    <button class="btn btn-primary history-item load-more{{#if all}} all{{/if}}" data-cursor="{{cursor}}">
+    <button class="btn btn-primary history-item load-more{{#if allCoins}} all{{/if}}" data-cursor="{{cursor}}">
       Load More History Positions
     </button>
     {{/if}}

@@ -12,10 +12,10 @@
     <a class="nav-link history-item load-more all" href="#">All</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link win-item load-more{{#unless all}} active{{/unless}}" href="#">W/R</a>
+    <a class="nav-link win-item load-more{{#unless allCoins}} active{{/unless}}" href="#">W/R</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link win-item load-more all{{#if all}} active{{/if}}" href="#">W/R All</a>
+    <a class="nav-link win-item load-more all{{#if allCoins}} active{{/if}}" href="#">W/R All</a>
   </li>
 </ul>
 <div class="row">
@@ -25,7 +25,7 @@
         <thead class="table-dark">
           <tr>
             <th>Date</th>
-            {{#unless all}}<th>Symbol</th>{{/unless}}
+            {{#unless allCoins}}<th>Symbol</th>{{/unless}}
             <th>Trades</th>
             <th>lossPrcnt, %</th>
             <th>profPrcnt, %</th>
@@ -37,7 +37,7 @@
           {{#each winRate}}
             <tr class="win-item cursor-pointer{{#if (gt totalPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
               <td>{{dateKey}}</td>
-              {{#unless ../all}}<td>{{symbol}}</td>{{/unless}}
+              {{#unless ../allCoins}}<td>{{symbol}}</td>{{/unless}}
               <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{totalTrades}}
               </td>
@@ -45,7 +45,7 @@
                 -{{formatPrice lossPrcnt}}
               </td>
               <td class="text-success">
-                +{{formatPrice profPrcnt}}
+                {{formatPrice profPrcnt}}
               </td>
               <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
                 {{formatPrice totalPrcnt}}

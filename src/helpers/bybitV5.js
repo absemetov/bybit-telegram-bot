@@ -122,7 +122,7 @@ class UserAPI {
   async getClosedPositionsHistory(symbol = null, cursor) {
     const params = {
       category: "linear",
-      limit: 10,
+      limit: 20,
       cursor,
     };
     if (symbol) {

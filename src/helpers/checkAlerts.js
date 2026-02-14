@@ -29,6 +29,7 @@ export const checkAlerts = async (bot) => {
               touchCount = 3,
             } = ticker[user] || {};
             const bybit = bybitUsers[user];
+            const candles15min = await bybit.getCandles(symbol, "15min", 20);
             const candles = await bybit.getCandles(
               symbol,
               enterTf,
@@ -37,8 +38,30 @@ export const checkAlerts = async (bot) => {
             if (candles.length < candlesCount) {
               continue;
             }
+            const levels15min = Indicators.calculateLevels(candles15min, 3);
             const levels = Indicators.calculateLevels(candles, touchCount);
             const { close } = candles[candles.length - 1];
+            //new Idea Fast Levels (TM)
+            if (
+              levels15min.resistance > 0 &&
+              levels.resistance > 0 &&
+              Math.abs(close - levels15min.resistance) <
+                Math.abs(close - levels.resistance) &&
+              levels15min.resistance > levels.resistance
+            ) {
+              levels.resistance = levels15min.resistance;
+              levels.fastLevel = true;
+            }
+            if (
+              levels15min.support > 0 &&
+              levels.support > 0 &&
+              Math.abs(close - levels15min.support) <
+                Math.abs(close - levels.support) &&
+              levels15min.support < levels.support
+            ) {
+              levels.support = levels15min.support;
+              levels.fastLevel = true;
+            }
             await algoTrading(ticker, levels, close, bot, bybit, user);
             //alert if price near zone
             const priceLevel = await findLevels(

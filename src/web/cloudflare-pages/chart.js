@@ -1084,26 +1084,21 @@ class App {
     chartModalEl.addEventListener("show.bs.modal", async () => {
       const symbol = this.state.symbol;
       //GET /v5/market/tickers
-      const responseInfo = await fetch(
-        `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${App.state.symbol}`,
-      );
-      const dataInfo = await responseInfo.json();
-      if (dataInfo.retCode !== 0) {
-        throw new Error(`Error API: ${dataInfo.retMsg}`);
-      }
-      const ticker = dataInfo.result.list[0];
+      //const responseInfo = await fetch(
+      //  `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${App.state.symbol}`,
+      //);
+      //const dataInfo = await responseInfo.json();
+      //if (dataInfo.retCode !== 0) {
+      //  throw new Error(`Error API: ${dataInfo.retMsg}`);
+      //}
+      //const ticker = dataInfo.result.list[0];
       //set title
       const modalTitle = chartModalEl.querySelector(".modal-title");
       const modalBody = chartModalEl.querySelector(".modal-body");
       modalTitle.textContent = `Ticker ${symbol}`;
       modalBody.innerHTML = `
-      <ul class="list-group">
-        <li class="list-group-item">EMA9 EMA21 RSI14/RSI-EMA14</li>
-        <li class="list-group-item">Level 16 candles 1 perc 4 touches</li>
-        <li class="list-group-item">turnover24h ${(+ticker.turnover24h).toLocaleString("ru-Ru")}</li>
-        <li class="list-group-item">volume24h ${(+ticker.volume24h).toLocaleString("ru-Ru")}</li>
-      </ul>
       <div class="list-group">
+        <a class="list-group-item list-group-item-action" href="https://t.me/attempts_trading" target="_blank">Telegram channel: Focus. Attempts. Result.</a>
         <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/chart/?symbol=BYBIT:${symbol}.P" target="_blank">📈 Tradingview chart</a>
         <a class="list-group-item list-group-item-action" href="https://www.coinglass.com/tv/ru/Bybit_${symbol}" target="_blank">📈 Coinglass chart</a>
         <a class="list-group-item list-group-item-action" href="https://www.tradingview.com/symbols/${symbol}/ideas/" target="_blank">🔭 TV Idea</a>

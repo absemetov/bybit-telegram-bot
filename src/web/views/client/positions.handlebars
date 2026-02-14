@@ -52,7 +52,7 @@
                 {{formatPrice avgPrice 4}}$
               </td>
               <td class="{{#if (gt unrealisedPnl 0)}}text-success{{else}}text-danger{{/if}}">
-                {{changepercent markPrice avgPrice}}%
+                {{#if (gt unrealisedPnl 0)}}+{{else}}-{{/if}}{{changePercent markPrice avgPrice}}%
               </td>
               <td>
                 <button type="button" class="btn btn-sm btn-light cancel-position" data-side="{{side}}" data-qty="{{size}}">🗑</button>

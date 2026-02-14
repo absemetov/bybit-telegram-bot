@@ -1,4 +1,5 @@
 //import { bybitUsers } from "../helpers/bybitV5.js";
+import { Markup } from "telegraf";
 import Ticker from "../models/Ticker.js";
 import { sendMsgMe } from "../helpers/helpers.js";
 //const balance = await getBybitBalance();
@@ -47,11 +48,11 @@ export const checkPositions = async (
       (tolerance * 5) / 100
     ) {
       await bybit.cancelOrder(symbol, order.orderId);
-      await Ticker.incrementField(symbol, `${user}.attemptsCount`, 1);
+      //await Ticker.incrementField(symbol, `${user}.attemptsCount`, 1);
       await sendMsgMe(bot, {
         header: `<code>${symbol.slice(0, -4)}</code>`,
         msg: `[${user}] Cancel ${order.side} Current price ${currentPrice}$ Order Price ${order.price}$ Sum: ${order.sum}$ ${renderTradingBtn(tradingType, enterTf)}\n[${candlesCount}, ${touchCount}, ${tolerance}]`,
-        footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Cancel_Order_${order.side}`,
+        footer: `#${symbol.slice(0, -4)}_${user}`,
       });
     }
   }
@@ -93,7 +94,7 @@ export const checkPositions = async (
           msg:
             `Set default SL 🔴 Short [${user}] ${renderTradingBtn(tradingType, enterTf)} ${tickerStopLoss}% slPersent before ${slPersent.toFixed(2)}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Short_Default_SL`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
       }
       //breakeven 20%
@@ -110,7 +111,7 @@ export const checkPositions = async (
             msg:
               `Breakeven20% ${(pnlPersent * 0.2).toFixed(2)}% 🔴 Short [${user}] ${renderTradingBtn(tradingType, enterTf)} breakeven start ${breakeven}%, pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-            footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Short_Breakeven`,
+            footer: `#${symbol.slice(0, -4)}_${user}`,
           });
         }
       }
@@ -135,7 +136,7 @@ export const checkPositions = async (
           msg:
             `Edit TP 🔴 Short ${tp === 1 ? "Scalping" : ""} [${user}] ${renderTradingBtn(tradingType, enterTf)} TAKE_PROFIT changed to ${takePrcnt.toFixed(2)}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `TP value: ${takeProfit}$ => ${newTakeProfit.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Short_Edit_TP`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
       }
     }
@@ -153,7 +154,7 @@ export const checkPositions = async (
           msg:
             `Set default SL 🟢 Long [${user}] ${renderTradingBtn(tradingType, enterTf)} Set default SL ${tickerStopLoss}% slPersent before ${slPersent.toFixed(2)}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Long_Default_SL`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
       }
       //breakeven 20%
@@ -170,7 +171,7 @@ export const checkPositions = async (
             msg:
               `Breakeven20% ${(pnlPersent * 0.2).toFixed(2)}% 🟢 Long [${user}] ${renderTradingBtn(tradingType, enterTf)} breakeven start ${breakeven}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
               `SL value: ${stopLoss}$ => ${newStopLoss.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-            footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Long_Breakeven`,
+            footer: `#${symbol.slice(0, -4)}_${user}`,
           });
         }
       }
@@ -195,7 +196,7 @@ export const checkPositions = async (
           msg:
             `Edit TP 🟢 Long ${tp === 1 ? "Scalping" : ""} [${user}] ${renderTradingBtn(tradingType, enterTf)} TAKE_PROFIT changed to ${takePrcnt.toFixed(2)}% pnlPersent ${pnlPersent.toFixed(2)}%\n` +
             `TP value: ${takeProfit}$ => ${newTakeProfit.toFixed(priceScale)}$ [${candlesCount}, ${touchCount}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Long_Edit_TP`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
       }
     }
@@ -227,6 +228,94 @@ export const algoTrading = async (ticker, levels, price, bot, bybit, user) => {
     const positions = await bybit.getTickerPositions(symbol);
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
+    //New 9/02/2026 increment attempts if last closed position win
+    const closedPositions = await bybit.getClosedPositionsHistory(symbol);
+    const lastClosedPosition = closedPositions.positions[0];
+    if (lastClosedPosition) {
+      const { updatedTime, closedPnl, side } = lastClosedPosition;
+      const newClosedPosition =
+        +updatedTime !== ticker[`${user}ClosedPositionTime`];
+      if (newClosedPosition) {
+        const increment = closedPnl > 0 ? 1 : -1;
+        await Ticker.update(symbol, {
+          [`${user}ClosedPositionTime`]: +updatedTime,
+          [`${user}.attemptsCount`]: attemptsCount + increment,
+        });
+        //
+        function changePercent(a, b) {
+          return ((Math.abs(a - b) / b) * 100).toFixed(2);
+        }
+
+        function formatDate(timestamp) {
+          if (!timestamp) return "";
+          return new Date(+timestamp).toLocaleString("ru-RU");
+        }
+        const { positions } = closedPositions;
+        const profitableTrades = positions.filter(
+          (trade) => parseFloat(trade.closedPnl) > 0,
+        ).length;
+        const lossTrades = positions.filter(
+          (trade) => parseFloat(trade.closedPnl) < 0,
+        ).length;
+        const winRate = ((profitableTrades / positions.length) * 100).toFixed(
+          2,
+        );
+        const total = {
+          pnl: 0,
+          lossPrcnt: 0,
+          profPrcnt: 0,
+        };
+        const totalData = positions.reduce((acc, trade) => {
+          acc.pnl = acc.pnl + +trade.closedPnl;
+          const changePrcnt =
+            Math.abs(
+              (trade.avgExitPrice - trade.avgEntryPrice) / trade.avgEntryPrice,
+            ) * 100;
+          if (trade.closedPnl > 0) {
+            acc.profPrcnt += changePrcnt;
+          } else {
+            acc.lossPrcnt = acc.lossPrcnt + changePrcnt;
+          }
+          return acc;
+        }, total);
+        totalData.totalPrcnt = totalData.profPrcnt - totalData.lossPrcnt;
+        await sendMsgMe(
+          bot,
+          {
+            header: `<code>${symbol.slice(0, -4)}</code>`,
+            msg:
+              `${closedPnl > 0 ? "🟢Profit" : "🔴Loss"} ${side !== "Buy" ? "Long" : "Short"} [${user}] position closed\n` +
+              `Attemts Count: ${attemptsCount} ${closedPnl > 0 ? "+ 1" : "- 1"} = ${attemptsCount + increment}\n` +
+              `${positions.length} trades analytics\n` +
+              `Pnl: ${totalData.pnl.toFixed(2)}$ (${totalData.totalPrcnt > 0 ? "+" : ""}${totalData.totalPrcnt.toFixed(2)}%), WinRate: ${winRate}%, profitTrades: +${profitableTrades}(+${totalData.profPrcnt.toFixed(2)}%), lossTrades: -${lossTrades}(-${totalData.lossPrcnt.toFixed(2)}%)\n` +
+              closedPositions.positions
+                .slice(0, 10)
+                .map(
+                  (item, index) =>
+                    `${index + 1}) ${item.closedPnl > 0 ? "🟢" : "🔴"} | ${formatDate(item.updatedTime)} | ${item.side !== "Buy" ? "Long" : "Short"} | ${(+item.closedPnl).toFixed(2)}$ | ${item.closedPnl > 0 ? "+" : "-"}${changePercent(item.avgExitPrice, item.avgEntryPrice)}%`,
+                )
+                .join("\n"),
+            footer: `#${symbol.slice(0, -4)}_${user} #${increment > 0 ? "profit" : "loss"}`,
+          },
+          Markup.inlineKeyboard([
+            [
+              Markup.button.url(
+                `${symbol} chart`,
+                `https://bybit.rzk.com.ru/chart/${symbol}`,
+              ),
+            ],
+          ]),
+        );
+        if (attemptsCount + increment === 0) {
+          await sendMsgMe(bot, {
+            header: `<code>${symbol.slice(0, -4)}</code>`,
+            msg: `[${user}] The number of attempts has been exhausted. Trading closed!`,
+            footer: `#${symbol.slice(0, -4)}_${user}`,
+          });
+        }
+      }
+    }
+    //console.log(symbol, closedPositions);
     //create LONG orders
     const longX = levels.support > price ? 3 : 1;
     if (
@@ -257,19 +346,12 @@ export const algoTrading = async (ticker, levels, price, bot, bybit, user) => {
           price * (1 + tp / 100),
           price * (1 - sl / 100),
         );
-        await Ticker.incrementField(symbol, `${user}.attemptsCount`, -1);
+        //await Ticker.incrementField(symbol, `${user}.attemptsCount`, -1);
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `🟢 [${user}] Open Long ${renderTradingBtn(tradingType, enterTf)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Open_Long_${user}`,
+          msg: `🟢 [${user}] Open Long ${renderTradingBtn(tradingType, levels.fastLevel ? "15min Fast" : enterTf)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
-        if (attemptsCount === 1) {
-          await sendMsgMe(bot, {
-            header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `${user} The number of attempts has been exhausted. Trading closed!`,
-            footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Trading_Close`,
-          });
-        }
       }
     }
     //create SHORT orders
@@ -305,19 +387,12 @@ export const algoTrading = async (ticker, levels, price, bot, bybit, user) => {
           price * (1 - tp / 100),
           price * (1 + sl / 100),
         );
-        await Ticker.incrementField(symbol, `${user}.attemptsCount`, -1);
+        //await Ticker.incrementField(symbol, `${user}.attemptsCount`, -1);
         await sendMsgMe(bot, {
           header: `<code>${symbol.slice(0, -4)}</code>`,
-          msg: `🔴 [${user}] Open Short ${renderTradingBtn(tradingType, enterTf)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n [${candlesCount}, ${touchCount}, ${tolerance}]`,
-          footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Open_Short_${user}`,
+          msg: `🔴 [${user}] Open Short ${renderTradingBtn(tradingType, levels.fastLevel ? "15min Fast" : enterTf)}\n${triggerPrice.toFixed(priceScale)}$ Size ${sizeTotal.toFixed(2)}$ Attempt ${attemptsCount}\n [${candlesCount}, ${touchCount}, ${tolerance}]`,
+          footer: `#${symbol.slice(0, -4)}_${user}`,
         });
-        if (attemptsCount === 1) {
-          await sendMsgMe(bot, {
-            header: `<code>${symbol.slice(0, -4)}</code>`,
-            msg: `${user} The number of attempts has been exhausted. Trading closed!`,
-            footer: `#${symbol.slice(0, -4)} #${symbol.slice(0, -4)}_Trading_Close`,
-          });
-        }
       }
     }
     //set TP/SL control FOMO
