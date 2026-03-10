@@ -16,7 +16,7 @@ export const tasks = (bot) => {
       await checkAlerts(bot);
       isProcessing1min = false;
     }
-  }, 5000);
+  }, 3000);
   // Слушатель изменений в Firestore
   //db.collection("settings")
   //  .doc("scanCronPaginate")

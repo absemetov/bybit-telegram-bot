@@ -39,23 +39,13 @@ class UserAPI {
             console.error(`Ошибка для ${dateKey}:`, response.retMsg);
             break;
           }
-          // Добавляем новые сделки
           allTrades = [...allTrades, ...response.result.list];
-          // Обновляем курсор для следующей страницы
           cursor = response.result.nextPageCursor;
           page++;
-          // Условия завершения цикла:
-          // 1. Нет следующей страницы (cursor пустой)
-          // 2. Достигли лимита страниц
-          // 3. Нет данных в ответе
           hasMorePages =
             !!cursor && page < maxPages && response.result.list.length > 0;
         }
         if (allTrades.length > 0) {
-          // Фильтруем по символу, если нужно (дополнительная фильтрация)
-          // if (symbol) {
-          //   allTrades = allTrades.filter(trade => trade.symbol === symbol);
-          // }
           const profitableTrades = allTrades.filter(
             (trade) => parseFloat(trade.closedPnl) > 0,
           );
@@ -95,7 +85,7 @@ class UserAPI {
             lossPrcnt: totalR.lossPrcnt,
             profPrcnt: totalR.profPrcnt,
             totalPrcnt: totalR.profPrcnt - total.lossPrcnt,
-            symbol: symbol || "ALL", // Указываем для какой монеты статистика
+            symbol: symbol || "ALL",
           });
         } else {
           dailyStats.push({
@@ -109,7 +99,7 @@ class UserAPI {
           });
         }
       } catch (error) {
-        console.error(`Ошибка для дня ${dateKey}:`, error.message);
+        console.error(`Error day ${dateKey}:`, error.message);
         dailyStats.push({
           error: error.message,
           symbol: symbol || "ALL",
@@ -133,9 +123,11 @@ class UserAPI {
       throw new Error(`Error getClosedPositionsHistory: ${response.retMsg}`);
     }
     if (response.result.list && response.result.list.length > 0) {
+      const balance = await this.getBybitBalance();
       return {
         positions: response.result.list,
         cursor: response.result.nextPageCursor,
+        balance,
       };
     }
     return { positions: [] };
@@ -167,16 +159,107 @@ class UserAPI {
         positionIdx: order.positionIdx,
       }));
   }
+  async setPart50(symbol, part, priceScale) {
+    const orders = await this.getTickerOrders(symbol);
+    const positions = await this.getTickerPositions(symbol);
+    const longPosition = positions.find((p) => p.side === "Buy");
+    const shortPosition = positions.find((p) => p.side === "Sell");
+    const longPartialOrder = orders.part.find((o) => {
+      return o.side === "Sell";
+    });
+    const shortPartialOrder = orders.part.find((o) => {
+      return o.side === "Buy";
+    });
+    if (shortPosition) {
+      const { avgPrice } = shortPosition;
+      //partialClose 50% new 4/03/2026
+      const newPart50 = avgPrice * (1 - part / 100);
+      if (shortPartialOrder) {
+        //delete part50
+        if (part === 0) {
+          for (const order of orders.part.filter((o) => o.side === "Buy")) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          return;
+        }
+        const { price } = shortPartialOrder;
+        if ((Math.abs(newPart50 - price) / price) * 100 >= 0.03) {
+          //first delete old
+          for (const order of orders.part.filter((o) => o.side === "Buy")) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          //edit
+          await this.setPartialTakeProfit(
+            symbol,
+            shortPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
+      } else {
+        if (part > 0) {
+          //create new
+          await this.setPartialTakeProfit(
+            symbol,
+            shortPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
+      }
+    }
+    if (longPosition) {
+      const { avgPrice } = longPosition;
+      //partialClose 50% new 4/03/2026
+      const newPart50 = avgPrice * (1 + part / 100);
+      if (longPartialOrder) {
+        //delete part50
+        if (part === 0) {
+          for (const order of orders.part.filter((o) => o.side === "Sell")) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          return;
+        }
+        const { price } = longPartialOrder;
+        if ((Math.abs(newPart50 - price) / price) * 100 >= 0.03) {
+          //first delete old
+          for (const order of orders.part.filter((o) => o.side === "Sell")) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          //edit
+          await this.setPartialTakeProfit(
+            symbol,
+            longPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
+      } else {
+        if (part > 0) {
+          //create new
+          await this.setPartialTakeProfit(
+            symbol,
+            longPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
+      }
+    }
+  }
+  //set part50
+  async setPartialTakeProfit(symbol, position, takeProfit) {
+    await this.bybitClient.setTradingStop({
+      category: "linear",
+      symbol,
+      positionIdx: position.positionIdx,
+      takeProfit,
+      tpSize: `${position.size * 0.5}`,
+      tpslMode: "Partial",
+    });
+  }
   //edit SL/TP
   async editStopLoss(symbol, side, stopLoss) {
-    // 1. Получаем текущую позицию
-    const positions = await this.getTickerPositions(symbol);
-    const sidePosition = positions.find((p) => p.side === side);
-    if (!sidePosition) throw new Error("Нет открытой позиции");
     const params = {
       category: "linear",
       symbol,
-      positionIdx: sidePosition.positionIdx, // Важно!
+      positionIdx: side === "Sell" ? 2 : 1,
       stopLoss,
     };
     const response = await this.bybitClient.setTradingStop(params);
@@ -185,14 +268,10 @@ class UserAPI {
     }
   }
   async editTakeProfit(symbol, side, takeProfit) {
-    // 1. Получаем текущую позицию
-    const positions = await this.getTickerPositions(symbol);
-    const sidePosition = positions.find((p) => p.side === side);
-    if (!sidePosition) throw new Error("Нет открытой позиции");
     const params = {
       category: "linear",
       symbol,
-      positionIdx: sidePosition.positionIdx, // Важно!
+      positionIdx: side === "Sell" ? 2 : 1,
       takeProfit,
     };
     const response = await this.bybitClient.setTradingStop(params);
@@ -200,12 +279,12 @@ class UserAPI {
       throw new Error(`Error editTakeProfit: ${response.retMsg}`);
     }
   }
-  //cancel order
+  //close position
   async closePosition(symbol, side, qty) {
     const response = await this.bybitClient.submitOrder({
       category: "linear",
       symbol,
-      side: side === "Buy" ? "Sell" : "Buy", // Инвертируем направление
+      side: side === "Buy" ? "Sell" : "Buy",
       orderType: "Market",
       qty,
       positionIdx: side === "Sell" ? 2 : 1,
@@ -237,7 +316,7 @@ class UserAPI {
   //cancel ALL order
   async cancelAllOrders(symbol, side) {
     const orders = await this.getTickerOrders(symbol);
-    for (const order of orders.filter((o) => o.side === side)) {
+    for (const order of orders.stop.filter((o) => o.side === side)) {
       await this.cancelOrder(symbol, order.orderId);
     }
   }
@@ -257,16 +336,14 @@ class UserAPI {
     const params = {
       category: "linear",
       settleCoin: "USDT",
-      //openOnly: 0,
-      //orderFilter: "Order",
       symbol,
     };
     const response = await this.bybitClient.getActiveOrders(params);
     if (response.retCode !== 0) {
       throw new Error(`Error getTickersOrders: ${response.retMsg}`);
     }
-    return response.result.list
-      .filter((o) => o.price > 0)
+    const stop = response.result.list
+      .filter((o) => ["Stop"].includes(o.stopOrderType))
       .map((order) => ({
         orderId: order.orderId,
         symbol: order.symbol,
@@ -278,17 +355,44 @@ class UserAPI {
           ? parseFloat(order.triggerPrice)
           : parseFloat(order.price),
         qty: parseFloat(order.qty),
-        sum: (order.qty * order.price).toFixed(2),
         triggerPrice: order.triggerPrice,
+        stopOrderType: order.stopOrderType,
       }));
+    const part = response.result.list
+      .filter((o) => ["PartialTakeProfit"].includes(o.stopOrderType))
+      .map((order) => ({
+        orderId: order.orderId,
+        symbol: order.symbol,
+        localTime: new Date(parseInt(order.createdTime)).toLocaleString(
+          "ru-RU",
+        ),
+        side: order.side,
+        price: order.triggerPrice
+          ? parseFloat(order.triggerPrice)
+          : parseFloat(order.price),
+        qty: parseFloat(order.qty),
+        triggerPrice: order.triggerPrice,
+        stopOrderType: order.stopOrderType,
+      }));
+    const all = response.result.list.map((order) => ({
+      orderId: order.orderId,
+      symbol: order.symbol,
+      localTime: new Date(parseInt(order.createdTime)).toLocaleString("ru-RU"),
+      side: order.side,
+      price: order.triggerPrice
+        ? parseFloat(order.triggerPrice)
+        : parseFloat(order.price),
+      qty: parseFloat(order.qty),
+      triggerPrice: order.triggerPrice,
+      stopOrderType: order.stopOrderType,
+    }));
+    return { stop, part, all };
   }
   //list orders
   async getLimitOrders(cursor, limit = 10) {
     const params = {
       category: "linear",
       settleCoin: "USDT",
-      //openOnly: 2,
-      //orderFilter: "StopOrder",
       limit,
       cursor,
     };
@@ -309,7 +413,7 @@ class UserAPI {
         symbol: symbol,
       });
       if (!result?.list?.length) {
-        throw new Error(`Символ ${symbol} не найден`);
+        throw new Error(`Ticker ${symbol} not found`);
       }
       const instrument = result.list[0];
       const {
@@ -320,13 +424,10 @@ class UserAPI {
       let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
       if (adjustedQty < minOrderQty) {
         adjustedQty = +minOrderQty;
-        //throw new Error(
-        //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
-        //);
       }
       if (adjustedQty > maxOrderQty) {
         throw new Error(
-          `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * triggerPrice} USDT)`,
+          `Max: ${maxOrderQty} contracts (${maxOrderQty * triggerPrice} USDT)`,
         );
       }
       const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
@@ -339,14 +440,6 @@ class UserAPI {
         side === "Buy"
           ? formatPrice(triggerPrice * (1 + 1 / 100))
           : formatPrice(triggerPrice * (1 - 1 / 100));
-      //const takeProfit =
-      //  side === "Sell"
-      //    ? formatPrice(triggerPrice * (1 - tpPercent / 100))
-      //    : formatPrice(triggerPrice * (1 + tpPercent / 100));
-      //const stopLoss =
-      //  side === "Sell"
-      //    ? formatPrice(triggerPrice * (1 + slPercent / 100))
-      //    : formatPrice(triggerPrice * (1 - slPercent / 100));
       const response = await this.bybitClient.submitOrder({
         category: "linear",
         symbol,
@@ -374,25 +467,21 @@ class UserAPI {
   //create limit order
   async createLimitOrder(symbol, side, price, size, tp, sl) {
     try {
-      //TODO check position size!!
-      // 1. Получаем текущую рыночную цену
       const ticker = await this.bybitClient.getTickers({
         category: "linear",
         symbol,
       });
       const lastPrice = parseFloat(ticker.result.list[0].lastPrice);
-      // 2. Проверяем логику цены
       if (side === "Buy" && price >= lastPrice) {
         throw new Error(
-          `Для Buy цена ордера (${price}) должна быть ниже текущей (${lastPrice})`,
+          `For Buy order price (${price}) must be down (${lastPrice})`,
         );
       }
       if (side === "Sell" && price <= lastPrice) {
         throw new Error(
-          `Для Sell цена ордера (${price}) должна быть выше текущей (${lastPrice})`,
+          `For Sell order price (${price}) must be up (${lastPrice})`,
         );
       }
-      // 1. Получаем параметры символа
       const { result } = await this.bybitClient.getInstrumentsInfo({
         category: "linear",
         symbol: symbol,
@@ -405,44 +494,21 @@ class UserAPI {
         lotSizeFilter: { minOrderQty, maxOrderQty, qtyStep },
         priceScale,
       } = instrument;
-      // 2. Рассчитываем количество контрактов как в споте: qty = сумма / цена
-      //sl 1$ TP 5$
       const baseQty = size / price;
-      // 3. Приводим к шагу qtyStep
-      //const step = Number(qtyStep);
       let adjustedQty = Math.floor(baseQty / qtyStep) * qtyStep;
-      //const adjustedQty = Math.round(baseQty / qtyStep) * qtyStep;
-      // 4. Проверяем лимиты
       if (adjustedQty < minOrderQty) {
         adjustedQty = +minOrderQty;
-        //throw new Error(
-        //  `Минимум: ${minOrderQty} контрактов (${minOrderQty * price} USDT)`,
-        //);
       }
       if (adjustedQty > maxOrderQty) {
         throw new Error(
-          `Максимум: ${maxOrderQty} контрактов (${maxOrderQty * price} USDT)`,
+          `Max: ${maxOrderQty} contracts (${maxOrderQty * price} USDT)`,
         );
       }
-      // 5. Форматируем значения
       const qtyDecimals = (qtyStep + "").split(".")[1]?.length || 0;
       const formattedQty = adjustedQty.toFixed(qtyDecimals);
-      //format
       const formatPrice = (value) => {
         return value.toFixed(priceScale);
       };
-      //const triggerPrice =
-      //  side === "Buy"
-      //    ? formatPrice(price * (1 - 0.0015))
-      //    : formatPrice(price * (1 + 0.0015));
-      //const takeProfit =
-      //  side === "Sell"
-      //    ? formatPrice(price * (1 - tpPercent / 100))
-      //    : formatPrice(price * (1 + tpPercent / 100));
-      //const stopLoss =
-      //  side === "Sell"
-      //    ? formatPrice(price * (1 + slPercent / 100))
-      //    : formatPrice(price * (1 - slPercent / 100));
       const response = await this.bybitClient.submitOrder({
         category: "linear",
         symbol,
@@ -500,8 +566,6 @@ class UserAPI {
         .reverse();
     } catch (error) {
       console.error(`Error getting candles for ${symbol}:`, error);
-      //disable this return many api rates error
-      //throw new Error(`Error getting candles for ${symbol}: ${error.message}`);
       return [];
     }
   }
@@ -547,26 +611,23 @@ export const getActiveSymbols = async (cursor, limit = 30) => {
 //convert 15min candles to 1h
 const timeframeConfig = {
   "30min": {
-    intervalMs: 1800000, // 30 мин в миллисекундах
-    startOffsetUtcMs: 21 * 3600000, // Начало периода в UTC (21:00 UTC = 00:00 МСК)
-    description: "30-минутные свечи (00:00, 00:30... МСК)",
+    intervalMs: 1800000,
+    startOffsetUtcMs: 21 * 3600000,
     timezone: "Europe/Moscow",
   },
   "1h": {
-    intervalMs: 3600000, // 1 час в миллисекундах
-    startOffsetUtcMs: 21 * 3600000, // Начало периода в UTC (21:00 UTC = 00:00 МСК)
-    description: "1-часовые свечи (00:00, 01:00... МСК)",
+    intervalMs: 3600000,
+    startOffsetUtcMs: 21 * 3600000,
     timezone: "Europe/Moscow",
   },
   "2h": {
-    intervalMs: 7200000, // 2 часа в миллисекундах
-    startOffsetUtcMs: 22 * 3600000, // Начало периода в UTC (22:00 UTC = 01:00 МСК)
-    description: "2-часовые свечи (01:00, 03:00... МСК)",
+    intervalMs: 7200000,
+    startOffsetUtcMs: 22 * 3600000,
     timezone: "Europe/Moscow",
   },
   "4h": {
-    intervalMs: 14400000, // 4 часа в миллисекундах
-    startOffsetUtcMs: 0, // Начало периода в UTC (00:00 UTC = 03:00 МСК)
+    intervalMs: 14400000,
+    startOffsetUtcMs: 0,
     description: "4-часовые свечи (03:00, 07:00... МСК)",
     timezone: "Europe/Moscow",
   },
@@ -575,21 +636,15 @@ const timeframeConfig = {
 export const convert15minCandles = (candles, timeframe) => {
   const { intervalMs, startOffsetUtcMs } = timeframeConfig[timeframe];
   const groups = new Map();
-
   for (const candle of candles) {
-    // Вычисляем начало группы в UTC
     const time = candle.time;
     const diff = time - startOffsetUtcMs;
     const groupTime =
       startOffsetUtcMs + Math.floor(diff / intervalMs) * intervalMs;
-    // Пропускаем группы до начального смещения
     if (groupTime < startOffsetUtcMs) continue;
-    // Добавляем свечу в группу
     if (!groups.has(groupTime)) groups.set(groupTime, []);
     groups.get(groupTime).push(candle);
   }
-
-  // Формируем свечи старшего ТФ
   return Array.from(groups.entries())
     .sort((a, b) => a[0] - b[0])
     .map(([time, group]) => {

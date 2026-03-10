@@ -1,6 +1,6 @@
 <div class="row g-3 h-100">
     <div class="col-lg-3 offcanvas-lg">
-      <div class="offcanvas-lg offcanvas-start" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
+      <div class="offcanvas-lg offcanvas-start" data-bs-scroll="true" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
           <div class="offcanvas-header">
               <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Tickers</h5>
               <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasResponsive" aria-label="Close"></button>
@@ -11,16 +11,13 @@
                   <a class="nav-link tab-link active" data-tab="favorites" href="#">❤️</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link tab-link" data-tab="alerts" href="#">🔔</a>
-                </li>
-                <li class="nav-item">
                   <a class="nav-link tab-link" data-tab="all" href="#">🪙</a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link tab-link" data-tab="trading" href="#">💰</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link show-positions" href="#">🎲</a>
+                  <a class="nav-link tab-link" data-tab="alerts" href="#">🔔</a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link tab-link" data-tab="bybit" href="#">🎁</a>
@@ -29,7 +26,7 @@
                   <a class="nav-link scaner" href="#">🔎</a>
                 </li>
               </ul>
-              <div class="coin-list overflow-auto" style="height: 800px;"></div>
+              <div class="coin-list"></div>
           </div>
       </div>
     </div>
@@ -69,23 +66,24 @@
             <button type="button" class="btn level-move-btn btn-sm btn-light" data-key="ArrowLeft">⬅️L</button>
             <button type="button" class="btn level-move-btn btn-sm btn-light" data-key="ArrowRight">R➡️</button>
           </div>
-          <div class="position-relative z-3">
+          <div class="position-relative z-3" style="width: fit-content;">
             <div class="btn-group" role="group" aria-label="Basic example">
-              <button type="button" class="btn btn-outline-light indicators-btn" title="Show levels">🚫</button>
-              <button type="button" class="btn btn-outline-light hide-btn d-none" title="Hide Alerts">📝</button>
-              <button type="button" class="btn btn-outline-light order-btn d-none" title="Hide Orders, Positions">📬</button>
-              <button type="button" class="btn btn-outline-light reset-btn d-none" title="Default Alerts">🔃</button>
-              <button type="button" class="btn btn-outline trading-btn d-none" title="Algo-Trading">🕹</button>
-              <button type="button" class="btn btn-outline-light info-btn" title="Indicators">ℹ️</button>
-              <button type="button" class="btn btn-sm btn-success long-btn d-none" title="Create long grid">Long</button>  
-              <button type="button" class="btn btn-sm btn-danger short-btn d-none" title="Crete short grid">Short</button>  
-              <button type="button" class="btn panel-hide-btn" title="Hide info symbol">🔒</button>
+              <button type="button" class="btn btn-light indicators-btn" title="Show levels">🚫</button>
+              <button type="button" class="btn btn-light hide-btn d-none" title="Hide Alerts">🔔</button>
+              <button type="button" class="btn btn-light reset-btn d-none" title="Default Alerts">🔃</button>
+              <button type="button" class="btn btn-light order-btn d-none" title="Hide Orders, Positions">📬</button>
+              <button type="button" class="btn btn-light info-btn" title="Indicators">ℹ️</button>
+              <button type="button" class="btn btn-light panel-hide-btn" title="Hide info symbol">🔒</button>
             </div>
           </div>
-          <div class="position-relative z-3 mt-0">
+          <div class="position-relative z-3 mt-0" style="width: fit-content;">
             <span class="h5 display-symbol bg-success-subtle"></span>
+            <div class="btn-group" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-light trading-btn d-none" title="Algo-Trading">🕹</button>
+              <button type="button" class="btn btn-light show-positions" title="Show positions">🎲</button>
+            </div>
           </div>
-          <div class="position-relative z-3 mt-0">
+          <div class="position-relative z-3 mt-0" style="width: fit-content;">
             <span class="fw-bold bg-success-subtle" id="candleEl">Candle</span><br/>
             <a class="switch-user bg-success-subtle" href="#">Main</a>
           </div>

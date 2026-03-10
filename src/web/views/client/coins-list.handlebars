@@ -6,7 +6,6 @@
       </h6>
       <div class="btn-group" role="group" aria-label="Basic example">
         <button type="button" class="btn btn-sm btn-light star-btn d-none"></button>
-        <button type="button" class="btn btn-sm btn-light alert-btn d-none"></button>
         <button type="button" class="btn btn-sm btn-light add-btn" data-add="false">➕</button>
       </div>
     </div>
@@ -28,7 +27,6 @@
         <div class="btn-group" role="group" aria-label="Basic example">
           {{#if exists}}
             <button type="button" class="btn btn-sm btn-light star-btn"{{#if star}} data-star="true"{{/if}}>{{#if star}}❤️{{else}}🖤{{/if}}</button>
-            <button type="button" class="btn btn-sm btn-light alert-btn"{{#if alert}} data-alert="true"{{/if}}>{{#if alert}}🔔{{else}}🔕{{/if}}</button>
             <button type="button" class="btn btn-sm btn-light add-btn" data-add="true">🗑</button>
           {{else}}
             <button type="button" class="btn btn-sm btn-light star-btn d-none"></button>

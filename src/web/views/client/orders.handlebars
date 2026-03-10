@@ -48,6 +48,8 @@
                 {{#if (gt price 0)}}
                   <button type="button" class="btn btn-sm btn-light cancel-order" data-order-id="{{orderId}}" data-price="{{triggerPrice}}" data-side="{{side}}">🗑</button>
                   <button type="button" class="btn btn-sm btn-light cancel-all-orders" data-side="{{side}}">Del ALL</button>
+                {{else}}
+                  {{stopOrderType}}
                 {{/if}}
               </td>
             </tr>

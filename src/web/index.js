@@ -9,11 +9,9 @@ import { createHash } from "crypto";
 import { bybitUsers } from "../helpers/bybitV5.js";
 import dotenv from "dotenv";
 dotenv.config();
-
 import { tasks } from "../schedule.js";
-
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-// Cron tasks
+//algoTrading 4/03/2026
 tasks(bot);
 const app = express();
 // Use CORS middleware
@@ -61,10 +59,7 @@ const protectPage = (req, res, next) => {
   return next();
 };
 app.use(auth);
-app.get("/", protectPage, async (req, res) => {
-  return res.redirect("/chart");
-});
-app.get("/chart/:symbol?/", protectPage, async (req, res) => {
+app.get("/:symbol?/", protectPage, async (req, res) => {
   const title = "Bybit terminal";
   res.render("ticker", { title, user: req.user });
 });
@@ -73,23 +68,24 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
     const {
-      tradingType,
-      enterTf,
       tp,
       sl,
       size,
       attemptsCount,
+      trend,
       candlesCount,
       touchCount,
       tolerance,
       breakeven,
+      trailing,
+      part,
       user,
+      priceScale,
     } = req.body;
     await Ticker.update(symbol, {
       [user]: {
-        tradingType,
-        enterTf,
         attemptsCount,
+        trend,
         tp,
         sl,
         size,
@@ -97,14 +93,12 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
         touchCount,
         tolerance,
         breakeven,
+        trailing,
+        part,
       },
     });
-    //enable alert scan for alertTrigger
-    //if (alertTrigger && !alert) {
-    //  await Ticker.update(symbol, {
-    //    alert: true,
-    //  });
-    //}
+    //part50
+    await bybitUsers[user].setPart50(symbol, part, priceScale);
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -185,14 +179,10 @@ app.get("/logout", protectPage, (req, res) => {
 app.post("/alerts/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { defaultAlerts, support, resistance, user } = req.body;
+    const { defaultAlerts, support, resistance, user, sl } = req.body;
     if (defaultAlerts) {
-      //set default alerts
-      await Ticker.createAlerts(symbol, support, resistance);
+      await Ticker.createAlerts(symbol, support, resistance, user, sl);
     }
-    //if (read) {
-    //  await Ticker.updateField(symbol, "read", !read);
-    //}
     const alerts = await Ticker.getAlerts(symbol, user);
     return res.json(alerts);
   } catch (error) {
@@ -203,14 +193,14 @@ app.post("/alerts/:symbol", protectPage, async (req, res) => {
 app.post("/edit-alert/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { alertName, alertValue } = req.body;
-    await Ticker.updateAlert(symbol, alertName, alertValue);
+    const { alertName, alertValue, user } = req.body;
+    await Ticker.updateAlert(symbol, alertName, alertValue, user);
     return res.json({ ok: "ok" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
 });
-//add to subs
+//save ticker
 app.post("/add/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -226,7 +216,7 @@ app.post("/add/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-//Edit symbol
+//edit ticker
 app.post("/edit/:symbol", protectPage, async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -237,148 +227,9 @@ app.post("/edit/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-//create limit or stop orders
-app.post("/order/create/:symbol", protectPage, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const {
-      side,
-      size,
-      orderType,
-      startBuy,
-      stopBuy,
-      slBuy,
-      startSell,
-      stopSell,
-      slSell,
-      user,
-    } = req.body;
-    const ordersOld = await bybitUsers[user].getTickerOrders(symbol);
-    //create orders Long
-    //const alerts = await Ticker.getOnlyAlerts(symbol);
-    if (side === "Buy") {
-      for (const order of ordersOld.filter((o) => o.side === side)) {
-        await bybitUsers[user].cancelOrder(symbol, order.orderId);
-      }
-      if (orderType === "limit") {
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          startBuy,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          (startBuy + stopBuy) / 2,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          stopBuy,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-      } else {
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          startBuy,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          (startBuy + stopBuy) / 2,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          stopBuy,
-          size / 3,
-          stopSell,
-          slBuy,
-        );
-      }
-    }
-    //create Short orders
-    if (side === "Sell") {
-      for (const order of ordersOld.filter((o) => o.side === side)) {
-        await bybitUsers[user].cancelOrder(symbol, order.orderId);
-      }
-      if (orderType === "limit") {
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          startSell,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          (startSell + stopSell) / 2,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-        await bybitUsers[user].createLimitOrder(
-          symbol,
-          side,
-          stopSell,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-      } else {
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          startSell,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          (startSell + stopSell) / 2,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-        await bybitUsers[user].createStopLimitOrder(
-          symbol,
-          side,
-          stopSell,
-          size / 3,
-          stopBuy,
-          slSell,
-        );
-      }
-    }
-    const orders = await bybitUsers[user].getTickerOrders(symbol);
-    return res.json({ orders });
-  } catch (error) {
-    return res.status(422).json({ message: error.message });
-  }
-});
 //get limit orders
 app.post("/order/list", protectPage, async (req, res) => {
   try {
-    //const { symbol } = req.params;
     const { cursor, user } = req.body;
     const response = await bybitUsers[user].getLimitOrders(cursor);
     return res.json(response);
@@ -393,9 +244,8 @@ app.post("/order/cancel-all/:symbol/:side", protectPage, async (req, res) => {
     const { user } = req.body;
     await bybitUsers[user].cancelAllOrders(symbol, side);
     const orders = await bybitUsers[user].getTickerOrders(symbol);
-    //return res.json({ orders });
     const response = await bybitUsers[user].getLimitOrders();
-    return res.json({ ...response, tickerOrders: orders });
+    return res.json({ ...response, tickerOrders: orders.all });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
@@ -408,7 +258,7 @@ app.post("/order/cancel/:symbol", protectPage, async (req, res) => {
     await bybitUsers[user].cancelOrder(symbol, orderId);
     const response = await bybitUsers[user].getLimitOrders();
     const orders = await bybitUsers[user].getTickerOrders(symbol);
-    return res.json({ ...response, tickerOrders: orders });
+    return res.json({ ...response, tickerOrders: orders.all });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
@@ -463,5 +313,5 @@ app.post("/position/close/:symbol", protectPage, async (req, res) => {
 });
 //run app
 app.listen(PORT, () => {
-  console.log(`Web app listening on port ${PORT}`);
+  console.log(`Web 2.5.0 app listening on port ${PORT}`);
 });

@@ -3,10 +3,6 @@ import Joi from "joi";
 import { getTicker, bybitUsers } from "../helpers/bybitV5.js";
 
 class Ticker {
-  // constructor(symbol) {
-  //   this.symbol = symbol;
-  //   //this.lastNotified = lastNotified;
-  // }
   static validate(ticker) {
     const schema = Joi.object({
       alerts: Joi.object({
@@ -42,14 +38,11 @@ class Ticker {
     }
     const priceScale = ticker.length ? +ticker[0].priceScale : 4;
     const newTickerData = {
-      alert: false,
       star: false,
-      updatedAt: new Date(),
+      createdAt: new Date(),
       priceScale,
     };
     await db.doc(`crypto/${symbol}`).set(newTickerData);
-    //create alerts
-    //await Ticker.createAlerts(symbol);
   }
   static async find(ticker, getDoc = false) {
     if (ticker) {
@@ -65,67 +58,44 @@ class Ticker {
     return null;
   }
   //create default Alerts
-  static async createAlerts(symbol, support, resistance) {
-    const step = (support - resistance) / 5;
+  static async createAlerts(symbol, support, resistance, user, sl) {
+    const step = sl / 5 / 100;
     const alerts = {
-      1: support,
-      2: support - step,
-      3: support - step * 2,
-      4: support - step * 3,
-      5: support - step * 4,
-      6: resistance,
+      1: support * (1 + step),
+      3: support,
+      5: support * (1 - step),
+      2: resistance * (1 - step),
+      4: resistance,
+      6: resistance * (1 + step),
     };
-    await Ticker.update(symbol, { alerts });
+    await Ticker.update(symbol, { [`${user}Alerts`]: { ...alerts } });
   }
   static async alertsExist(symbol) {
     const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
     return alertsDoc.exists;
   }
-  //for check cross deprecated
-  static async getOnlyAlerts(symbol) {
-    const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
-    return alertsDoc.exists
-      ? [
-          alertsDoc.data().alert0,
-          alertsDoc.data().alert1,
-          alertsDoc.data().alert2,
-          alertsDoc.data().alert3,
-          alertsDoc.data().alert4,
-          alertsDoc.data().alert5,
-        ]
-      : [];
-  }
   // get all alerts
   static async getAlerts(symbol, user) {
     const symbolDoc = await db.doc(`crypto/${symbol}`).get();
-    //const alertsDoc = await db.doc(`crypto/${symbol}/alerts/triggers`).get();
-    //const config = await Scan.getConfig(timeframe);
-    //const pumpMsg = await this.getLevels(symbol);
-    //get limit orders
     const orders = await bybitUsers[user].getTickerOrders(symbol);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const balance = await bybitUsers[user].getBybitBalance();
-    //if (symbolDoc.exists && read) {
-    //  await Ticker.updateField(symbol, "read", !read);
-    //}
-    //const closedPositions =
-    //  await bybitUsers[user].getClosedPositionsHistory(symbol);
     return {
       exists: symbolDoc.exists,
       ...(symbolDoc.exists ? symbolDoc.data() : {}),
-      orders,
+      orders: [...orders.stop, ...orders.part],
       positions,
       balance,
     };
   }
   //update alert
-  static async updateAlert(symbol, alertName, value) {
+  static async updateAlert(symbol, alertName, value, user) {
     const { error } = Ticker.validateAlertPrice(value);
     if (error) {
       throw new Error(`Invalid ticker data ${alertName} must be numeric!`);
     }
     const alerts = {
-      [`alerts.${alertName}`]: value,
+      [`${user}Alerts.${alertName}`]: value,
     };
     await Ticker.update(symbol, alerts);
   }
@@ -164,13 +134,20 @@ class Ticker {
   ) {
     const mainQuery =
       tab === "favorites"
-        ? db.collection("crypto").where("star", "==", true)
+        ? db
+            .collection("crypto")
+            .where("star", "==", true)
+            .orderBy(FieldPath.documentId())
         : tab === "alerts"
-          ? db.collection("crypto").where("alert", "==", true)
+          ? db
+              .collection("crypto")
+              .where(`${user}.attemptsCount`, "==", 6)
+              .orderBy(FieldPath.documentId())
           : tab === "trading"
             ? db
                 .collection("crypto")
                 .where(`${user}.attemptsCount`, ">=", 0)
+                .where(`${user}.attemptsCount`, "<", 5)
                 .orderBy(`${user}.attemptsCount`)
             : //.where(
               //  Filter.or(
@@ -222,60 +199,14 @@ class Ticker {
     }
     return { tickers: [] };
   }
-  //new update notify telegram
-  static async getAlertMessage(ticker) {
-    if (ticker) {
-      const alertDoc = await db.doc(`crypto/${ticker}/alerts/message`).get();
-      if (alertDoc.exists) {
-        return { ...alertDoc.data() };
-      }
-    }
-    return {};
-  }
-  static async getLevelMessage(symbol) {
-    if (symbol) {
-      const alertDoc = await db.doc(`crypto/${symbol}`).get();
-      if (alertDoc.exists) {
-        return { ...alertDoc.data() };
-      }
-    }
-    return {};
-  }
-  //levels
-  static async saveLevelBatch(batchArray) {
+  //batch save
+  static async saveBatch(batchArray) {
     const batch = db.batch();
     for (const ticker of batchArray) {
       const { symbol, data } = ticker;
       if (symbol) {
         batch.set(db.doc(`crypto/${symbol}`), data, {
           merge: true,
-        });
-      }
-    }
-    await batch.commit();
-  }
-  //alert
-  static async sendNotifyAlert(batchArray) {
-    const batch = db.batch();
-    for (const ticker of batchArray) {
-      const { symbol, data } = ticker;
-      if (symbol) {
-        batch.set(db.doc(`crypto/${symbol}/alerts/message`), data, {
-          merge: true,
-        });
-      }
-    }
-    await batch.commit();
-  }
-  static async changeFields(batchArray) {
-    const batch = db.batch();
-    for (const ticker of batchArray) {
-      //data
-      const { symbol } = ticker;
-      if (symbol) {
-        //batch.update(db.doc(`crypto/${symbol}`), data);
-        batch.update(db.doc(`crypto/${symbol}`), {
-          entryLevel: FieldValue.delete(),
         });
       }
     }

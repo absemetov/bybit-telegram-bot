@@ -1,6 +1,6 @@
 {
   "name": "bybit-telegram-bot",
-  "version": "2.2.2",
+  "version": "2.5.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
     "deploy": "firebase deploy --only functions"
   },
   "keywords": [],
-  "author": "Nadir Absemetov",
+  "author": "Nadir Absemetov, absemetov.org.ua",
   "license": "ISC",
   "description": "",
   "dependencies": {

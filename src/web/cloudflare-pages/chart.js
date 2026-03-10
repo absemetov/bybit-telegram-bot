@@ -545,21 +545,21 @@ class ChartManager {
     this.defaultAlerts();
     ChartManager.state.selectedAlert = null;
   }
-  checkHover(checkPrice, lines) {
+  checkHover(cursorY, lines) {
     if (ChartManager.state.isDroped) {
       for (const alert of lines) {
-        const tolerancePercentHover = ["1d", "1w"].includes(App.state.timeframe)
-          ? 1.5
-          : ["1h", "2h", "4h", "6h", "12h"].includes(App.state.timeframe)
-            ? 0.5
-            : 0.1;
+        let minDistance = Infinity;
+        const PIXEL_TOLERANCE = 3;
+        const lineY = ChartManager.state.candlestickSeries.priceToCoordinate(
+          alert.line.options().price,
+        );
+        const distance = Math.abs(lineY - cursorY);
         const isAlertHover =
           alert.name &&
           alert.line.options().lineVisible &&
           alert.line.options().price &&
-          Math.abs((alert.line.options().price - checkPrice) / checkPrice) *
-            100 <=
-            tolerancePercentHover;
+          distance < minDistance &&
+          distance <= PIXEL_TOLERANCE;
         if (isAlertHover) {
           ChartManager.state.hoveredAlert = alert.name;
           alert.line.applyOptions({
@@ -869,7 +869,7 @@ class ChartManager {
         ChartManager.state.currentPriceMove > 0
       ) {
         App.chartManager.checkHover(
-          ChartManager.state.currentPriceMove,
+          param.point.y,
           ChartManager.state.levelsArray,
         );
       }
