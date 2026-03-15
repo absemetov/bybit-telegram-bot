@@ -88,18 +88,7 @@ class Ticker {
       balance,
     };
   }
-  //update alert
-  static async updateAlert(symbol, alertName, value, user) {
-    const { error } = Ticker.validateAlertPrice(value);
-    if (error) {
-      throw new Error(`Invalid ticker data ${alertName} must be numeric!`);
-    }
-    const alerts = {
-      [`${user}Alerts.${alertName}`]: value,
-    };
-    await Ticker.update(symbol, alerts);
-  }
-  //new update
+  //update data
   static async update(symbol, data) {
     await db.doc(`crypto/${symbol}`).update(data);
   }
@@ -138,25 +127,12 @@ class Ticker {
             .collection("crypto")
             .where("star", "==", true)
             .orderBy(FieldPath.documentId())
-        : tab === "alerts"
+        : tab === "trading"
           ? db
               .collection("crypto")
-              .where(`${user}.attemptsCount`, "==", 6)
-              .orderBy(FieldPath.documentId())
-          : tab === "trading"
-            ? db
-                .collection("crypto")
-                .where(`${user}.attemptsCount`, ">=", 0)
-                .where(`${user}.attemptsCount`, "<", 5)
-                .orderBy(`${user}.attemptsCount`)
-            : //.where(
-              //  Filter.or(
-              //    Filter.where("tradingType", ">", 0),
-              //    Filter.where("tradingTypeSub", ">", 0),
-              //  ),
-              //)
-              //db.collection("crypto").orderBy("updatedAt", "desc");
-              db.collection("crypto").orderBy(FieldPath.documentId());
+              .where(`${user}.attemptsCount`, ">=", 0)
+              .orderBy(`${user}.attemptsCount`)
+          : db.collection("crypto").orderBy(FieldPath.documentId());
     let query = mainQuery;
     const lastVisibleDoc = await Ticker.find(lastVisibleId, true);
     if (direction && !lastVisibleDoc) {

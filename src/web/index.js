@@ -189,17 +189,6 @@ app.post("/alerts/:symbol", protectPage, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-// edit alert
-app.post("/edit-alert/:symbol", protectPage, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const { alertName, alertValue, user } = req.body;
-    await Ticker.updateAlert(symbol, alertName, alertValue, user);
-    return res.json({ ok: "ok" });
-  } catch (error) {
-    return res.status(422).json({ message: error.message });
-  }
-});
 //save ticker
 app.post("/add/:symbol", protectPage, async (req, res) => {
   try {

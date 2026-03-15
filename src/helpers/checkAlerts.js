@@ -43,7 +43,7 @@ export const checkAlerts = async (bot) => {
                 Math.abs(alert[1] - close) / close <= tolerance / 100
               );
             });
-            //if attempts = 6 only alerts
+            //attempts from [0-5] algotrading
             if (attemptsCount <= 5) {
               await algoTrading(
                 ticker,
@@ -56,7 +56,7 @@ export const checkAlerts = async (bot) => {
                 attemptsCount,
               );
             }
-            //alert if price near zone
+            //only alert
             if (attemptsCount === 6) {
               const timestampSeconds = Math.round(Date.now() / 1000);
               const silent10min =

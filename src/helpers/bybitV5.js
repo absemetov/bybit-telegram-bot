@@ -164,82 +164,35 @@ class UserAPI {
     const positions = await this.getTickerPositions(symbol);
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
-    const longPartialOrder = orders.part.find((o) => {
-      return o.side === "Sell";
-    });
-    const shortPartialOrder = orders.part.find((o) => {
-      return o.side === "Buy";
-    });
     if (shortPosition) {
-      const { avgPrice } = shortPosition;
-      //partialClose 50% new 4/03/2026
-      const newPart50 = avgPrice * (1 - part / 100);
-      if (shortPartialOrder) {
-        //delete part50
-        if (part === 0) {
-          for (const order of orders.part.filter((o) => o.side === "Buy")) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          return;
-        }
-        const { price } = shortPartialOrder;
-        if ((Math.abs(newPart50 - price) / price) * 100 >= 0.03) {
-          //first delete old
-          for (const order of orders.part.filter((o) => o.side === "Buy")) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          //edit
-          await this.setPartialTakeProfit(
-            symbol,
-            shortPosition,
-            newPart50.toFixed(priceScale),
-          );
-        }
-      } else {
-        if (part > 0) {
-          //create new
-          await this.setPartialTakeProfit(
-            symbol,
-            shortPosition,
-            newPart50.toFixed(priceScale),
-          );
-        }
+      for (const order of orders.part.filter((o) => o.side === "Buy")) {
+        await this.cancelOrder(symbol, order.orderId);
+      }
+      if (part > 0) {
+        const { avgPrice } = shortPosition;
+        const newPart50 = avgPrice * (1 - part / 100);
+        //create new
+        await this.setPartialTakeProfit(
+          symbol,
+          shortPosition,
+          newPart50.toFixed(priceScale),
+        );
       }
     }
     if (longPosition) {
-      const { avgPrice } = longPosition;
       //partialClose 50% new 4/03/2026
-      const newPart50 = avgPrice * (1 + part / 100);
-      if (longPartialOrder) {
-        //delete part50
-        if (part === 0) {
-          for (const order of orders.part.filter((o) => o.side === "Sell")) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          return;
-        }
-        const { price } = longPartialOrder;
-        if ((Math.abs(newPart50 - price) / price) * 100 >= 0.03) {
-          //first delete old
-          for (const order of orders.part.filter((o) => o.side === "Sell")) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          //edit
-          await this.setPartialTakeProfit(
-            symbol,
-            longPosition,
-            newPart50.toFixed(priceScale),
-          );
-        }
-      } else {
-        if (part > 0) {
-          //create new
-          await this.setPartialTakeProfit(
-            symbol,
-            longPosition,
-            newPart50.toFixed(priceScale),
-          );
-        }
+      for (const order of orders.part.filter((o) => o.side === "Sell")) {
+        await this.cancelOrder(symbol, order.orderId);
+      }
+      if (part > 0) {
+        //create new
+        const { avgPrice } = longPosition;
+        const newPart50 = avgPrice * (1 + part / 100);
+        await this.setPartialTakeProfit(
+          symbol,
+          longPosition,
+          newPart50.toFixed(priceScale),
+        );
       }
     }
   }

@@ -255,7 +255,11 @@ export const algoTrading = async (
         await bybit.setPart50(symbol, part, priceScale);
         await sendMsgMe(bot, {
           header: `🆕[${user}] <code>${symbol.slice(0, -4)}</code>`,
-          msg: `Position ${posIcon} Opened Part: ${positionValue}$\navgPrice ${(+avgPrice).toFixed(priceScale)}$\nTotal Size left: ${size} - ${positionValue} = ${(size - positionValue).toFixed(1)}$\nAttempts left: ${attemptsCount}`,
+          msg:
+            `Position ${posIcon} Opened +${positionValue}$\n` +
+            `avgPrice ${(+avgPrice).toFixed(priceScale)}$\n` +
+            `Size: ${positionValue} (${size})$\n` +
+            `Attempts left: ${attemptsCount}`,
           footer: `#${symbol.slice(0, -4)}_${user}`,
         });
       }
@@ -267,13 +271,16 @@ export const algoTrading = async (
           await Ticker.update(symbol, {
             [`${user}Position${side}Value`]: positionValue,
           });
-          //if position increase change part50
+          //if position increased change part50
           if (diff > 0) {
             await bybit.setPart50(symbol, part, priceScale);
           }
           await sendMsgMe(bot, {
             header: `💰[${user}] <code>${symbol.slice(0, -4)}</code>`,
-            msg: `Position ${posIcon} ${diff > 0 ? "add +" : "close "}${diff.toFixed(2)}$\navgPrice ${(+avgPrice).toFixed(priceScale)}$\nTotal Size left: ${size} - ${positionValue} = ${(size - positionValue).toFixed(1)}$.`,
+            msg:
+              `Position ${posIcon} ${diff > 0 ? "increased +" : "decreased "}${diff.toFixed(2)}$\n` +
+              `avgPrice ${(+avgPrice).toFixed(priceScale)}$\n` +
+              `Size: ${positionValue} (${size})$.`,
             footer: `#${symbol.slice(0, -4)}_${user}`,
           });
         }
