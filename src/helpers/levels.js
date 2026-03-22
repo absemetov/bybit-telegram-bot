@@ -335,7 +335,7 @@ export const algoTrading = async (
   } catch (error) {
     console.error(`Error processing:`, error.message);
     await sendMsgMe(bot, {
-      msg: `AlgoTrading Error ${symbol} ${error.message}`,
+      msg: `AlgoTrading Error [${user}] ${symbol} ${error.message}`,
     });
   }
 };

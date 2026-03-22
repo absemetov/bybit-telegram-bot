@@ -1045,14 +1045,14 @@ class Indicators {
       color: App.state.support ? "green" : "black",
       lineVisible: true,
       axisLabelVisible: true,
-      title: `${(((App.state.resistanceMax - App.state.supportMin) / App.state.supportMin) * 100).toFixed(2)}%`,
+      title: `S ${(((App.state.supportMin - App.state.resistanceMax) / App.state.resistanceMax) * 100).toFixed(2)}%`,
     });
     ChartManager.state.levelsArray[1].line.applyOptions({
       price: App.state.resistanceMax,
       color: App.state.resistance ? "red" : "black",
       lineVisible: true,
       axisLabelVisible: true,
-      title: `S ${(((App.state.supportMin - App.state.resistanceMax) / App.state.resistanceMax) * 100).toFixed(2)}%`,
+      title: `L ${(((App.state.resistanceMax - App.state.supportMin) / App.state.supportMin) * 100).toFixed(2)}%`,
     });
   }
   static calculateEMA(candles, period) {
@@ -1086,9 +1086,6 @@ class ChartManager {
     candlestickSeries: null,
     markerSeries: null,
     volumeSeries: null,
-    rsiSeries: null,
-    macdLineSeries: null,
-    signalLineSeries: null,
     macdHistogramSeries: null,
     alerts: [],
     hoveredAlert: null,
@@ -1100,8 +1097,6 @@ class ChartManager {
     levelsArray: [],
     orders: [],
     positions: [],
-    messages: [],
-    markers: [],
     container: document.getElementById("chart"),
     candleContainer: document.getElementById("candleEl"),
     prevSymbolKlineTopic: null,
@@ -1772,10 +1767,10 @@ class ChartManager {
           ChartManager.state.levelsArray[1].line.options().price;
         const support = ChartManager.state.levelsArray[0].line.options().price;
         ChartManager.state.levelsArray[0].line.applyOptions({
-          title: `${(((resistance - support) / support) * 100).toFixed(2)}%`,
+          title: `S ${(((support - resistance) / resistance) * 100).toFixed(2)}%`,
         });
         ChartManager.state.levelsArray[1].line.applyOptions({
-          title: `S ${(((support - resistance) / resistance) * 100).toFixed(2)}%`,
+          title: `L ${(((resistance - support) / support) * 100).toFixed(2)}%`,
         });
         ChartManager.state.chart.applyOptions({
           handleScroll: false,
