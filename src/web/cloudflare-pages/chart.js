@@ -326,8 +326,9 @@ class ChartManager {
       this.container,
       {
         //width: this.container.offsetWidth,
-        //height: document.documentElement.scrollHeight - 80,
-        autoSize: true,
+        //height: document.documentElement.scrollHeight - 70,
+        height: window.innerHeight - 70,
+        //autoSize: true,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },

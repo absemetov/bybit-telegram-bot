@@ -60,8 +60,22 @@ class ModalManager {
           <button type="submit" class="btn btn-success">Save</button>
         </div>
       </form>`),
+      part50Form: window.Handlebars.compile(`
+      <form data-form-type="part50" action="part-position/{{symbol}}/{{side}}">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-danger" for="part">✂️PartTP50(%)</label>
+                <input type="number" class="form-control" id="part" name="part" step="0.01" min="0" required>
+            </div>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary">📥Set part50</button>
+        </div>
+      </form>`),
       algoForm: window.Handlebars.compile(`
-      <form data-form-type="algo">
+      <form data-form-type="algo" action="algo-trading/{{symbol}}">
+        <div class="row">
+        </div>
         <div class="row">
             <div class="col-md-4 mb-3">
                 <label class="form-label text-success" for="attemptsCount">🎲Attempts <span id="attemptsSpan" class="h5">{{attemptsSpan}}</span></label>
@@ -76,12 +90,12 @@ class ModalManager {
                 <input type="number" class="form-control" id="sizeAlgo" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label text-success" for="trend">📈Trend</label>
-                <select class="form-select" name="trend" id="trend">
-                  {{#each trendList}}
-                    <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
-                  {{/each}}
-                </select>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" value="on" name="autoLevels" id="checkNativeSwitch" switch{{#if autoLevels}} checked{{/if}}>
+                <label class="form-check-label" for="checkNativeSwitch">
+                  🟰Auto levels 2h
+                </label>
+              </div>
             </div>
         </div>
         <div class="row">
@@ -177,6 +191,10 @@ class ModalManager {
         return this.templates.scanerForm({
           timeframe: App.state.timeframe,
           ...App.state.scaner,
+        });
+      case "part-form":
+        return this.templates.part50Form({
+          ...config,
         });
       case "algo-form":
         return this.templates.algoForm({
@@ -287,8 +305,11 @@ class ModalManager {
     e.preventDefault();
     const form = e.target;
     const formData = new FormData(form);
+    if (form.dataset.formType === "part50") {
+      this._handlePart50Submit(formData, form.action);
+    }
     if (form.dataset.formType === "algo") {
-      this._handleAlgoSubmit(formData);
+      this._handleAlgoSubmit(formData, form.action);
     }
     if (form.dataset.formType === "scaner") {
       this._handleScanerSubmit(formData);
@@ -503,6 +524,17 @@ class ModalManager {
     const symbol = item.dataset.symbol;
     const getPositions = e.target.closest(".get-positions");
     const cancelPosition = e.target.closest(".cancel-position");
+    const partPosition = e.target.closest(".part-position");
+    //set part50
+    if (partPosition) {
+      const side = e.target.dataset.side;
+      App.modal.render({
+        type: "part-form",
+        title: `Set part50 [${App.state.user}=${App.state.user === "main" ? "🐮Long" : "🐻Short"}] ${symbol}`,
+        side,
+        symbol,
+      });
+    }
     //open orders
     if (getPositions) {
       const cursor = getPositions.dataset.cursor || "";
@@ -570,25 +602,49 @@ class ModalManager {
       alert(`Error: ${error.message}`);
     }
   }
-  async _handleAlgoSubmit(data) {
-    const { symbol } = Order.state;
+  async _handlePart50Submit(data, formAction) {
+    const part = parseFloat(data.get("part"));
+    try {
+      const response = await fetch(formAction, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          part,
+          user: App.state.user,
+          priceScale: App.state.priceScale,
+        }),
+      });
+      const resJson = await response.json();
+      if (!response.ok) {
+        alert(resJson.message);
+        return false;
+      }
+      this.modal.hide();
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  }
+  async _handleAlgoSubmit(data, formAction) {
     const tp = parseFloat(data.get("tp"));
     const sl = parseFloat(data.get("sl"));
     const size = parseFloat(data.get("size"));
     const attemptsCount = parseFloat(data.get("attemptsCount"));
-    const trend = data.get("trend");
     const breakeven = parseFloat(data.get("breakeven"));
     const trailing = parseFloat(data.get("trailing"));
     const part = parseFloat(data.get("part"));
     const candlesCount = parseFloat(data.get("candlesCount"));
     const touchCount = parseFloat(data.get("touchCount"));
     const tolerance = parseFloat(data.get("tolerance"));
+    const autoLevels = !!data.get("autoLevels");
     if (attemptsCount > 0 && size <= 0) {
       alert("Please, set order size > 0");
       document.getElementById("sizeAlgo").focus();
       return;
     }
     App.state.algoTrading = {
+      autoLevels,
       breakeven,
       trailing,
       part,
@@ -596,17 +652,15 @@ class ModalManager {
       sl,
       size,
       attemptsCount,
-      trend,
       candlesCount,
       touchCount,
       tolerance,
       balance: App.state.algoTrading.balance,
       user: App.state.user,
-      priceScale: App.state.priceScale,
     };
     App.setState({});
     try {
-      const response = await fetch(`/algo-trading/${symbol}`, {
+      const response = await fetch(formAction, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -620,7 +674,7 @@ class ModalManager {
       }
       document.querySelector(".trading-btn").textContent = App.renderTradingBtn(
         attemptsCount,
-        trend,
+        autoLevels,
       );
       Indicators.calculateLevels(
         ChartManager.state.candles,
@@ -662,8 +716,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `Long: ${unrealisedPnl}$`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
         avgPrice,
         size,
@@ -679,8 +733,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `SL/Long:${slPercent.toFixed(2)}%`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
       });
       ChartManager.state.positions.push({
@@ -691,8 +745,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `TP/Long:${tpPercent.toFixed(2)}%`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
       });
     }
@@ -708,8 +762,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `Short: ${unrealisedPnl}$`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
         avgPrice,
         size,
@@ -725,8 +779,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `SL/Short:${slPercent.toFixed(2)}%`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
       });
       ChartManager.state.positions.push({
@@ -737,8 +791,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 3,
           title: `TP/Short:${tpPercent.toFixed(2)}%`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
       });
     }
@@ -757,8 +811,8 @@ class Order {
           lineWidth: 2,
           lineStyle: 0,
           title: `${triggerPrice ? "S" : "L"}:${side} ${(price * qty).toFixed(2)}$`,
-          lineVisible: App.state.hideOrders,
-          axisLabelVisible: App.state.hideOrders,
+          lineVisible: App.state.showOrders,
+          axisLabelVisible: App.state.showOrders,
         }),
       );
     }
@@ -1107,7 +1161,8 @@ class ChartManager {
     ChartManager.state.chart = window.LightweightCharts.createChart(
       ChartManager.state.container,
       {
-        autoSize: true,
+        //autoSize: true,
+        height: window.innerHeight - 70,
         layout: {
           textColor: "black",
           background: { type: "solid", color: "white" },
@@ -1891,7 +1946,7 @@ class App {
     coins: [],
     activeTab: "favorites",
     showAlerts: true,
-    hideOrders: true,
+    showOrders: false,
     bsOffcanvas: new window.bootstrap.Offcanvas("#offcanvasResponsive"),
     user: "main",
     statsTab: "positions",
@@ -1928,9 +1983,13 @@ class App {
       });
     });
     window.Handlebars.registerHelper("algoIcon", function (ticker) {
-      const { attemptsCount = -1, size, trend } = ticker[App.state.user] || {};
+      const {
+        attemptsCount = -1,
+        size,
+        autoLevels = false,
+      } = ticker[App.state.user] || {};
       if (attemptsCount < 0) return "";
-      return `AlgoTrading ${App.renderTradingBtn(attemptsCount, trend)} ${size}$`;
+      return `AlgoTrading ${App.renderTradingBtn(attemptsCount, autoLevels)} ${size}$`;
     });
     window.Handlebars.registerHelper("multiply", function (a, b) {
       return (a * b).toFixed(2);
@@ -2185,14 +2244,14 @@ class App {
     document.querySelector(".hide-btn").textContent = this.state.showAlerts
       ? "🔔"
       : "🔕";
-    document.querySelector(".order-btn").textContent = this.state.hideOrders
+    document.querySelector(".order-btn").textContent = this.state.showOrders
       ? "📬"
       : "📭";
     if (this.state.algoTrading) {
       document.querySelector(".display-symbol").textContent =
         `${this.state.symbol} [${this.state.algoTrading.candlesCount}, ${this.state.algoTrading.touchCount}, ${this.state.algoTrading.tolerance}]`;
       document.querySelector(".switch-user").textContent =
-        `${App.state.user === "main" ? "🐮Main" : "🐻Sub"} (${App.state.algoTrading.balance.toFixed(1)}$)`;
+        `${App.state.user === "main" ? "🐮Long" : "🐻Short"} (${App.state.algoTrading.balance.toFixed(1)}$)`;
     }
   }
   static async renderChart() {
@@ -2213,20 +2272,20 @@ class App {
     }
   }
   static hideOrders() {
-    this.state.hideOrders = !this.state.hideOrders;
+    this.state.showOrders = !this.state.showOrders;
     for (const alert of ChartManager.state.positions) {
       alert.line.applyOptions({
-        lineVisible: this.state.hideOrders,
-        axisLabelVisible: this.state.hideOrders,
+        lineVisible: this.state.showOrders,
+        axisLabelVisible: this.state.showOrders,
       });
     }
     for (const alert of ChartManager.state.orders) {
       alert.applyOptions({
-        lineVisible: this.state.hideOrders,
-        axisLabelVisible: this.state.hideOrders,
+        lineVisible: this.state.showOrders,
+        axisLabelVisible: this.state.showOrders,
       });
     }
-    document.querySelector(".order-btn").textContent = this.state.hideOrders
+    document.querySelector(".order-btn").textContent = this.state.showOrders
       ? "📬"
       : "📭";
   }
@@ -2326,20 +2385,20 @@ class App {
       tp = Order.state.TAKE_PROFIT,
       size = 0,
       attemptsCount = -1,
-      trend = "up",
       breakeven = Order.state.TAKE_PROFIT - 3,
       trailing = 2,
       part = Order.state.TAKE_PROFIT - 3,
       candlesCount = 8,
       touchCount = 3,
       tolerance = 0.05,
+      autoLevels = false,
     } = alertsDataJson[App.state.user] || {};
     App.state.algoTrading = {
+      autoLevels,
       sl,
       tp,
       size,
       attemptsCount,
-      trend,
       breakeven,
       trailing,
       part,
@@ -2388,7 +2447,7 @@ class App {
       document.querySelector(".trading-btn").textContent =
         this.renderTradingBtn(
           App.state.algoTrading.attemptsCount,
-          App.state.algoTrading.trend,
+          App.state.algoTrading.autoLevels,
         );
     }
     document
@@ -2412,16 +2471,15 @@ class App {
       ?.classList.add("bg-primary");
   }
   //trading btn render
-  static renderTradingBtn(attemptsCount, trend) {
-    const icons = { up: "↗️", down: "↘️", flat: "↕️" };
+  static renderTradingBtn(attemptsCount, autoLevels) {
     if (attemptsCount === 0) {
-      return `🟠${icons[trend]}`;
+      return `🟠${autoLevels ? "🟰" : ""}`;
     }
     if (attemptsCount > 0 && attemptsCount <= 5) {
-      return `🟢${icons[trend]}(${attemptsCount})`;
+      return `🟢${autoLevels ? "🟰" : ""}(${attemptsCount})`;
     }
     if (attemptsCount === 6) {
-      return "🔔";
+      return `🔔${autoLevels ? "🟰" : ""}`;
     }
     return "🔴";
   }
@@ -2455,7 +2513,6 @@ class App {
     document
       .querySelector(".trading-btn")
       .addEventListener("click", async () => {
-        Order.state.symbol = App.state.symbol;
         const attemptsList = [
           { value: 6, name: "🔔 Alert on" },
           { value: -1, name: "🔴 off AlgoTrading" },
@@ -2473,27 +2530,15 @@ class App {
           }
           return el;
         });
-        const trendList = [
-          { value: "up", name: "↗️ Up trend" },
-          { value: "down", name: "↘️ Down trend" },
-          { value: "flat", name: "↕️ Flat" },
-        ].map((el) => {
-          if (el.value === App.state.algoTrading.trend) {
-            el.selected = true;
-          } else {
-            el.selected = false;
-          }
-          return el;
-        });
         const symbol = App.state.symbol;
         const tickerInfo = await App.getTickerInfo(symbol);
         App.modal.render({
           type: "algo-form",
-          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "🐮Swing" : "🐻Scalp"}] ${Order.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
+          title: `AlgoTrading [${App.state.user}=${App.state.user === "main" ? "🐮Long" : "🐻Short"}] ${App.state.symbol}, ${App.state.algoTrading.balance.toFixed(1)}$`,
           attemptsList,
-          trendList,
           fundingRate: tickerInfo.fundingRate,
           countDownTime: tickerInfo.countDownTime,
+          symbol: App.state.symbol,
         });
       });
     document.addEventListener("keydown", this.handleKeyPress);
@@ -2714,7 +2759,7 @@ class App {
         event.preventDefault();
         App.state.user = App.state.user === "main" ? "sub" : "main";
         event.target.textContent =
-          App.state.user === "main" ? "🐂Main" : "🐻Sub";
+          App.state.user === "main" ? "🐂Long" : "🐻Short";
         await this.loadCoins();
         await this.loadAlerts();
         App.renderLevels();

@@ -159,12 +159,15 @@ class UserAPI {
         positionIdx: order.positionIdx,
       }));
   }
-  async setPart50(symbol, part, priceScale) {
+  async setPart50All(symbol, part, priceScale, side) {
     const orders = await this.getTickerOrders(symbol);
     const positions = await this.getTickerPositions(symbol);
+    await this.setPart50(symbol, part, priceScale, side, orders, positions);
+  }
+  async setPart50(symbol, part, priceScale, side, orders, positions) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
-    if (shortPosition) {
+    if (shortPosition && side === "Sell") {
       for (const order of orders.part.filter((o) => o.side === "Buy")) {
         await this.cancelOrder(symbol, order.orderId);
       }
@@ -173,14 +176,12 @@ class UserAPI {
         const newPart50 = avgPrice * (1 - part / 100);
         //create new
         await this.setPartialTakeProfit(
-          symbol,
           shortPosition,
           newPart50.toFixed(priceScale),
         );
       }
     }
-    if (longPosition) {
-      //partialClose 50% new 4/03/2026
+    if (longPosition && side === "Buy") {
       for (const order of orders.part.filter((o) => o.side === "Sell")) {
         await this.cancelOrder(symbol, order.orderId);
       }
@@ -189,7 +190,6 @@ class UserAPI {
         const { avgPrice } = longPosition;
         const newPart50 = avgPrice * (1 + part / 100);
         await this.setPartialTakeProfit(
-          symbol,
           longPosition,
           newPart50.toFixed(priceScale),
         );
@@ -197,13 +197,14 @@ class UserAPI {
     }
   }
   //set part50
-  async setPartialTakeProfit(symbol, position, takeProfit) {
+  async setPartialTakeProfit(position, takeProfit) {
+    const { symbol, positionIdx, size } = position;
     await this.bybitClient.setTradingStop({
       category: "linear",
       symbol,
-      positionIdx: position.positionIdx,
+      positionIdx,
       takeProfit,
-      tpSize: `${position.size * 0.5}`,
+      tpSize: `${size / 2}`,
       tpslMode: "Partial",
     });
   }

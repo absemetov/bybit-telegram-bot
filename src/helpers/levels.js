@@ -136,7 +136,7 @@ const checkPositions = async (
   }
 };
 //telegram close position msg
-async function sendTelegramReport(symbol, bybit, user, bot) {
+async function sendTelegramReport(symbol, bybit, user, bot, attemptsCount) {
   const closedPositions = await bybit.getClosedPositionsHistory(symbol);
   const lastClosedPosition = closedPositions.positions[0];
   const { closedPnl, side } = lastClosedPosition;
@@ -183,6 +183,7 @@ async function sendTelegramReport(symbol, bybit, user, bot) {
       msg:
         `${closedPnl > 0 ? "👍Profit" : "☝️Loss"} ${side !== "Buy" ? "📈 Long" : "📉 Short"} position closed\n` +
         `💰Balance: ${balance.toFixed(2)}$\n` +
+        `Attempts left: ${attemptsCount}\n` +
         `${positions.length} trades analytics\n` +
         `Total Pnl: ${totalData.pnl.toFixed(2)}$ (${totalData.totalPrcnt > 0 ? "+" : ""}${totalData.totalPrcnt.toFixed(2)}%), WinRate: ${winRate}%, profitTrades: +${profitableTrades}(+${totalData.profPrcnt.toFixed(2)}%), lossTrades: -${lossTrades}(-${totalData.lossPrcnt.toFixed(2)}%)\n` +
         closedPositions.positions
@@ -217,7 +218,7 @@ export const algoTrading = async (
 ) => {
   const { symbol, priceScale } = ticker;
   try {
-    const { size, sl, tp, tolerance, trend, part } = ticker[user] || {};
+    const { size, sl, tp, tolerance, part } = ticker[user] || {};
     //your trading account must not drop below 90% of the initial account balance!!!
     const orders = await bybit.getTickerOrders(symbol);
     const longOrders = orders.stop.filter((o) => o.side === "Buy");
@@ -249,10 +250,17 @@ export const algoTrading = async (
         const { positionValue, avgPrice } = currentMap[side];
         await Ticker.update(symbol, {
           [`${user}.attemptsCount`]: --attemptsCount,
-          [`${user}Position${side}Value`]: positionValue,
+          [`${user}Position${side}Value`]: +positionValue,
         });
         //part50
-        await bybit.setPart50(symbol, part, priceScale);
+        await bybit.setPart50(
+          symbol,
+          part,
+          priceScale,
+          side,
+          orders,
+          positions,
+        );
         await sendMsgMe(bot, {
           header: `🆕[${user}] <code>${symbol.slice(0, -4)}</code>`,
           msg:
@@ -267,13 +275,20 @@ export const algoTrading = async (
       if (ticker[`${user}Position${side}Value`] && currentMap[side]) {
         const { positionValue, avgPrice } = currentMap[side];
         const diff = positionValue - ticker[`${user}Position${side}Value`];
-        if (Math.abs(diff) > 50) {
+        if (Math.abs(diff) > 1) {
           await Ticker.update(symbol, {
-            [`${user}Position${side}Value`]: positionValue,
+            [`${user}Position${side}Value`]: +positionValue,
           });
           //if position increased change part50
           if (diff > 0) {
-            await bybit.setPart50(symbol, part, priceScale);
+            await bybit.setPart50(
+              symbol,
+              part,
+              priceScale,
+              side,
+              orders,
+              positions,
+            );
           }
           await sendMsgMe(bot, {
             header: `💰[${user}] <code>${symbol.slice(0, -4)}</code>`,
@@ -291,7 +306,7 @@ export const algoTrading = async (
           [`${user}Position${side}Value`]: 0,
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendTelegramReport(symbol, bybit, user, bot);
+        await sendTelegramReport(symbol, bybit, user, bot, attemptsCount);
       }
     }
     //create LONG orders by alerts 4/03/2026
@@ -300,7 +315,7 @@ export const algoTrading = async (
       longOrders.length === 0 &&
       longSize > 20 &&
       (attemptsCount > 0 || longPosition) &&
-      ["up", "flat"].includes(trend)
+      user === "main"
     ) {
       const triggerPrice = price * (1 + tolerance / 100);
       await bybit.createStopLimitOrder(
@@ -318,7 +333,7 @@ export const algoTrading = async (
       shortOrders.length === 0 &&
       shortSize > 20 &&
       (attemptsCount > 0 || shortPosition) &&
-      ["down", "flat"].includes(trend)
+      user === "sub"
     ) {
       const triggerPrice = price * (1 - tolerance / 100);
       await bybit.createStopLimitOrder(

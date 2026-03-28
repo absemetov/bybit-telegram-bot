@@ -61,12 +61,18 @@ class Ticker {
   static async createAlerts(symbol, support, resistance, user, sl) {
     const step = sl / 5 / 100;
     const alerts = {
-      1: support * (1 + step),
-      3: support,
-      5: support * (1 - step),
-      2: resistance * (1 - step),
-      4: resistance,
-      6: resistance * (1 + step),
+      ...(support &&
+        user === "main" && {
+          1: support * (1 + step),
+          3: support,
+          5: support * (1 - step),
+        }),
+      ...(resistance &&
+        user === "sub" && {
+          2: resistance * (1 - step),
+          4: resistance,
+          6: resistance * (1 + step),
+        }),
     };
     await Ticker.update(symbol, { [`${user}Alerts`]: { ...alerts } });
   }

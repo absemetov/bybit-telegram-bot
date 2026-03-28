@@ -1,4 +1,4 @@
-<div class="row g-3 h-100">
+<div class="row g-3">
     <div class="col-lg-3 offcanvas-lg">
       <div class="offcanvas-lg offcanvas-start" data-bs-scroll="true" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
           <div class="offcanvas-header">
@@ -31,9 +31,9 @@
         <div class="position-absolute">
           <div class="position-relative z-3 panel-show-btn d-none">
             {{#if user.auth}}
-              <a class="btn btn-outline-light" href="/logout">👨</a>
+              <a class="btn btn-outline-light" href="/user/logout">👨</a>
             {{else}}
-              <a class="btn btn-outline-light" href="/login">💂</a>
+              <a class="btn btn-outline-light" href="/user/login">💂</a>
             {{/if}}
             <button type="button" class="btn" title="Hide info symbol">🔓</button>
           </div>
@@ -85,6 +85,6 @@
             <a class="switch-user bg-success-subtle" href="#">Main</a>
           </div>
         </div>
-        <div class="h-100" id="chart"></div>
+        <div id="chart"></div>
     </div>
 </div>

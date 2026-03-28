@@ -54,7 +54,7 @@ const auth = (req, res, next) => {
 };
 const protectPage = (req, res, next) => {
   if (req.user.uid !== "94899148") {
-    return res.redirect("/login");
+    return res.redirect("/user/login");
   }
   return next();
 };
@@ -62,6 +62,17 @@ app.use(auth);
 app.get("/:symbol?/", protectPage, async (req, res) => {
   const title = "Bybit terminal";
   res.render("ticker", { title, user: req.user });
+});
+//set part50
+app.post("/part-position/:symbol/:side", protectPage, async (req, res) => {
+  try {
+    const { symbol, side } = req.params;
+    const { user, part, priceScale } = req.body;
+    await bybitUsers[user].setPart50All(symbol, part, priceScale, side);
+    return res.json({ ok: "Googluck!" });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
 });
 //AlgoTrading
 app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
@@ -72,7 +83,6 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       sl,
       size,
       attemptsCount,
-      trend,
       candlesCount,
       touchCount,
       tolerance,
@@ -80,12 +90,11 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
       trailing,
       part,
       user,
-      priceScale,
+      autoLevels,
     } = req.body;
     await Ticker.update(symbol, {
       [user]: {
         attemptsCount,
-        trend,
         tp,
         sl,
         size,
@@ -95,10 +104,9 @@ app.post("/algo-trading/:symbol", protectPage, async (req, res) => {
         breakeven,
         trailing,
         part,
+        autoLevels,
       },
     });
-    //part50
-    await bybitUsers[user].setPart50(symbol, part, priceScale);
     return res.json({ ok: "Googluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -141,7 +149,7 @@ app.get("/api/tickers", protectPage, async (req, res) => {
   return res.json({ paginate });
 });
 //simple auth
-app.get("/login", (req, res) => {
+app.get("/user/login", (req, res) => {
   const title = "Login";
   if (req.user.auth) {
     return res.redirect("/");
@@ -172,8 +180,8 @@ app.post("/login", async (req, res) => {
   const errorLogin = "Wrong password or email";
   res.render("login", { title, errorLogin });
 });
-app.get("/logout", protectPage, (req, res) => {
-  return res.clearCookie("__session").redirect("/login");
+app.get("/user/logout", protectPage, (req, res) => {
+  return res.clearCookie("__session").redirect("/user/login");
 });
 //get alerts
 app.post("/alerts/:symbol", protectPage, async (req, res) => {

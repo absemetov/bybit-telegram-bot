@@ -33,11 +33,13 @@ templates['positions'] = template({"1":function(container,depth0,helpers,partial
     + "\">\n                "
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(lookupProperty(helpers,"gt")||(depth0 && lookupProperty(depth0,"gt"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"unrealisedPnl") : depth0),0,{"name":"gt","hash":{},"data":data,"loc":{"start":{"line":55,"column":22},"end":{"line":55,"column":42}}}),{"name":"if","hash":{},"fn":container.program(14, data, 0),"inverse":container.program(16, data, 0),"data":data,"loc":{"start":{"line":55,"column":16},"end":{"line":55,"column":61}}})) != null ? stack1 : "")
     + alias4((lookupProperty(helpers,"changePercent")||(depth0 && lookupProperty(depth0,"changePercent"))||alias2).call(alias1,(depth0 != null ? lookupProperty(depth0,"markPrice") : depth0),(depth0 != null ? lookupProperty(depth0,"avgPrice") : depth0),{"name":"changePercent","hash":{},"data":data,"loc":{"start":{"line":55,"column":61},"end":{"line":55,"column":97}}}))
-    + "%\n              </td>\n              <td>\n                <button type=\"button\" class=\"btn btn-sm btn-light cancel-position\" data-side=\""
-    + alias4(((helper = (helper = lookupProperty(helpers,"side") || (depth0 != null ? lookupProperty(depth0,"side") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"side","hash":{},"data":data,"loc":{"start":{"line":58,"column":94},"end":{"line":58,"column":102}}}) : helper)))
+    + "%\n              </td>\n              <td>\n                <div class=\"btn-group\" role=\"group\" aria-label=\"Basic example\">\n                  <button type=\"button\" class=\"btn btn-sm btn-light part-position\" data-side=\""
+    + alias4(((helper = (helper = lookupProperty(helpers,"side") || (depth0 != null ? lookupProperty(depth0,"side") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"side","hash":{},"data":data,"loc":{"start":{"line":59,"column":94},"end":{"line":59,"column":102}}}) : helper)))
+    + "\">Part50</button>\n                  <button type=\"button\" class=\"btn btn-sm btn-light cancel-position\" data-side=\""
+    + alias4(((helper = (helper = lookupProperty(helpers,"side") || (depth0 != null ? lookupProperty(depth0,"side") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"side","hash":{},"data":data,"loc":{"start":{"line":60,"column":96},"end":{"line":60,"column":104}}}) : helper)))
     + "\" data-qty=\""
-    + alias4(((helper = (helper = lookupProperty(helpers,"size") || (depth0 != null ? lookupProperty(depth0,"size") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"size","hash":{},"data":data,"loc":{"start":{"line":58,"column":114},"end":{"line":58,"column":122}}}) : helper)))
-    + "\">🗑</button>\n              </td>\n            </tr>\n";
+    + alias4(((helper = (helper = lookupProperty(helpers,"size") || (depth0 != null ? lookupProperty(depth0,"size") : depth0)) != null ? helper : alias2),(typeof helper === alias3 ? helper.call(alias1,{"name":"size","hash":{},"data":data,"loc":{"start":{"line":60,"column":116},"end":{"line":60,"column":124}}}) : helper)))
+    + "\">🗑</button>\n                </div>\n              </td>\n            </tr>\n";
 },"2":function(container,depth0,helpers,partials,data) {
     return " table-success";
 },"4":function(container,depth0,helpers,partials,data) {
@@ -65,7 +67,7 @@ templates['positions'] = template({"1":function(container,depth0,helpers,partial
     };
 
   return "    <button class=\"btn btn-primary position-item get-positions\" data-cursor=\""
-    + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"cursor") || (depth0 != null ? lookupProperty(depth0,"cursor") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(depth0 != null ? depth0 : (container.nullContext || {}),{"name":"cursor","hash":{},"data":data,"loc":{"start":{"line":75,"column":77},"end":{"line":75,"column":87}}}) : helper)))
+    + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"cursor") || (depth0 != null ? lookupProperty(depth0,"cursor") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(depth0 != null ? depth0 : (container.nullContext || {}),{"name":"cursor","hash":{},"data":data,"loc":{"start":{"line":78,"column":77},"end":{"line":78,"column":87}}}) : helper)))
     + "\">\n      Load More Positions\n    </button>\n";
 },"compiler":[8,">= 4.3.0"],"main":function(container,depth0,helpers,partials,data) {
     var stack1, alias1=depth0 != null ? depth0 : (container.nullContext || {}), lookupProperty = container.lookupProperty || function(parent, propertyName) {
@@ -76,9 +78,9 @@ templates['positions'] = template({"1":function(container,depth0,helpers,partial
     };
 
   return "<ul class=\"nav nav-pills mb-2\">\n  <li class=\"nav-item\">\n    <a class=\"nav-link order-item get-orders\" aria-current=\"page\" href=\"#\">Orders</a>\n  </li>\n  <li class=\"nav-item\">\n    <a class=\"nav-link active position-item get-positions\" href=\"#\">Positions</a>\n  </li>\n  <li class=\"nav-item\">\n    <a class=\"nav-link history-item load-more\" href=\"#\">History</a>\n  </li>\n  <li class=\"nav-item\">\n    <a class=\"nav-link history-item load-more all\" href=\"#\">All</a>\n  </li>\n  <li class=\"nav-item\">\n    <a class=\"nav-link win-item load-more\" href=\"#\">W/R</a>\n  </li>\n  <li class=\"nav-item\">\n    <a class=\"nav-link win-item load-more all\" href=\"#\">W/R All</a>\n  </li>\n</ul>\n<div class=\"row\">\n  <div class=\"col-12\">\n    <div class=\"table-responsive\">\n      <table class=\"table table-hover\">\n        <thead class=\"table-dark\">\n          <tr>\n            <th>Date</th>\n            <th>Symbol</th>\n            <th>Side</th>\n            <th>Size</th>\n            <th>unrealisedPnl</th>\n            <th>avgPrice</th>\n            <th>Changes</th>\n            <th>Del</th>\n          </tr>\n        </thead>\n        <tbody>\n"
-    + ((stack1 = lookupProperty(helpers,"each").call(alias1,(depth0 != null ? lookupProperty(depth0,"positions") : depth0),{"name":"each","hash":{},"fn":container.program(1, data, 0),"inverse":container.program(18, data, 0),"data":data,"loc":{"start":{"line":38,"column":10},"end":{"line":65,"column":19}}})) != null ? stack1 : "")
+    + ((stack1 = lookupProperty(helpers,"each").call(alias1,(depth0 != null ? lookupProperty(depth0,"positions") : depth0),{"name":"each","hash":{},"fn":container.program(1, data, 0),"inverse":container.program(18, data, 0),"data":data,"loc":{"start":{"line":38,"column":10},"end":{"line":68,"column":19}}})) != null ? stack1 : "")
     + "        </tbody>\n      </table>\n    </div>\n  </div>\n</div>\n\n<div class=\"row my-2\">\n  <div class=\"col-12 text-center\">\n"
-    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"cursor") : depth0),{"name":"if","hash":{},"fn":container.program(20, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":74,"column":4},"end":{"line":78,"column":11}}})) != null ? stack1 : "")
+    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"cursor") : depth0),{"name":"if","hash":{},"fn":container.program(20, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":77,"column":4},"end":{"line":81,"column":11}}})) != null ? stack1 : "")
     + "  </div>\n</div>\n";
 },"useData":true});
 })();

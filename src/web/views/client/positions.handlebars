@@ -55,7 +55,10 @@
                 {{#if (gt unrealisedPnl 0)}}+{{else}}-{{/if}}{{changePercent markPrice avgPrice}}%
               </td>
               <td>
-                <button type="button" class="btn btn-sm btn-light cancel-position" data-side="{{side}}" data-qty="{{size}}">🗑</button>
+                <div class="btn-group" role="group" aria-label="Basic example">
+                  <button type="button" class="btn btn-sm btn-light part-position" data-side="{{side}}">Part50</button>
+                  <button type="button" class="btn btn-sm btn-light cancel-position" data-side="{{side}}" data-qty="{{size}}">🗑</button>
+                </div>
               </td>
             </tr>
           {{else}}
