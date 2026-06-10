@@ -1,3 +1,14 @@
+# Сборка Vite
+dist.tar.gz
+dist/
+.vite/
+
+# Сгенерированные файлы (прекомпиляция Handlebars)
+src/web/client/js/generated/
+
+# Логи PM2
+logs/
+*.log
 # Игнорирование node_modules
 node_modules/
 # Firebase Admin serviceAccountKey 
@@ -16,7 +27,6 @@ yarn-error.log*
 *.cache
 
 # Игнорирование выходных данных сборщика
-dist/
 build/
 
 # Игнорирование настроек IDE

@@ -1,0 +1,116 @@
+<form id="simulatorForm">
+  {{#if result}}
+    <div class="row">
+      <span class="h5 text-bg-info">{{result}}</span>
+    </div>  
+  {{/if}}
+  <div class="row">
+    <span id="calculatedAttempts" class="h5 bg-info"></span>
+  </div>
+  <div class="row">
+    <span class="h5 bg-info">{{t "fees"}}</span>
+  </div>
+  <div class="row">
+      <div class="col-md-6 mb-3">
+          <label class="form-label text-primary" for="startDate">📅{{t "start_date"}}</label>
+          <input type="date" class="form-control-plaintext" name="startDate" id="startDate" value="{{startDate}}" required>
+      </div>
+      <div class="col-md-6 mb-3">
+          <label class="form-label text-primary" for="endDate">📅{{t "end_date"}}</label>
+          <input type="date" class="form-control-plaintext" name="endDate" id="endDate" value="{{endDate}}" required>
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="deposit">💰{{t "balance"}} ($)</label>
+          <input type="number" class="form-control" id="deposit" name="deposit" value="{{formatNumber deposit 0}}" min="100" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="size">🪙{{t "pos_size"}} ($)</label>
+          <input type="number" class="form-control" id="size" name="size" value="{{size}}" min="100" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="speed">⏱{{t "speed"}} (ms)</label>
+          <input type="number" class="form-control" id="speed" name="speed" value="{{speed}}" min="1" required>
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+        <label class="form-label text-success" for="tp">💵{{t "tp"}}(%)</label>
+          <input type="number" class="form-control" name="tp" id="tp" value="{{formatNumber tp 1}}" step="0.01" min="0.1" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="part">✂️{{t "part"}}(%)</label>
+          <input type="number" class="form-control" id="part" name="part" value="{{formatNumber part 1}}" step="0.01" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="sl">💸{{t "sl"}}(%)</label>
+          <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" max="-0.1" min="-100" required>
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="breakeven">🤟ActiveBreak(%)</label>
+          <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" step="0.1" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="trailing">⚙️TrailingStop(%)</label>
+          <input type="number" class="form-control" id="trailing" name="trailing" value="{{trailing}}" step="0.1" min="0" required>
+      </div>
+  </div>
+  <div class="row">
+    <h6>{{t "levels_settings"}}</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="candlesCount">🕯{{t "levels_candles"}}</label>
+          <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="touchCount">🧲{{t "levels_touches"}}</label>
+          <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="1">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
+          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" min="0.01">
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" value="on" name="autoLong" id="autoLong" switch{{#if autoLong}} checked{{/if}}>
+          <label class="form-check-label" for="autoLong">
+            Auto Long
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" value="on" name="autoShort" id="autoShort" switch{{#if autoShort}} checked{{/if}}>
+          <label class="form-check-label" for="autoShort">
+            Auto short
+          </label>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" value="on" name="autoTp" id="autoTp" switch{{#if autoTp}} checked{{/if}}>
+          <label class="form-check-label" for="autoTp">
+            Auto TP
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" value="on" name="autoPart" id="autoPart" switch{{#if autoPart}} checked{{/if}}>
+          <label class="form-check-label" for="autoPart">
+            Auto Part
+          </label>
+        </div>  
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" value="on" name="sound" id="sound" switch{{#if sound}} checked{{/if}}>
+          <label class="form-check-label" for="sound">
+            Sound
+          </label>
+        </div>
+      </div>
+  </div>
+</form>

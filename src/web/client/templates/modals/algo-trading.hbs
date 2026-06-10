@@ -1,0 +1,78 @@
+<form id="algotradingForm">
+  <div class="row">
+    <span id="calculatedAttempts" class="h5 bg-info"></span>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-success" for="attemptsCount">🎲Attempts</label>
+          <select class="form-select" name="attemptsCount" id="attemptsCount">
+            {{#each attemptsList}}
+              <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="size">💰Position size ($)</label>
+          <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label text-success" for="autoLevelsTf">🟰Auto Triggers</label>
+        <select class="form-select" name="autoLevelsTf" id="autoLevelsTf">
+          {{#each timeframeLevels}}
+            <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+          {{/each}}
+        </select>
+      </div>
+  </div>
+  <div class="row">
+    <h6>Position settings</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-success" for="tp">💵TP(%)</label>
+          <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.01" min="0.1" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="part">✂️TP50%(%)</label>
+          <input type="number" class="form-control" id="part" name="part" value="{{part}}" step="0.01" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="sl">💸Stop Loss(%)</label>
+          <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" min="-1.5" required>
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="breakeven">🤟ActiveBreak(%)</label>
+          <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" step="0.1" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="trailing">⚙️TrailingStop(%)</label>
+          <input type="number" class="form-control" id="trailing" name="trailing" value="{{trailing}}" step="0.1" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-danger" for="slOpen">💸SL Open(%)</label>
+          <input type="number" class="form-control is-invalid" name="slOpen" id="slOpen" value="{{slOpen}}" step="0.01" max="-0.1" min="-1.5" required>
+      </div>
+  </div>
+  <div class="row">
+    <h6>Levels settings</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="candlesCount">🕯Candles</label>
+          <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="touchCount">🧲Touch</label>
+          <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="1">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
+          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
+      </div>
+  </div>
+  <div class="row">
+    <h6>Funding rate: {{fundingRate}}%, Time left: {{countDownTime}}</h6>
+  </div>
+</form>

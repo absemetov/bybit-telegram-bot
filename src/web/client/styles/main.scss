@@ -1,0 +1,42 @@
+
+// 2. Затем — только необходимые части Bootstrap
+//    (это ключевой момент, чтобы не тащить весь фреймворк)
+
+// Обязательные базовые части
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/utilities";
+
+// Layout & Grid (сетка обязательна)
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+
+// Типовые компоненты, которые вы используете
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/type";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/nav";
+@import "bootstrap/scss/navbar";
+@import "bootstrap/scss/card";
+@import "bootstrap/scss/modal";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/dropdown";
+@import "bootstrap/scss/tables";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/pagination";
+@import "bootstrap/scss/offcanvas";
+
+// Помощники (например, для отступов mt-2, p-3 и т.д.)
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/progress";
+@import "bootstrap/scss/utilities/api";
+
+// 3. В самом конце — ваши кастомные стили
+@import "custom";
+

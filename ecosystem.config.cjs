@@ -1,8 +1,8 @@
 module.exports = {
   apps: [
     {
-      name: "bybit-web",
-      script: "./src/web/index.js",
+      name: "api",
+      script: "./src/web/server/index.js",
       watch: false,
       time: true,
       interpreter: "node",

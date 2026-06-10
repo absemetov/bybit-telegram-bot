@@ -1,6 +1,6 @@
 {
   "name": "bybit-telegram-bot",
-  "version": "2.5.2",
+  "version": "3.0.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -12,37 +12,37 @@
     "stop": "pm2 stop ecosystem.config.cjs",
     "reload": "pm2 reload ecosystem.config.cjs",
     "logs": "pm2 logs",
-    "deploy": "firebase deploy --only functions",
-    "build": "terser src/web/src/coins-list.js src/web/src/orders.js src/web/src/positions.js src/web/src/win-rate.js src/web/src/history-positions.js src/web/src/chart.js -o src/web/src/bundle.min.js -c -m --source-map"
+    "precompile": "node scripts/precompile-templates.js",
+    "dev": "yarn precompile && vite --host",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "Nadir Absemetov, absemetov.org.ua",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "algoliasearch": "^5.23.0",
-    "bybit-api": "^3.10.11",
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.8",
+    "bybit-api": "^4.6.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "express-handlebars": "^8.0.1",
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.1.0",
-    "google-auth-library": "^9.14.1",
-    "google-spreadsheet": "^4.1.4",
-    "joi": "^17.13.3",
+    "handlebars": "^4.7.9",
     "jsonwebtoken": "^9.0.2",
-    "moment": "^2.30.1",
-    "path-to-regexp": "^8.2.0",
-    "telegraf": "^4.16.3"
+    "lightweight-charts": "^5.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
+    "glob": "^13.0.6",
     "globals": "^15.8.0",
-    "prettier": "^3.3.2"
+    "prettier": "^3.3.2",
+    "sass-embedded": "^1.99.0",
+    "vite": "^8.0.8"
   }
 }

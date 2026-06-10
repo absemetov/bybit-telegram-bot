@@ -1,0 +1,76 @@
+<form id="optimizerForm">
+  <h6 class="mb-3">Выберите параметры для оптимизации</h6>
+  <div class="mb-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="optTP" name="optTP" {{#if optTP}}checked{{/if}}>
+      <label class="form-check-label" for="optTP">💵TP (%)</label>
+    </div>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" class="form-control form-control-sm" name="tp_from" value="{{tp_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="tp_to" value="{{tp_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="tp_step" value="{{tp_step}}" step="0.1"></div>
+    </div>
+  </div>
+  
+  <div class="mb-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="optSL" name="optSL" {{#if optSL}}checked{{/if}}>
+      <label class="form-check-label" for="optSL">💸SL (%)</label>
+    </div>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_from" value="{{sl_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_to" value="{{sl_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_step" value="{{sl_step}}" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="optPart" name="optPart" {{#if optPart}}checked{{/if}}>
+      <label class="form-check-label" for="optPart">✂️Partial50 TP (%)</label>
+    </div>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" class="form-control form-control-sm" name="part_from" value="{{part_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="part_to" value="{{part_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="part_step" value="{{part_step}}" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="optBreakeven" name="optBreakeven" {{#if optBreakeven}}checked{{/if}}>
+      <label class="form-check-label" for="optBreakeven">🤟Breakeven (%)</label>
+    </div>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" class="form-control form-control-sm" name="break_from" value="{{break_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="break_to" value="{{break_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="break_step" value="{{break_step}}" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-check-label" for="optTrailing">⚙️Trailing (%)</label>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" id="optTrailing" class="form-control form-control-sm" name="trailing_from" value="{{trailing_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="trailing_to" value="{{trailing_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="trailing_step" value="{{trailing_step}}" step="0.1"></div>
+    </div>
+  </div>
+  
+  <div class="row mb-3">
+    <div class="col">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="optCandles" name="optCandles" {{#if optCandles}}checked{{/if}}>
+        <label class="form-check-label" for="optCandles">🕯Количество свечей</label>
+      </div>
+      <input type="text" class="form-control form-control-sm mt-1" name="candlesCount" value="{{candlesCount}}">
+    </div>
+    <div class="col">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="optTouches" name="optTouches" {{#if optTouches}}checked{{/if}}>
+        <label class="form-check-label" for="optTouches">🧲Количество касаний</label>
+      </div>
+      <input type="text" class="form-control form-control-sm mt-1" name="touchCount" value="{{touchCount}}">
+    </div>
+  </div>
+</form>

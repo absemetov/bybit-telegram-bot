@@ -1,0 +1,217 @@
+<div class="card-header d-flex flex-wrap align-items-center">
+  <div class="d-flex align-items-center flex-wrap">
+    <div class="d-flex flex-wrap align-items-center gap-2 border">
+      {{symbol}}
+      {{#if isAuth}}
+        <button class="btn btn-sm {{#if (eq activeTab "positions")}}btn-success{{/if}}" data-tab="positions">Positions</button>
+        <button class="btn btn-sm {{#if (eq activeTab "orders")}}btn-success{{/if}}" data-tab="orders">WinRate</button>
+      {{/if}}
+        <button class="btn btn-sm {{#if (eq activeTab "simulator")}}btn-success{{/if}}" data-tab="simulator">{{t "simulator"}}</button>
+    </div>
+  </div>
+</div>
+<div class="card-body p-0 overflow-auto">
+  {{#if (eq activeTab "positions")}}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Symbol</th>
+            <th>Size</th>
+            <th>unrealisedPnl</th>
+            <th>Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each positions}}
+            <tr class="cursor-pointer{{#if (gt unrealisedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-action="showTicker">
+              <td>{{symbol}}</td>
+              <td>
+                {{formatPrice positionValue}}$
+              </td>
+              <td class="{{#if (gt unrealisedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice unrealisedPnl}}$
+              </td>
+              <td class="{{#if (gt unrealisedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{#if (gt unrealisedPnl 0)}}+{{else}}-{{/if}}{{changePercent markPrice avgPrice}}%
+              </td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="12" class="text-center">No positions found</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  {{/if}}
+  {{#if (eq activeTab "orders")}}
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered border-primary">
+        <tbody>
+            <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showMarkers">
+              <td>
+                Pnl: {{#if (gt totalData.pnl 0)}}+{{/if}}{{formatPrice totalData.pnl}}$ ({{#if (gt totalData.totalPrcnt 0)}}+{{/if}}{{formatPrice totalData.totalPrcnt}}%)
+              </td>
+              <td>
+                profitableTrades: +{{profitableTrades}} (+{{formatPrice totalData.profPrcnt}}%)</td>
+              </td>
+            </tr>
+            <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showMarkers">
+              <td>
+                WinRate: {{winRate}}%
+              </td>
+              <td>
+                lossTrades: -{{lossTrades}} (-{{formatPrice totalData.lossPrcnt}}%)</td>
+              </td>
+            </tr>
+        </tbody>
+      </table>
+      <table class="table table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Date</th>
+            <th>Size</th>
+            <th>P&L</th>
+            <th>Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each positions}}
+            <tr class="history-item cursor-pointer{{#if (gt closedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showHistoryPosition" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
+              <td>{{inc @index}}) {{formatDate updatedTime}}</td>
+              <td>
+                {{formatPrice cumExitValue}}
+              </td>
+              <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice closedPnl}}
+              </td>
+              <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{#if (gt closedPnl 0)}}+{{else}}-{{/if}}{{changePercent avgExitPrice avgEntryPrice}}%
+              </td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="12" class="text-center">No history positions found</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>  
+  {{/if}}
+  {{#if (eq activeTab "simulator")}}
+    <div class="table-responsive">
+      {{#if symbol}}
+      <table class="table table-hover table-bordered border-primary">
+        <tbody>
+            <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showSimulatorMarkers">
+              <td>
+                {{symbol}} P&L: {{#if (gt totalData.pnl 0)}}+{{/if}}{{formatPrice totalData.pnl}}$ ({{#if (gt totalData.totalPrcnt 0)}}+{{/if}}{{formatPrice totalData.totalPrcnt}}%)
+              </td>
+              <td>
+                {{t "prof_trades"}}: +{{profitableTrades}} (+{{formatPrice totalData.profPrcnt}}%) {{formatPrice totalData.prof}}$</td>
+              </td>
+            </tr>
+            <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showSimulatorMarkers">
+              <td>
+                {{t "winrate"}}: {{winRate}}%
+              </td>
+              <td>
+                {{t "loss_trades"}}: -{{lossTrades}} ({{formatPrice totalData.lossPrcnt}}%) {{formatPrice totalData.loss}}$</td>
+              </td>
+            </tr>
+        </tbody>
+      </table>
+      {{/if}}
+      <table class="table table-hover">
+        <tbody>
+          {{#if longPosition.size}}
+            <tr class="cursor-pointer table-success">
+              <td>
+                {{formatDate longPosition.createdTime}}
+              </td>
+              <td>
+                🟢Long
+              </td>
+              <td>
+                {{formatPrice longPosition.size}}$
+              </td>
+              <td>
+                {{changePercent longPosition.markPrice longPosition.entryPrice}}%
+              </td>
+            </tr>
+          {{/if}}
+          {{#if shortPosition.size}}
+            <tr class="cursor-pointer table-danger">
+              <td>
+                {{formatDate shortPosition.createdTime}}
+              </td>
+              <td>
+                🔴Short
+              </td>
+              <td>
+                {{formatPrice shortPosition.size}}$
+              </td>
+              <td>
+                {{changePercent shortPosition.markPrice shortPosition.entryPrice}}%
+              </td>
+            </tr>
+          {{/if}}
+        </tbody>
+      </table>
+      <table class="table table-hover">
+        <tbody>
+          {{#each positions}}
+            <tr class="cursor-pointer{{#if (gt closedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showHistoryPositionSimulator" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-size="{{size}}" data-created-time="{{createdTime}}" data-entry-price="{{entryPrice}}" data-exit-price="{{exitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
+              <td>{{formatDate updatedTime}}-{{trigger}}</td>
+              <td class="{{#if (eq side 'Buy')}}text-danger{{else}}text-success{{/if}}">
+                {{#if (eq side 'Buy')}}Short{{else}}Long{{/if}}
+              </td>
+              <td>
+                {{formatPrice size}}
+              </td>
+              <td class="{{#if (gt closedPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice closedPnl}}
+              </td>
+              <td>
+                {{#if (gt closedPnl 0)}}+{{else}}-{{/if}}{{changePercent exitPrice entryPrice}}%
+              </td>
+            </tr>
+          {{else}}
+            <tr>
+              <td class="text-wf">{{t "sim_keywords"}}</td>
+            </tr>
+            <tr>
+              <td>{{t "sim_key_O"}}</td>
+            </tr>
+            <tr>
+              <td>{{t "sim_key_A"}}</td>
+            </tr>
+            <tr>
+              <td>{{t "sim_key_S"}}</td>
+            </tr>
+            <tr>
+              <td>{{t "sim_key_D"}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>  
+  {{/if}}
+</div>
+<div class="card-footer">
+  {{#if isAuth}}
+  <div class="d-flex align-items-center flex-wrap">
+    <div class="d-flex flex-wrap align-items-center gap-2 border">
+      <button class="btn btn-sm btn-success" data-modal="showPositions">Positions</button>
+      <button class="btn btn-sm btn-success" data-modal="showOrders">Orders</button>
+      <button class="btn btn-sm btn-success" data-modal="showHistory">Hist</button>
+      <button class="btn btn-sm btn-success" data-modal="showHistory" data-all="all">Hist(All)</button>
+      <button class="btn btn-sm btn-success" data-modal="showWinrate">Win</button>
+      <button class="btn btn-sm btn-success" data-modal="showWinrate" data-all="all">Win(All)</button>
+    </div>
+  </div>
+  {{else}}
+    Simulator v3
+  {{/if}}
+</div>

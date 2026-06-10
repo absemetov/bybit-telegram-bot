@@ -1,0 +1,53 @@
+<div class="card-header d-flex flex-wrap align-items-center">
+  <div class="d-flex align-items-center me-2 mb-1 fw-bold">
+    <span data-bind="symbol">{{symbol}}</span>
+  </div>
+  <div class="d-flex align-items-center flex-wrap">
+    <div class="d-flex flex-wrap align-items-center gap-2 border mx-1">
+      <button class="btn btn-sm" data-tf="1h">1h</button>
+      <button class="btn btn-sm" data-tf="2h">2h</button>
+      <button class="btn btn-sm bg-success" data-tf="4h">4h</button>
+      <button class="btn btn-sm" data-tf="1d">1d</button>
+      <select class="btn btn-sm tf-select">
+        <option value="1min">1m</option>
+        <option value="5min">5m</option>
+        <option value="15min">15m</option>
+        <option value="30min">30m</option>
+        <option value="1h">1h</option>
+        <option value="2h">2h</option>
+        <option value="4h" selected>4h</option>
+        <option value="6h">6h</option>
+        <option value="12h">12h</option>
+        <option value="1d">1D</option>
+        <option value="1w">1W</option>
+        <option value="1m">1M</option>
+      </select>
+    </div>
+    <div class="d-none d-md-flex flex-wrap align-items-center gap-2 border mx-1">
+      <button class="btn btn-sm" data-action="levelsToggle" title="{{t "levels"}}">🟰</button>
+      {{#if isAuth}}
+        <button class="btn btn-sm" data-action="triggersToggle">🛎</button>
+        <button class="btn btn-sm" data-action="positionsToggle">🪙</button>
+      {{/if}}
+    </div>
+    <div class="algo-panel d-none d-md-flex flex-wrap align-items-center gap-2 border mx-1"></div>
+  </div>
+</div>
+<div class="card-body p-0" id="chartBody">
+  <div id="chart"></div>
+  <div class="position-absolute top-0 start-0 mt-5 p-2 z-3">
+    <div class="d-md-none d-flex flex-wrap align-items-center gap-2">
+      <button class="btn btn-sm" data-action="levelsToggle" title="{{t "levels"}}">🟰</button>
+      {{#if isAuth}}
+        <button class="btn btn-sm" data-action="triggersToggle">🛎</button>
+        <button class="btn btn-sm" data-action="positionsToggle">🪙</button>
+      {{/if}}
+    </div>
+    <div class="simulator-panel d-flex flex-wrap align-items-center gap-2"></div>
+    <div class="d-md-none algo-panel d-flex flex-wrap align-items-center gap-2"></div>
+    <span data-bind="candleInfo" class="fw-bold mx-2"></span>
+  </div>
+</div>
+<div class="card-footer d-block d-md-none">
+  Chart
+</div>

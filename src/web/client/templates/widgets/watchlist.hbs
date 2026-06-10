@@ -1,0 +1,59 @@
+{{#if isAuth}}
+<div class="card-header d-flex flex-wrap align-items-center">
+  <div class="d-flex align-items-center flex-wrap">
+    <div class="d-flex flex-wrap align-items-center gap-2 border">
+      <button class="btn btn-sm {{#if (eq activeTab "favorites")}}btn-success{{/if}}" data-tab="favorites">❤️</button>
+      <button class="btn btn-sm {{#if (eq activeTab "all")}}btn-success{{/if}}" data-tab="all">All</button>
+      <button class="btn btn-sm {{#if (eq activeTab "trading")}}btn-success{{/if}}" data-tab="trading">🤖 Trading</button>
+      <button class="btn btn-sm" data-action="addTicker">➕ Add</button>
+    </div>
+  </div>
+</div>
+{{/if}}
+<div class="card-body p-0 overflow-auto">
+  {{#if tickers.length}}
+    <div class="table-responsive"><table class="table table-sm table-hover mb-0">
+      <thead>
+        <tr>
+          <th>{{t "symbol"}}</th>
+          <th class="text-start">{{t "price"}}</th>
+          <th class="text-start">{{t "change_24h"}}</th>
+          {{#if isAuth}}<th class="text-center">{{t "actions"}}</th>{{/if}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tickers}}
+        <tr data-symbol="{{symbol}}">
+          <td><a href="#/{{symbol}}">{{symbol}}</a>{{#if ../isAuth}}{{tradingIcon algoSettings}}{{/if}}</td>
+          <td></td>
+          <td></td>
+          {{#if ../isAuth}}
+          <td class="text-center">
+            <div class="btn-group btn-group-sm d-flex flex-wrap">
+              <button class="btn btn-sm btn-outline-warning me-1" data-action="toggleFavorite" data-symbol="{{symbol}}">{{#if star}}❤️{{else}}🖤{{/if}}</button>
+              <button class="btn btn-sm btn-outline-danger" data-action="deleteTicker" data-symbol="{{symbol}}">🗑️</button>
+            </div>
+          </td>
+          {{/if}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table></div>
+    <nav aria-label="Page navigation example">
+      <ul class="pagination mt-2">
+        {{#if hasPrev}}
+        <li class="page-item">
+            <button class="btn btn-light" data-action="prevPage" data-first-visible-id="{{firstVisibleId}}">⏪ {{t "prev"}}</button>
+        </li>
+        {{/if}}
+        {{#if hasNext}}
+        <li class="page-item">
+            <button class="btn btn-light" data-action="nextPage" data-last-visible-id="{{lastVisibleId}}">{{t "next"}} ⏩</button>
+        </li>
+        {{/if}}
+      </ul>
+    </nav>
+  {{else}}
+    <p class="text-muted text-center py-3">{{t "no_data"}}</p>
+  {{/if}}
+</div>

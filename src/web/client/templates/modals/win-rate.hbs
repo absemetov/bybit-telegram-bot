@@ -1,0 +1,42 @@
+<div class="row">
+  <div class="col-12">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Date</th>
+            {{#unless allCoins}}<th>Symbol</th>{{/unless}}
+            <th>Trades</th>
+            <th>lossPrcnt, %</th>
+            <th>profPrcnt, %</th>
+            <th>totalPrcnt, %</th>
+            <th>totalPnl, $</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each winRate}}
+            <tr class="win-item cursor-pointer{{#if (gt totalPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
+              <td>{{dateKey}}</td>
+              {{#unless ../allCoins}}<td>{{symbol}}</td>{{/unless}}
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{totalTrades}}
+              </td>
+              <td class="text-danger">
+                -{{formatPrice lossPrcnt}}
+              </td>
+              <td class="text-success">
+                {{formatPrice profPrcnt}}
+              </td>
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice totalPrcnt}}
+              </td>
+              <td class="{{#if (gt totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+                {{formatPrice totalPnl}}
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

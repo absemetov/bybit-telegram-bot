@@ -1,0 +1,7 @@
+{
+  "default_title": "Trading Simulator – Free Backtester for Crypto & Forex Strategies",
+  "default_description": "Powerful free trading simulator with historical data. Test Long/Short strategies, TP/SL, partial take profit. Compare results and improve your trading on real data.",
+  "default_keywords": "trading simulator, backtest, crypto, forex, strategy tester, TP, SL, partial take profit",
+  "ticker_title": "{{symbol}} Trading Simulator – Backtest {{symbol}} Strategy",
+  "ticker_description": "Free backtest for {{symbol}} on historical data. Test Long/Short, TP/SL, partial take profit. Compare results."
+}

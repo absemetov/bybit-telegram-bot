@@ -1,0 +1,81 @@
+<p>Проверено комбинаций: <strong>{{totalCombinations}}</strong></p>
+<p class="text-muted small">Коэффициенты Шарпа и Сортино рассчитаны на основе процентного изменения цены</p>
+<div class="table-responsive">
+  <table class="table table-sm table-bordered">
+    <thead>
+      <tr>
+        <th></th>
+        <th class="bg-success text-white">Лучший P&L</th>
+        <th class="bg-info text-white">Лучший Шарп</th>
+        <th class="bg-warning text-white">Лучший Сортино</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>TP</td>
+        <td><strong>{{#if bestPnlCombo.tp}}{{bestPnlCombo.tp}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.tp}}{{bestSharpeCombo.tp}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.tp}}{{bestSortinoCombo.tp}}%{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>Partial</td>
+        <td><strong>{{#if bestPnlCombo.part}}{{bestPnlCombo.part}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.part}}{{bestSharpeCombo.part}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.part}}{{bestSortinoCombo.part}}%{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>SL</td>
+        <td><strong>{{#if bestPnlCombo.sl}}{{bestPnlCombo.sl}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.sl}}{{bestSharpeCombo.sl}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.sl}}{{bestSortinoCombo.sl}}%{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>Breakeven</td>
+        <td><strong>{{#if bestPnlCombo.breakeven}}{{bestPnlCombo.breakeven}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.breakeven}}{{bestSharpeCombo.breakeven}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.breakeven}}{{bestSortinoCombo.breakeven}}%{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>Trailing</td>
+        <td><strong>{{#if bestPnlCombo.trailing}}{{bestPnlCombo.trailing}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.trailing}}{{bestSharpeCombo.trailing}}%{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.trailing}}{{bestSortinoCombo.trailing}}%{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>candlesCount</td>
+        <td><strong>{{#if bestPnlCombo.candlesCount}}{{bestPnlCombo.candlesCount}}{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.candlesCount}}{{bestSharpeCombo.candlesCount}}{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.candlesCount}}{{bestSortinoCombo.candlesCount}}{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td>touchCount</td>
+        <td><strong>{{#if bestPnlCombo.touchCount}}{{bestPnlCombo.touchCount}}{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSharpeCombo.touchCount}}{{bestSharpeCombo.touchCount}}{{else}}—{{/if}}</strong></td>
+        <td><strong>{{#if bestSortinoCombo.touchCount}}{{bestSortinoCombo.touchCount}}{{else}}—{{/if}}</strong></td>
+      </tr>
+      <tr>
+        <td><b>P&L</b></td>
+        <td class="bg-success text-white"><strong>{{#if bestPnlCombo}}{{formatPrice bestPnlCombo.pnl}} USDT{{else}}—{{/if}}</strong></td>
+        <td>{{#if bestSharpeCombo}}{{formatPrice bestSharpeCombo.pnl}} USDT{{else}}—{{/if}}</td>
+        <td>{{#if bestSortinoCombo}}{{formatPrice bestSortinoCombo.pnl}} USDT{{else}}—{{/if}}</td>
+      </tr>
+      <tr>
+        <td><b>Шарп</b></td>
+        <td>{{#if bestPnlCombo}}{{formatPrice bestPnlCombo.sharpe}}{{else}}—{{/if}}</td>
+        <td class="bg-info text-white">{{#if bestSharpeCombo}}{{formatPrice bestSharpeCombo.sharpe}}{{else}}—{{/if}}</td>
+        <td>{{#if bestSortinoCombo}}{{formatPrice bestSortinoCombo.sharpe}}{{else}}—{{/if}}</td>
+      </tr>
+      <tr>
+        <td><b>Сортино</b></td>
+        <td>{{#if bestPnlCombo}}{{formatPrice bestPnlCombo.sortino}}{{else}}—{{/if}}</td>
+        <td>{{#if bestSharpeCombo}}{{formatPrice bestSharpeCombo.sortino}}{{else}}—{{/if}}</td>
+        <td class="bg-warning text-white">{{#if bestSortinoCombo}}{{formatPrice bestSortinoCombo.sortino}}{{else}}—{{/if}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<div class="d-flex gap-2 mt-2">
+  <button class="btn btn-sm btn-success" data-action="applyBestPnl" {{#unless bestPnlCombo}}disabled{{/unless}}>Применить лучший P&L</button>
+  <button class="btn btn-sm btn-info" data-action="applyBestSharpe" {{#unless bestSharpeCombo}}disabled{{/unless}}>Применить лучший Шарп</button>
+  <button class="btn btn-sm btn-warning" data-action="applyBestSortino" {{#unless bestSortinoCombo}}disabled{{/unless}}>Применить лучший Сортино</button>
+</div>

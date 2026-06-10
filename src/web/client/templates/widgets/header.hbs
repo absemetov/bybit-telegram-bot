@@ -1,0 +1,44 @@
+<nav class="navbar p-2">
+  <div class="container-fluid">
+    <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <a href="#" class="navbar-brand">{{t "app_name"}}</a>
+    {{#if isAuth}}
+      <ul class="nav">
+        <li class="nav-item">
+          <button class="btn btn-sm" data-action="toggleBybitUser">🔄</button>
+        </li>
+        <li class="nav-item dropdown">
+          <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            ({{bybitUser}})
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text">💰 ${{formatNumber balance}}</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item" data-action="showPositions">{{t "positions"}}</button></li>
+            <li><button class="dropdown-item" data-action="showOrders">{{t "orders"}}</button></li>
+            <li><button class="dropdown-item" data-action="showHistory" data-all="true">History(All)</button></li>
+            <li><button class="dropdown-item" data-action="showHistory">History</button></li>
+            <li><button class="dropdown-item" data-action="showWinrate" data-all="true">Win-Rate(All)</button></li>
+            <li><button class="dropdown-item" data-action="showWinrate">Win-Rate</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+            <button class="dropdown-item" data-action="toggleLocale">
+              {{#if (eq locale "en")}}en{{else}}ru{{/if}}
+            </button>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><span class="dropdown-item-text">{{user}}</span></li>
+            <li><button class="dropdown-item" data-action="logout">🚪 Выйти</button></li>
+          </ul>
+        </li>
+      </ul>
+    {{else}}
+      <button class="btn btn-sm" data-action="toggleLocale">
+        {{#if (eq locale "en")}}en{{else}}ru{{/if}}
+      </button>
+      <button class="btn btn-sm" data-action="login">{{t "login"}}</button>
+    {{/if}}
+  </div>
+</nav>
