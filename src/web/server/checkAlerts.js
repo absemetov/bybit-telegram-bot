@@ -29,7 +29,6 @@ export const checkTriggers = async () => {
             } = ticker;
             const {
               attemptsCount = 0,
-              autoLevelsTf = "off",
               tolerance = 0.05,
               candlesCount = 5,
               touchCount = 3,
@@ -38,7 +37,7 @@ export const checkTriggers = async () => {
             //get candles
             const candles = await bybit.getCandles(
               symbol,
-              autoLevelsTf === "off" ? "2h" : autoLevelsTf,
+              "2h",
               candlesCount,
             );
             if (candles.length === 0) {
@@ -72,68 +71,6 @@ export const checkTriggers = async () => {
                 attemptsCount,
                 triggersArray.filter((t) => t[1].active).length || 1,
               );
-            }
-            //set new enter levels
-            if (autoLevelsTf !== "off") {
-              const { support, resistance } = Indicators.calculateLevels(
-                candles,
-                touchCount,
-              );
-              const triggerSupport =
-                triggersArray.length === 0 ||
-                triggersArray.find((trigger) => {
-                  return (
-                    trigger[0] === "2" &&
-                    Math.abs(trigger[1].price - support) / support > 0.5 / 100
-                  );
-                });
-              const triggerResistance =
-                triggersArray.length === 0 ||
-                triggersArray.find((trigger) => {
-                  return (
-                    trigger[0] === "2" &&
-                    Math.abs(trigger[1].price - resistance) / resistance > 0.5 / 100
-                  );
-                });
-              //support zone
-              if (support && triggerSupport && user === "main") {
-                await Ticker.setTriggers(
-                  symbol,
-                  support,
-                  resistance,
-                  user,
-                  tolerance,
-                );
-                const pricePersent =
-                  ((support - triggerSupport[1].price) / triggerSupport[1].price) * 100;
-                await bot.sendMessage({
-                  text:
-                    `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `autoLevels ${autoLevelsTf} Support ${support.toFixed(priceScale)}$` +
-                    `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
-                    `#${symbol.slice(0, -4)}_auto`,
-                });
-              }
-              //resistance zone
-              if (resistance && triggerResistance && user === "sub") {
-                await Ticker.setTriggers(
-                  symbol,
-                  support,
-                  resistance,
-                  user,
-                  tolerance,
-                );
-                const pricePersent =
-                  ((resistance - triggerResistance[1].price) / triggerResistance[1].price) *
-                  100;
-                await bot.sendMessage({
-                  text:
-                    `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `autoLevels ${autoLevelsTf} Resistance ${resistance.toFixed(priceScale)}$` +
-                    `(${pricePersent > 0 ? "🔺+" : "🔺"}${pricePersent.toFixed(1)}%)\n` +
-                    `#${symbol.slice(0, -4)}_auto`,
-                });
-              }
             }
             //only alert
             if (attemptsCount === 6) {

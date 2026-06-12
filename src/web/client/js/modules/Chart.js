@@ -446,7 +446,6 @@ export class Chart {
       tp = 3,
       size = 1000,
       attemptsCount = -1,
-      autoLevelsTf = 0,
       breakeven = 0,
       trailing = 0,
       part = 0,
@@ -460,7 +459,6 @@ export class Chart {
       tp,
       size,
       attemptsCount,
-      autoLevelsTf,
       breakeven,
       trailing,
       part,
@@ -1058,24 +1056,10 @@ export class Chart {
       }
       return el;
     });
-    const timeframeLevels = [
-      { value: "off", name: "Disable" },
-      { value: "1h", name: "1h auto" },
-      { value: "2h", name: "2h auto" },
-      { value: "4h", name: "4h auto" },
-    ].map((el) => {
-      if (el.value === algoSettings.autoLevelsTf) {
-        el.selected = true;
-      } else {
-        el.selected = false;
-      }
-      return el;
-    });
     modal.show({
       title: `Алготрейдинг – ${symbol} ($${balance.toFixed(1)})`,
       body: this.templates.algotradingSettingsTemplate({
         attemptsList,
-        timeframeLevels,
         ...algoSettings,
         fundingRate: tickerData.fundingRate,
         countDownTime: tickerData.countDownTime,
@@ -1098,7 +1082,6 @@ export class Chart {
                 slOpen: parseFloat(data.get("slOpen")),
                 size: parseFloat(data.get("size")),
                 attemptsCount: parseFloat(data.get("attemptsCount")),
-                autoLevelsTf: data.get("autoLevelsTf"),
                 breakeven: parseFloat(data.get("breakeven")),
                 trailing: parseFloat(data.get("trailing")),
                 part: parseFloat(data.get("part")),

@@ -11,15 +11,15 @@ export function registerHelpers(Handlebars) {
   });
 
   Handlebars.registerHelper("tradingIcon", (algoSettings = {}) => {
-    const { attemptsCount, autoLevelsTf, size } = algoSettings;
+    const { attemptsCount, size } = algoSettings;
     if (attemptsCount === 0) {
-      return `${size}🟠${autoLevelsTf !== "off" ? "🟰" : ""}`;
+      return `${size}🟠`;
     }
     if (attemptsCount > 0 && attemptsCount <= 5) {
-      return `${size}🟢${autoLevelsTf !== "off" ? "🟰" : ""}(${attemptsCount})`;
+      return `${size}🟢(${attemptsCount})`;
     }
     if (attemptsCount === 6) {
-      return `🔔${autoLevelsTf !== "off" ? "🟰" : ""}`;
+      return "🔔";
     }
     return "🔴";
   });

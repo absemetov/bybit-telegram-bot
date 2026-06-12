@@ -1437,6 +1437,24 @@ export class Simulator {
     this.trades = [];
     this.longPosition.size = 0;
     this.shortPosition.size = 0;
+    this.shortPosition["enter1"] = {
+      color: "green"
+    };
+    this.shortPosition["enter2"] = {
+      color: "green"
+    };
+    this.shortPosition["enter3"] = {
+      color: "green"
+    };
+    this.longPosition["enter1"] = {
+      color: "green"
+    };
+    this.longPosition["enter2"] = {
+      color: "green"
+    };
+    this.longPosition["enter3"] = {
+      color: "green"
+    };
     this.stats = {
       profitableTrades: 0,
       lossTrades: 0,

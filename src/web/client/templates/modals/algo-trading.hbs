@@ -3,7 +3,7 @@
     <span id="calculatedAttempts" class="h5 bg-info"></span>
   </div>
   <div class="row">
-      <div class="col-md-4 mb-3">
+      <div class="col-md-6 mb-3">
           <label class="form-label text-success" for="attemptsCount">🎲Attempts</label>
           <select class="form-select" name="attemptsCount" id="attemptsCount">
             {{#each attemptsList}}
@@ -11,17 +11,9 @@
             {{/each}}
           </select>
       </div>
-      <div class="col-md-4 mb-3">
+      <div class="col-md-6 mb-3">
           <label class="form-label text-primary" for="size">💰Position size ($)</label>
           <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
-      </div>
-      <div class="col-md-4 mb-3">
-        <label class="form-label text-success" for="autoLevelsTf">🟰Auto Triggers</label>
-        <select class="form-select" name="autoLevelsTf" id="autoLevelsTf">
-          {{#each timeframeLevels}}
-            <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
-          {{/each}}
-        </select>
       </div>
   </div>
   <div class="row">

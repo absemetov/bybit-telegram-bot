@@ -332,9 +332,19 @@ export const algoTrading = async (
       }
       //position closed
       if (ticker[`position${side}Value`] && !currentMap[side]) {
-        await Ticker.update(symbol, {
-          [`${user}Position${side}Value`]: 0,
-        });
+        //activate triggers
+        if (attemptsCount > 0) {
+          await Ticker.update(symbol, {
+            [`${user}Position${side}Value`]: 0,
+            [`${user}Triggers.1.active`]: true,
+            [`${user}Triggers.2.active`]: true,
+            [`${user}Triggers.3.active`]: true,
+          });
+        } else {
+          await Ticker.update(symbol, {
+            [`${user}Position${side}Value`]: 0,
+          });
+        }
         await new Promise((resolve) => setTimeout(resolve, 2000));
         await sendTelegramReport(
           symbol,

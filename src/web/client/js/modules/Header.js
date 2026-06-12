@@ -246,10 +246,10 @@ export class Header {
             }),
           );
           //TODO delete orders from chart!!!
-          this.app.get("chart").positionLines["stop"].applyOptions({
-            lineVisible: false,
-            axisLabelVisible: false,
-          });
+          // this.app.get("chart").positionLines["stop"].applyOptions({
+          //   lineVisible: false,
+          //   axisLabelVisible: false,
+          // });
         } catch (error) {
           alert(`Error: ${error.message}`);
         }

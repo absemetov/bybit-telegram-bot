@@ -133,7 +133,6 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       breakeven,
       trailing,
       part,
-      autoLevelsTf,
       priceScale,
     } = req.body;
     await Ticker.update(symbol, {
@@ -149,7 +148,6 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
         breakeven,
         trailing,
         part,
-        autoLevelsTf,
       },
     });
     //set Part50
