@@ -4,23 +4,23 @@
   </div>
   <div class="d-flex align-items-center flex-wrap">
     <div class="d-flex flex-wrap align-items-center gap-2 border mx-1">
-      <button class="btn btn-sm" data-tf="1h">1h</button>
-      <button class="btn btn-sm" data-tf="2h">2h</button>
-      <button class="btn btn-sm bg-success" data-tf="4h">4h</button>
-      <button class="btn btn-sm" data-tf="1d">1d</button>
+      <button class="btn btn-sm {{#if (eq timeframe "1h")}}bg-success{{/if}}" data-tf="1h">1h</button>
+      <button class="btn btn-sm {{#if (eq timeframe "2h")}}bg-success{{/if}}" data-tf="2h">2h</button>
+      <button class="btn btn-sm {{#if (eq timeframe "4h")}}bg-success{{/if}}" data-tf="4h">4h</button>
+      <button class="btn btn-sm {{#if (eq timeframe "1d")}}bg-success{{/if}}" data-tf="1d">1d</button>
       <select class="btn btn-sm tf-select">
-        <option value="1min">1m</option>
-        <option value="5min">5m</option>
-        <option value="15min">15m</option>
-        <option value="30min">30m</option>
-        <option value="1h">1h</option>
-        <option value="2h">2h</option>
-        <option value="4h" selected>4h</option>
-        <option value="6h">6h</option>
-        <option value="12h">12h</option>
-        <option value="1d">1D</option>
-        <option value="1w">1W</option>
-        <option value="1m">1M</option>
+        <option value="1min" {{#if (eq timeframe "1min")}}selected{{/if}}>1m</option>
+        <option value="5min" {{#if (eq timeframe "5min")}}selected{{/if}}>5m</option>
+        <option value="15min" {{#if (eq timeframe "15min")}}selected{{/if}}>15m</option>
+        <option value="30min" {{#if (eq timeframe "30min")}}selected{{/if}}>30m</option>
+        <option value="1h" {{#if (eq timeframe "1h")}}selected{{/if}}>1h</option>
+        <option value="2h" {{#if (eq timeframe "2h")}}selected{{/if}}>2h</option>
+        <option value="4h" {{#if (eq timeframe "4h")}}selected{{/if}}>4h</option>
+        <option value="6h" {{#if (eq timeframe "6h")}}selected{{/if}}>6h</option>
+        <option value="12h" {{#if (eq timeframe "12h")}}selected{{/if}}>12h</option>
+        <option value="1d" {{#if (eq timeframe "1d")}}selected{{/if}}>1D</option>
+        <option value="1w" {{#if (eq timeframe "1w")}}selected{{/if}}>1W</option>
+        <option value="1m" {{#if (eq timeframe "1m")}}selected{{/if}}>1M</option>
       </select>
     </div>
     <div class="d-none d-md-flex flex-wrap align-items-center gap-2 border mx-1">

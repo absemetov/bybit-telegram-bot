@@ -3,7 +3,7 @@
     <span id="calculatedAttempts" class="h5 bg-info"></span>
   </div>
   <div class="row">
-      <div class="col-md-6 mb-3">
+      <div class="col-md-4 mb-3">
           <label class="form-label text-success" for="attemptsCount">🎲Attempts</label>
           <select class="form-select" name="attemptsCount" id="attemptsCount">
             {{#each attemptsList}}
@@ -11,9 +11,13 @@
             {{/each}}
           </select>
       </div>
-      <div class="col-md-6 mb-3">
+      <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="size">💰Position size ($)</label>
           <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="tolerance">🎚Triggers (%)</label>
+          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
       </div>
   </div>
   <div class="row">
@@ -53,15 +57,15 @@
   <div class="row">
       <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="candlesCount">🕯Candles</label>
-          <input type="number" class="form-control-plaintext" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
+          <input type="number" class="form-control" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
       </div>
       <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="touchCount">🧲Touch</label>
           <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="1">
       </div>
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="tolerance">🎚Tolerance (%)</label>
-          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
+          <label class="form-label text-primary" for="candlesPart">🎚Part</label>
+          <input type="number" class="form-control" name="candlesPart" id="candlesPart" value="{{candlesPart}}" step="0.1" min="1">
       </div>
   </div>
   <div class="row">

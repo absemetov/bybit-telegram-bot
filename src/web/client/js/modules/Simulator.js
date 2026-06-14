@@ -20,22 +20,23 @@ export class Simulator {
       endDate: today.toISOString().split("T")[0],
       deposit: 5000,
       balance: 5000,
-      size: 2000,
+      size: 5000,
       speed: 100,
-      part: 1.5,
-      tp: 3,
+      part: 0,
+      tp: 2,
       sl: -0.5,
-      candlesCount: 10,
-      touchCount: 3,
-      tolerance: 0.2,
+      candlesCount: 3,
+      touchCount: 2,
+      tolerance: 0.1,
       autoLong: false,
       autoShort: false,
       autoTp: false,
       autoPart: false,
       sound: false,
       result: null,
-      breakeven: 3,
-      trailing: 1,
+      breakeven: 0,
+      trailing: 0,
+      candlesPart: 3,
     };
     this.longPosition = {
       size: 0,
@@ -52,7 +53,7 @@ export class Simulator {
       loss: 0,
       prof: 0,
     };
-    this.historicalCandles = [];
+    //this.historicalCandles = [];
     this.candleIndex = 0;
     this.trades = [];
     this._stopOptimization = false;
@@ -62,14 +63,20 @@ export class Simulator {
     try {
       const saved = this.loadSettings() || {};
       saved[key] = value;
-      localStorage.setItem(`sim_settings_${this.app.state.get("symbol")}`, JSON.stringify(saved));
+      localStorage.setItem(
+        `sim_settings_${this.app.state.get("symbol")}`,
+        JSON.stringify(saved),
+      );
     } catch (e) {
       console.warn(`[Simulator] Could not save field "${key}"`, e);
     }
   }
   saveSettings(settings) {
     try {
-      localStorage.setItem(`sim_settings_${this.app.state.get("symbol")}`, JSON.stringify(settings));
+      localStorage.setItem(
+        `sim_settings_${this.app.state.get("symbol")}`,
+        JSON.stringify(settings),
+      );
     } catch (e) {
       console.warn("[Simulator] Could not save settings to localStorage", e);
     }
@@ -77,7 +84,9 @@ export class Simulator {
   // load from localStorage
   loadSettings() {
     try {
-      const saved = localStorage.getItem(`sim_settings_${this.app.state.get("symbol")}`);
+      const saved = localStorage.getItem(
+        `sim_settings_${this.app.state.get("symbol")}`,
+      );
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
       console.warn("[Simulator] Could not load settings from localStorage", e);
@@ -118,6 +127,7 @@ export class Simulator {
         candlesCount: saved.candlesCount ?? this.defaultSettings.candlesCount,
         touchCount: saved.touchCount ?? this.defaultSettings.touchCount,
         tolerance: saved.tolerance ?? this.defaultSettings.tolerance,
+        candlesPart: saved.candlesPart ?? this.defaultSettings.candlesPart,
         autoLong: saved.autoLong ?? this.defaultSettings.autoLong,
         autoShort: saved.autoShort ?? this.defaultSettings.autoShort,
         autoTp: saved.autoTp ?? this.defaultSettings.autoTp,
@@ -147,11 +157,11 @@ export class Simulator {
       }
       if (e.code === "KeyS") {
         e.preventDefault();
-        this.showOpenOrderModal("Long");
+        this.setTriggers("Long");
       }
       if (e.code === "KeyD") {
         e.preventDefault();
-        this.showOpenOrderModal("Short");
+        this.setTriggers("Short");
       }
       if (e.code === "Space") {
         e.preventDefault();
@@ -216,6 +226,7 @@ export class Simulator {
               candlesCount: parseFloat(data.get("candlesCount")),
               touchCount: parseFloat(data.get("touchCount")),
               tolerance: parseFloat(data.get("tolerance")),
+              candlesPart: parseFloat(data.get("candlesPart")),
               autoLong: !!data.get("autoLong"),
               autoShort: !!data.get("autoShort"),
               autoTp: !!data.get("autoTp"),
@@ -235,7 +246,7 @@ export class Simulator {
             }
             if (action === "silent") {
               this.startSimulator();
-              this.app.get("chart").setChartData(this.historicalCandles);
+              this.app.get("chart").setChartData(this.app.get("chart").candles);
               this.updateSimilatorPanel();
               this.app.get("chart").markerSeries.setMarkers([]);
               this.runSilentSimulation();
@@ -278,7 +289,7 @@ export class Simulator {
     slInput.addEventListener("input", updateCalculations);
     updateCalculations();
   }
-  showOpenOrderModal(side) {
+  setTriggers(side) {
     this.app.get("chart").visibleLevels(true);
     if (side === "Long") {
       const color = this.app
@@ -288,7 +299,7 @@ export class Simulator {
         const entryPrice = this.app
           .get("chart")
           .levelsLines["support"].options().price;
-        this.createLongPosition(entryPrice);
+        this.setLongTriggers(entryPrice);
       }
     } else {
       const color = this.app
@@ -298,7 +309,7 @@ export class Simulator {
         const entryPrice = this.app
           .get("chart")
           .levelsLines["resistance"].options().price;
-        this.createShortPosition(entryPrice);
+        this.setShortTriggers(entryPrice);
       }
     }
   }
@@ -309,7 +320,7 @@ export class Simulator {
     const startTime = new Date(startDate).getTime();
     const endTime = new Date(endDate).getTime();
     try {
-      this.historicalCandles = await this.app
+      this.app.get("chart").candles = await this.app
         .get("chart")
         .getCandles(
           symbol,
@@ -321,6 +332,12 @@ export class Simulator {
       console.error("[Simulator]", err);
       alert("Ошибка загрузки");
     }
+  }
+  updateLevels(candles) {
+    const candlesCount = this.getDefaultConfig().candlesCount || 10;
+    const touchCount = this.getDefaultConfig().touchCount || 3;
+    const candlesPart = this.getDefaultConfig().candlesPart || 3;
+    this.app.get("chart").updateIndicators(candles, candlesCount, touchCount, candlesPart);
   }
   startSimulator() {
     if (this.isRunning) this.stop();
@@ -343,6 +360,7 @@ export class Simulator {
       prof: 0,
     };
     this.saveField("result", null);
+    this.updateLevels(this.app.get("chart").candles);
   }
   //render panel
   updateSimilatorPanel() {
@@ -407,7 +425,7 @@ export class Simulator {
   close() {
     if (!confirm(this.app.get("i18n").t("sim_confirm_close"))) return;
     this.stop();
-    this.historicalCandles = [];
+    //this.historicalCandles = [];
     this.candleIndex = 0;
     this.trades = [];
     this.app.state.set("chartMode", "live");
@@ -431,7 +449,7 @@ export class Simulator {
       this.stop();
       return;
     }
-    if (this.candleIndex >= this.historicalCandles.length) {
+    if (this.candleIndex >= this.app.get("chart").candles.length) {
       this.stop();
       this.saveField(
         "result",
@@ -440,7 +458,7 @@ export class Simulator {
       this.showSimulatorSettingsModal();
       return;
     }
-    const candle = this.historicalCandles[this.candleIndex];
+    const candle = this.app.get("chart").candles[this.candleIndex];
     if (this.candleIndex === 0) {
       this.app.get("chart").setChartData([candle]);
     } else {
@@ -454,13 +472,13 @@ export class Simulator {
     if (this.getDefaultConfig().sound) this.app.get("sound").play("tick");
     //update Levels
     this.candleIndex++;
-    const candles = this.historicalCandles.slice(0, this.candleIndex);
-    const candlesCount = this.getDefaultConfig().candlesCount || 10;
-    const touchCount = this.getDefaultConfig().touchCount || 3;
-    this.app.get("chart").updateIndicators(candles, candlesCount, touchCount);
     const { autoLong, autoShort } = this.getDefaultConfig();
-    if (autoLong) this.showOpenOrderModal("Long");
-    if (autoShort) this.showOpenOrderModal("Short");
+    if (autoLong || autoLong) {
+      const candles = this.app.get("chart").candles.slice(0, this.candleIndex);
+      this.updateLevels(candles);
+    }
+    if (autoLong) this.setTriggers("Long");
+    if (autoShort) this.setTriggers("Short");
     this._checkPositions(candle);
   }
   //delete last candle
@@ -469,14 +487,10 @@ export class Simulator {
       this.candleIndex--;
       if (this.getDefaultConfig().sound) this.app.get("sound").play("tick");
     }
-    const visibleCandles = this.historicalCandles.slice(0, this.candleIndex);
+    const visibleCandles = this.app.get("chart").candles.slice(0, this.candleIndex);
     this.app.get("chart").setChartData(visibleCandles);
     //update Levels
-    const candlesCount = this.getDefaultConfig().candlesCount || 10;
-    const touchCount = this.getDefaultConfig().touchCount || 3;
-    this.app
-      .get("chart")
-      .updateIndicators(visibleCandles, candlesCount, touchCount);
+    this.updateLevels(visibleCandles);
   }
   //positions
   closeAllPositions() {
@@ -492,9 +506,9 @@ export class Simulator {
     this.longPosition.size = 0;
     this.shortPosition.size = 0;
   }
-  createLongPosition(entryPrice) {
-    if (this.longPosition.size > 0) return;
-    const { tp = 2, sl = -0.5, part = 0, tolerance = 0.2 } = this.getDefaultConfig();
+  //first set Triggers
+  setLongTriggers(entryPrice) {
+    const { tolerance = 0.2 } = this.getDefaultConfig();
     this.app.get("chart").longLines["enter1"].applyOptions({
       color: "black",
       price: entryPrice * (1 + tolerance / 100),
@@ -513,6 +527,10 @@ export class Simulator {
       lineVisible: true,
       axisLabelVisible: true,
     });
+  }
+  setLongParams(entryPrice) {
+    //if (this.longPosition.size > 0) return;
+    const { tp = 2, sl = -0.5, part = 0 } = this.getDefaultConfig();
     this.app.get("chart").longLines["sl"].applyOptions({
       color: "black",
       price: entryPrice * (1 - Math.abs(sl) / 100),
@@ -537,8 +555,9 @@ export class Simulator {
       axisLabelVisible: true,
     });
   }
-  createlongPositionSilent(entryPrice, config) {
-    const { tp = 2, sl = -0.5, part = 0, tolerance = 0.2 } = config;
+  //Silent simulator
+  setLongTriggerSilent(entryPrice, config) {
+    const { tolerance = 0.2 } = config;
     this.longPosition["enter1"] = {
       color: "black",
       price: entryPrice * (1 + tolerance / 100),
@@ -551,6 +570,9 @@ export class Simulator {
       color: "black",
       price: entryPrice * (1 - tolerance / 100),
     };
+  }
+  setLongParamsSilent(entryPrice, config) {
+    const { tp = 2, sl = -0.5, part = 0 } = config;
     this.longPosition["sl"] = {
       color: "black",
       price: entryPrice * (1 - Math.abs(sl) / 100),
@@ -566,9 +588,8 @@ export class Simulator {
       price: entryPrice * (1 + tp / 100),
     };
   }
-  createShortPosition(entryPrice) {
-    if (this.shortPosition.size > 0) return;
-    const { tp = 2, sl = -0.5, part = 0, tolerance = 0.2 } = this.getDefaultConfig();
+  setShortTriggers(entryPrice) {
+    const { tolerance = 0.2 } = this.getDefaultConfig();
     this.app.get("chart").shortLines["enter1"].applyOptions({
       color: "black",
       price: entryPrice * (1 - tolerance / 100),
@@ -587,6 +608,10 @@ export class Simulator {
       lineVisible: true,
       axisLabelVisible: true,
     });
+  }
+  setShortParams(entryPrice) {
+    //if (this.shortPosition.size > 0) return;
+    const { tp = 2, sl = -0.5, part = 0 } = this.getDefaultConfig();
     this.app.get("chart").shortLines["sl"].applyOptions({
       color: "black",
       price: entryPrice * (1 + Math.abs(sl) / 100),
@@ -611,8 +636,8 @@ export class Simulator {
       axisLabelVisible: true,
     });
   }
-  createshortPositionSilent(entryPrice, config) {
-    const { tp = 2, sl = -0.5, part = 0, tolerance = 0.2 } = config;
+  setShortTriggerSilent(entryPrice, config) {
+    const { tolerance = 0.2 } = config;
     this.shortPosition["enter1"] = {
       color: "black",
       price: entryPrice * (1 - tolerance / 100),
@@ -625,6 +650,9 @@ export class Simulator {
       color: "black",
       price: entryPrice * (1 + tolerance / 100),
     };
+  }
+  setShortParamsSilent(entryPrice, config) {
+    const { tp = 2, sl = -0.5, part = 0 } = config;
     this.shortPosition["sl"] = {
       color: "black",
       price: entryPrice * (1 + Math.abs(sl) / 100),
@@ -733,9 +761,13 @@ export class Simulator {
             createdTime: candle.time * 1000,
           };
         } else {
-          this.longPosition.size = this.longPosition.size + size / 3;
-          this.longPosition.entryPrice = (this.longPosition.entryPrice + price) / 2;
+          if (this.longPosition.size < size) {
+            this.longPosition.size = this.longPosition.size + size / 3;
+            this.longPosition.entryPrice =
+              (this.longPosition.entryPrice + price) / 2;
+          }
         }
+        this.setLongParams(this.longPosition.entryPrice);
         line.applyOptions({
           color: "green",
         });
@@ -776,9 +808,9 @@ export class Simulator {
         }
         if (name === "part" && candleUp) {
           if (this.getDefaultConfig().sound) this.app.get("sound").play("tp");
-          this.longPosition.size = this.longPosition.size / 2;
           const part = ((price - entryPrice) / entryPrice) * 100;
           const partF = part - this.fees;
+          this.longPosition.size = this.longPosition.size / 2;
           const take = (this.longPosition.size * partF) / 100;
           this.saveField("balance", this.getDefaultConfig().balance + take);
           line.applyOptions({
@@ -885,9 +917,13 @@ export class Simulator {
             createdTime: candle.time * 1000,
           };
         } else {
-          this.shortPosition.size = this.shortPosition.size + size / 3;
-          this.shortPosition.entryPrice = (this.shortPosition.entryPrice + price) / 2;
+          if (this.shortPosition.size < size) {
+            this.shortPosition.size = this.shortPosition.size + size / 3;
+            this.shortPosition.entryPrice =
+              (this.shortPosition.entryPrice + price) / 2;
+          }
         }
+        this.setShortParams(this.shortPosition.entryPrice);
         line.applyOptions({
           color: "green",
         });
@@ -1219,9 +1255,13 @@ export class Simulator {
           this.longPosition.entryPrice = price;
           this.longPosition.createdTime = candle.time * 1000;
         } else {
-          this.longPosition.size = this.longPosition.size + size / 3;
-          this.longPosition.entryPrice = (this.longPosition.entryPrice + price) / 2;
+          if (this.longPosition.size < size) {
+            this.longPosition.size = this.longPosition.size + size / 3;
+            this.longPosition.entryPrice =
+              (this.longPosition.entryPrice + price) / 2;
+          }
         }
+        this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
         this.longPosition[name].color = "green";
       }
       //check position
@@ -1255,9 +1295,9 @@ export class Simulator {
           this.longPosition.size = 0;
         }
         if (name === "part" && candleUp) {
-          this.longPosition.size = this.longPosition.size / 2;
           const part = ((price - entryPrice) / entryPrice) * 100;
           const partF = part - this.fees;
+          this.longPosition.size = this.longPosition.size / 2;
           const take = (this.longPosition.size * partF) / 100;
           this.saveField("balance", this.getDefaultConfig().balance + take);
           this.longPosition[name].color = "red";
@@ -1343,9 +1383,13 @@ export class Simulator {
           this.shortPosition.entryPrice = price;
           this.shortPosition.createdTime = candle.time * 1000;
         } else {
-          this.shortPosition.size = this.shortPosition.size + size / 3;
-          this.shortPosition.entryPrice = (this.shortPosition.entryPrice + price) / 2;
+          if (this.shortPosition.size < size) {
+            this.shortPosition.size = this.shortPosition.size + size / 3;
+            this.shortPosition.entryPrice =
+              (this.shortPosition.entryPrice + price) / 2;
+          }
         }
+        this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
         this.shortPosition[name].color = "green";
       }
       //check position
@@ -1424,7 +1468,7 @@ export class Simulator {
   }
   //optimizer
   runSilentSimulation(config) {
-    if (!this.historicalCandles.length) {
+    if (!this.app.get("chart").candles.length) {
       alert("No candles for test");
       this.stopOptimization();
     }
@@ -1438,22 +1482,22 @@ export class Simulator {
     this.longPosition.size = 0;
     this.shortPosition.size = 0;
     this.shortPosition["enter1"] = {
-      color: "green"
+      color: "green",
     };
     this.shortPosition["enter2"] = {
-      color: "green"
+      color: "green",
     };
     this.shortPosition["enter3"] = {
-      color: "green"
+      color: "green",
     };
     this.longPosition["enter1"] = {
-      color: "green"
+      color: "green",
     };
     this.longPosition["enter2"] = {
-      color: "green"
+      color: "green",
     };
     this.longPosition["enter3"] = {
-      color: "green"
+      color: "green",
     };
     this.stats = {
       profitableTrades: 0,
@@ -1464,35 +1508,28 @@ export class Simulator {
       loss: 0,
       prof: 0,
     };
-    const { candlesCount, touchCount, autoLong, autoShort } =
-      testConfig;
+    const { candlesCount, touchCount, autoLong, autoShort, candlesPart } = testConfig;
     for (
       let candleIndex = 0;
-      candleIndex < this.historicalCandles.length;
+      candleIndex < this.app.get("chart").candles.length;
       candleIndex++
     ) {
-      const candle = this.historicalCandles[candleIndex];
-      const candles = this.historicalCandles.slice(0, candleIndex + 1);
+      const candle = this.app.get("chart").candles[candleIndex];
+      const candles = this.app.get("chart").candles.slice(0, candleIndex + 1);
       const { support, resistance } = this.app
         .get("indicators")
-        .calculateLevels(candles, candlesCount, touchCount);
+        .calculateLevels(candles, candlesCount, touchCount, candlesPart);
       //open Long
       if (this.getDefaultConfig().balance < 0) {
         console.log("balance < 0");
         break;
       }
-      if (autoLong && support > 0 && this.longPosition.size === 0) {
-        this.createlongPositionSilent(
-          support,
-          testConfig,
-        );
+      if (autoLong && support > 0) {
+        this.setLongTriggerSilent(support, testConfig);
       }
       //open Short
-      if (autoShort && resistance > 0 && this.shortPosition.size === 0) {
-        this.createshortPositionSilent(
-          resistance,
-          testConfig,
-        );
+      if (autoShort && resistance > 0) {
+        this.setShortTriggerSilent(resistance, testConfig);
       }
       this._checkPositionsSilent(candle, support, resistance, testConfig);
     }

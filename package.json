@@ -14,7 +14,7 @@
     "logs": "pm2 logs",
     "precompile": "node scripts/precompile-templates.js",
     "dev": "yarn precompile && vite --host",
-    "build": "vite build",
+    "build": "yarn precompile && vite build",
     "preview": "vite preview"
   },
   "keywords": [],

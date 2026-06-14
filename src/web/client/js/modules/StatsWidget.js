@@ -26,7 +26,7 @@ export class StatsWidget {
     this.app.on("symbolChanged", (symbol) => {
       if (this.app.state.get("isAuth")) {
         this.activeTab = "positions";
-        this.hideMarkers = false;
+        this.hideMarkers = true;
         this.loadTab(this.activeTab, symbol);
       } else {
         this.renderSimulatorTab();
@@ -172,17 +172,13 @@ export class StatsWidget {
   //show history orders
   showHistoryMarkers() {
     let positions;
-    let interval;
+    const interval =
+      this.app.get("chart").candles[1].time -
+      this.app.get("chart").candles[0].time;
     if (this.app.state.get("chartMode") == "simulator") {
       positions = this.app.get("simulator").trades;
-      interval =
-        this.app.get("simulator").historicalCandles[1].time -
-        this.app.get("simulator").historicalCandles[0].time;
     } else {
       positions = this.data.positions;
-      interval =
-        this.app.get("chart").candles[1].time -
-        this.app.get("chart").candles[0].time;
     }
     this.app.get("chart").visibleTriggers(false);
     this.app.get("chart").visiblePositions(false);
@@ -194,28 +190,12 @@ export class StatsWidget {
     if (this.hideMarkers) return;
     for (const position of positions) {
       const { updatedTime, closedPnl, side } = position;
-      //const createdTimeSec = Math.floor(createdTime / 1000);
       const updatedTimeSec = Math.floor(updatedTime / 1000);
-      // const createdCandle = this.app
-      //   .get("chart")
-      //   .candles.find(
-      //     (c) => createdTimeSec >= c.time && createdTimeSec < c.time + interval,
-      //   );
       const targetCandle = this.app
         .get("chart")
         .candles.find(
           (c) => updatedTimeSec >= c.time && updatedTimeSec < c.time + interval,
         );
-      // if (createdCandle) {
-      //   markLevels.push({
-      //     time: createdCandle.time,
-      //     position: "atPriceMiddle",
-      //     color: "black",
-      //     shape: "circle",
-      //     text: `@${side !== "Sell" ? "Short" : "Long"}`,
-      //     price: entryPrice || updatedTime,
-      //   });
-      // }
       if (targetCandle) {
         markLevels.push({
           time: targetCandle.time,
@@ -237,33 +217,19 @@ export class StatsWidget {
     createdTime,
     size,
   ) {
-    let interval;
-    let targetCandle;
-    let openCandle;
-    if (this.app.state.get("chartMode") == "simulator") {
-      interval =
-        this.app.get("simulator").historicalCandles[1].time -
-        this.app.get("simulator").historicalCandles[0].time;
-      targetCandle = this.app
-        .get("simulator")
-        .historicalCandles.find(
-          (c) => updatedTime >= c.time && updatedTime < c.time + interval,
-        );
-      openCandle = this.app
-        .get("simulator")
-        .historicalCandles.find(
-          (c) => createdTime >= c.time && createdTime < c.time + interval,
-        );
-    } else {
-      interval =
-        this.app.get("chart").candles[1].time -
-        this.app.get("chart").candles[0].time;
-      targetCandle = this.app
-        .get("chart")
-        .candles.find(
-          (c) => updatedTime >= c.time && updatedTime < c.time + interval,
-        );
-    }
+    const interval =
+      this.app.get("chart").candles[1].time -
+      this.app.get("chart").candles[0].time;
+    const targetCandle = this.app
+      .get("chart")
+      .candles.find(
+        (c) => updatedTime >= c.time && updatedTime < c.time + interval,
+      );
+    const openCandle = this.app
+      .get("chart")
+      .candles.find(
+        (c) => createdTime >= c.time && createdTime < c.time + interval,
+      );
     this.app.get("chart").markerSeries.setMarkers([]);
     this.app.get("simulator").closeAllPositions();
     this.app.get("chart").visibleTriggers(false);
@@ -276,7 +242,6 @@ export class StatsWidget {
       if (x === null) return;
       const targetLogical = timeScale.coordinateToLogical(x);
       if (targetLogical === null) return;
-
       const visibleRange = timeScale.getVisibleLogicalRange();
       if (visibleRange === null) return;
       // Сдвигаем так, чтобы целевой индекс оказался у края (например, слева)

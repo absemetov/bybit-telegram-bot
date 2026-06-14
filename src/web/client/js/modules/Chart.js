@@ -48,10 +48,11 @@ export class Chart {
     this.destroy();
     console.log("[Chart:mountWidget]");
     this.container = document.getElementById("chartWidgetContainer");
-    const { symbol, isAuth } = this.app.state.get();
+    const { symbol, isAuth, timeframe } = this.app.state.get();
     this.container.innerHTML = this.templates.chartTemplate({
       symbol,
       isAuth,
+      timeframe,
     });
     this.mount();
   }
@@ -353,8 +354,13 @@ export class Chart {
     this.chart.subscribeDblClick(() => {
       const candlesCount = this.app.state.get("algoSettings.candlesCount") || 5;
       const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-      if (this.app.state.get("chartMode") == "live")
-        this.updateIndicators(this.candles, candlesCount, touchCount);
+      const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
+      if (this.app.state.get("chartMode") == "simulator") {
+        const candles = this.app.get("chart").candles.slice(0, this.app.get("simulator").candleIndex);
+        this.updateIndicators(candles, candlesCount, touchCount, candlesPart);
+      } else {
+        this.updateIndicators(this.candles, candlesCount, touchCount, candlesPart);
+      }
       this.visibleLevels(!this.flagLevels);
     });
     //mouse events
@@ -406,7 +412,8 @@ export class Chart {
     //calc Indicators
     const candlesCount = this.app.state.get("algoSettings.candlesCount") || 8;
     const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-    this.updateIndicators(this.candles, candlesCount, touchCount);
+    const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
+    this.updateIndicators(this.candles, candlesCount, touchCount, candlesPart);
     this.visibleLevels(false);
     console.log(`[chart:render ${symbol}]`);
     this.app.emit("chart:loadedSymbol", symbol);
@@ -441,17 +448,18 @@ export class Chart {
     const tickerInfo = await this.app.get("api").post(`/api/${symbol}/info`);
     if (!tickerInfo) return;
     const {
-      sl = -1,
-      slOpen = -1,
-      tp = 3,
+      sl = -0.5,
+      slOpen = -0.5,
+      tp = 2,
       size = 1000,
       attemptsCount = -1,
       breakeven = 0,
       trailing = 0,
       part = 0,
-      candlesCount = 8,
-      touchCount = 3,
-      tolerance = 0.2,
+      candlesCount = 3,
+      touchCount = 2,
+      tolerance = 0.1,
+      candlesPart = 3,
     } = tickerInfo?.algoSettings || {};
     this.app.state.set("algoSettings", {
       sl,
@@ -465,6 +473,7 @@ export class Chart {
       candlesCount,
       touchCount,
       tolerance,
+      candlesPart,
       balance: tickerInfo?.balance || 0,
     });
     this.updateAlgoPanel(this.app.state.get("algoSettings"));
@@ -706,11 +715,11 @@ export class Chart {
       });
     }
   }
-  updateIndicators(candles, candlesCount, touchCount) {
+  updateIndicators(candles, candlesCount, touchCount, candlesPart) {
     if (candles.length === 0) return;
     const { support, resistance, min, max } = this.app
       .get("indicators")
-      .calculateLevels(candles, candlesCount, touchCount);
+      .calculateLevels(candles, candlesCount, touchCount, candlesPart);
     const sPrice = support || min;
     const rPrice = resistance || max;
     this.levelsLines["support"].applyOptions({
@@ -1088,11 +1097,12 @@ export class Chart {
                 candlesCount: parseFloat(data.get("candlesCount")),
                 touchCount: parseFloat(data.get("touchCount")),
                 tolerance: parseFloat(data.get("tolerance")),
+                candlesPart: parseFloat(data.get("candlesPart")),
                 //autoLevels: !!data.get("autoLevels"),
                 balance,
                 priceScale,
               };
-
+              this.updateIndicators(this.candles, newSettings.candlesCount, newSettings.touchCount, newSettings.candlesPart);
               try {
                 await this.app
                   .get("api")

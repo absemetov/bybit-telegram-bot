@@ -9,7 +9,7 @@ export class Indicators {
   attachToChart() {
     this.chartModule = this.app.get("chart");
   }
-  findLevels(candles, touchCount = 4) {
+  findLevels(candles, touchCount = 4, tolerance = 3) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
     const levelsHigh = [];
@@ -17,11 +17,11 @@ export class Indicators {
     candles.forEach((candle) => {
       const touchesLow = candles.filter(
         (c) =>
-          candle.low >= c.low && candle.low <= c.low + (c.high - c.low) / 3,
+          candle.low >= c.low && candle.low <= c.low + (c.high - c.low) / tolerance,
       ).length;
       const touchesHigh = candles.filter(
         (c) =>
-          candle.high <= c.high && candle.high >= c.high - (c.high - c.low) / 3,
+          candle.high <= c.high && candle.high >= c.high - (c.high - c.low) / tolerance,
       ).length;
       if (touchesLow >= touchCount) {
         levelsLow.push(candle.low);
@@ -34,8 +34,8 @@ export class Indicators {
     const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
     return { support, resistance, min, max };
   }
-  calculateLevels(candles, candlesCount = 10, touchCount = 3) {
+  calculateLevels(candles, candlesCount = 10, touchCount = 3, tolerance = 3) {
     const candlesSlice = candles.slice(-candlesCount);
-    return this.findLevels(candlesSlice, touchCount);
+    return this.findLevels(candlesSlice, touchCount, tolerance);
   }
 }
