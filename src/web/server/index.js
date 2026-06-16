@@ -4,13 +4,11 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { bybitUsers } from "./bybitV5.js";
 import Ticker from "./Ticker.js";
-import { tasks } from "./schedule.js";
+//import { tasks } from "./schedule.js";
+import { startScanner, stopScanner, getScannerStatus } from "./schedule.js";
 import dotenv from "dotenv";
 dotenv.config();
-//algoTrading 4/03/2026
-tasks();
 const app = express();
-// Use CORS middleware
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -48,6 +46,21 @@ function auth(req, res, next) {
     next();
   });
 }
+// API для управления сканером
+app.get("/api/scanner/status", (req, res) => {
+  res.json({ running: getScannerStatus() });
+});
+
+app.post("/api/scanner/start", (req, res) => {
+  startScanner();
+  res.json({ running: true });
+});
+
+app.post("/api/scanner/stop", (req, res) => {
+  stopScanner();
+  res.json({ running: false });
+});
+
 app.get("/api/health", (req, res) =>
   res.json({ status: "ok", uptime: process.uptime() }),
 );
@@ -84,7 +97,7 @@ app.post("/api/:symbol/info", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
     const info = await Ticker.getInfo(symbol, req.bybitUser);
-    return res.json(info);
+    return res.json({ ...info, getScannerStatus });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }

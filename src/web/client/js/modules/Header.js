@@ -70,6 +70,9 @@ export class Header {
             this.app.emit("symbolChanged", this.app.state.get("symbol"));
           }
         }
+        if (action === "showScannerModal") {
+          this.showScannerModal();
+        }
       }
       if (action === "toggleLocale") {
         const current = this.app.state.get("settings.locale") || "ru";
@@ -77,6 +80,53 @@ export class Header {
         this.app.get("i18n").setLocale(next);
       }
     });
+  }
+  async showScannerModal() {
+    const modal = this.app.get("modal");
+
+    // Показываем модалку с загрузкой
+    modal.show({
+      title: "Управление сканером",
+      body: Templates["modals/scanner-control"]({ loading: true }),
+      size: "sm",
+      actions: {
+        buttons: [{ text: "Закрыть", class: "btn-secondary", dismiss: true }],
+        onAction: async (action) => {
+          if (action === "toggleScanner") {
+            const api = this.app.get("api");
+            try {
+              // Сначала получим текущий статус
+              const status = await api.get("/api/scanner/status");
+              if (status.running) {
+                await api.post("/api/scanner/stop");
+              } else {
+                await api.post("/api/scanner/start");
+              }
+              const newStatus = !status.running;
+              // Обновляем содержимое модалки
+              modal.updateBody(Templates["modals/scanner-control"]({
+                scannerRunning: newStatus,
+              }));
+            } catch (err) {
+              alert("Ошибка переключения сканера: " + err.message);
+            }
+          }
+        },
+      },
+    });
+
+    // После открытия запрашиваем статус и обновляем модалку
+    const api = this.app.get("api");
+    try {
+      const status = await api.get("/api/scanner/status");
+      modal.updateBody(Templates["modals/scanner-control"]({
+        scannerRunning: status.running,
+      }));
+    } catch (err) {
+      modal.updateBody(Templates["modals/scanner-control"]({
+        scannerRunning: false,
+      }));
+    }
   }
   showLoginModal() {
     this.app.get("modal").show({
