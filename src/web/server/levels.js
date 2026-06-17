@@ -17,14 +17,6 @@ const checkPositions = async (
   //const tolerance = 0.1;
   const tickerStopLoss = sl || STOP_LOSS;
   const tickerTakeProfit = tp || TAKE_PROFIT;
-  // for (const order of orders.stop) {
-  //   if (
-  //     Math.abs(order.price - currentPrice) / currentPrice >
-  //     (tolerance * 2) / 100
-  //   ) {
-  //     await bybit.cancelOrder(symbol, order.orderId);
-  //   }
-  // }
   //edit TP, SL set breakeven
   for (const position of positions) {
     const { side, avgPrice, markPrice, stopLoss, takeProfit, positionValue } =
@@ -222,12 +214,10 @@ export const algoTrading = async (
   user,
   trigger,
   attemptsCount,
-  activeTriggers,
 ) => {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   try {
     const { size, slOpen, tp, part } = algoSettings || {};
-    //const tolerance = 0.1;
     //your trading account must not drop below 90% of the initial account balance!!!
     const orders = await bybit.getTickerOrders(symbol);
     const longOrders = orders.stop.filter((o) => o.side === "Buy");
@@ -236,30 +226,18 @@ export const algoTrading = async (
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
     
-    const longOrdersSum = longOrders.reduce((sum, order) => {
-      return sum + (order.price * order.qty);
-    }, 0);
-    const shortOrdersSum = shortOrders.reduce((sum, order) => {
-      return sum + (order.price * order.qty);
-    }, 0);
-    //calc grid enter 1/3 size
-    // const longSize = longPosition
-    //   ? 1 - (longPosition.avgPrice * longPosition.size) / size < 0.4
-    //     ? size - longPosition.avgPrice * longPosition.size
-    //     : (size - longPosition.avgPrice * longPosition.size) * 0.5
-    //   : size * 0.33;
-    // const shortSize = shortPosition
-    //   ? 1 - (shortPosition.avgPrice * shortPosition.size) / size < 0.4
-    //     ? size - shortPosition.avgPrice * shortPosition.size
-    //     : (size - shortPosition.avgPrice * shortPosition.size) * 0.5
-    //   : size * 0.33;
-
+    // const longOrdersSum = longOrders.reduce((sum, order) => {
+    //   return sum + (order.price * order.qty);
+    // }, 0);
+    // const shortOrdersSum = shortOrders.reduce((sum, order) => {
+    //   return sum + (order.price * order.qty);
+    // }, 0);
     const longSize = longPosition
-      ? (size - longPosition.avgPrice * longPosition.size - longOrdersSum) / activeTriggers
-      : (size - longOrdersSum) / activeTriggers;
+      ? (size - longPosition.avgPrice * longPosition.size) / 3
+      : size / 3;
     const shortSize = shortPosition
-      ? (size - shortPosition.avgPrice * shortPosition.size - shortOrdersSum) / activeTriggers
-      : (size - shortOrdersSum) / activeTriggers;
+      ? (size - shortPosition.avgPrice * shortPosition.size) / 3
+      : size / 3;
     //New 28/02/2026 add open close event save position value in firestore
     const currentMap = {};
     positions.forEach((p) => {
@@ -275,6 +253,7 @@ export const algoTrading = async (
         await Ticker.update(symbol, {
           [`${user}.attemptsCount`]: --attemptsCount,
           [`${user}Position${side}Value`]: posValue,
+          [`${user}.sl`]: slOpen,
         });
         //part50
         await bybit.setPart50(
@@ -332,19 +311,9 @@ export const algoTrading = async (
       }
       //position closed
       if (ticker[`position${side}Value`] && !currentMap[side]) {
-        //activate triggers
-        if (attemptsCount > 0) {
-          await Ticker.update(symbol, {
-            [`${user}Position${side}Value`]: 0,
-            [`${user}Triggers.1.active`]: true,
-            [`${user}Triggers.2.active`]: true,
-            [`${user}Triggers.3.active`]: true,
-          });
-        } else {
-          await Ticker.update(symbol, {
-            [`${user}Position${side}Value`]: 0,
-          });
-        }
+        await Ticker.update(symbol, {
+          [`${user}Position${side}Value`]: 0,
+        });
         await new Promise((resolve) => setTimeout(resolve, 2000));
         await sendTelegramReport(
           symbol,
@@ -358,12 +327,10 @@ export const algoTrading = async (
     //create LONG orders by alerts 4/03/2026
     if (
       trigger &&
-      //longOrders.length === 0 &&
       longSize > 20 &&
       (attemptsCount > 0 || longPosition) &&
       user === "main"
     ) {
-      //const triggerPrice = trigger[1] * (1 + tolerance / 100);
       const triggerId = trigger[0];
       const triggerPrice = trigger[1].price;
       await bybit.createStopLimitOrder(
@@ -374,16 +341,14 @@ export const algoTrading = async (
         triggerPrice * (1 + tp / 100),
         triggerPrice * (1 - Math.abs(slOpen) / 100),
       );
-      //set default SL DELETE Trigger
+      //disable trigger
       await Ticker.update(symbol, {
-        [`${user}.sl`]: slOpen,
         [`${user}Triggers.${triggerId}.active`]: false,
       });
     }
     //create SHORT order min size 20$
     if (
       trigger &&
-      //shortOrders.length === 0 &&
       shortSize > 20 &&
       (attemptsCount > 0 || shortPosition) &&
       user === "sub"
@@ -399,9 +364,8 @@ export const algoTrading = async (
         triggerPrice * (1 - tp / 100),
         triggerPrice * (1 + Math.abs(slOpen) / 100),
       );
-      //set default SL
+      //disable trigger
       await Ticker.update(symbol, {
-        [`${user}.sl`]: slOpen,
         [`${user}Triggers.${triggerId}.active`]: false,
       });
     }

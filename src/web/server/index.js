@@ -14,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.json());
 const PORT = 3003;
+startScanner();
 //firebase rest api
 async function firebaseRequest(endpoint, body) {
   const url = `https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${process.env.FIREBASE_API_KEY}`;

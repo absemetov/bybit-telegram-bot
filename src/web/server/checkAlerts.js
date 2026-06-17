@@ -32,12 +32,13 @@ export const checkTriggers = async () => {
               tolerance = 0.05,
               candlesCount = 5,
               touchCount = 3,
+              candlesPart = 3,
             } = algoSettings;
             const bybit = bybitUsers[user];
             //get candles
             const candles = await bybit.getCandles(
               symbol,
-              "2h",
+              "4h",
               candlesCount,
             );
             if (candles.length === 0) {
@@ -69,7 +70,6 @@ export const checkTriggers = async () => {
                 user,
                 triggersRun,
                 attemptsCount,
-                triggersArray.filter((t) => t[1].active).length || 1,
               );
             }
             //only alert
