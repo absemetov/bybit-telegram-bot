@@ -356,10 +356,17 @@ export class Chart {
       const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
       const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
       if (this.app.state.get("chartMode") == "simulator") {
-        const candles = this.app.get("chart").candles.slice(0, this.app.get("simulator").candleIndex);
+        const candles = this.app
+          .get("chart")
+          .candles.slice(0, this.app.get("simulator").candleIndex);
         this.updateIndicators(candles, candlesCount, touchCount, candlesPart);
       } else {
-        this.updateIndicators(this.candles, candlesCount, touchCount, candlesPart);
+        this.updateIndicators(
+          this.candles,
+          candlesCount,
+          touchCount,
+          candlesPart,
+        );
       }
       this.visibleLevels(!this.flagLevels);
     });
@@ -1049,14 +1056,10 @@ export class Chart {
     const { balance } = algoSettings;
     const modal = this.app.get("modal");
     const attemptsList = [
-      { value: 6, name: "🔔 Alert on" },
-      { value: -1, name: "🔴 off AlgoTrading" },
-      { value: 0, name: "🟠 Check positions" },
-      { value: 1, name: "1 attempt" },
-      { value: 2, name: "2 attempts" },
-      { value: 3, name: "3 attempts" },
-      { value: 4, name: "4 attempts" },
-      { value: 5, name: "5 attempts" },
+      { value: -1, name: "🔴 Off" },
+      { value: 0, name: "🟠 Check position" },
+      { value: 1, name: "🟢 On" },
+      { value: 2, name: "🔔 Only alerts" },
     ].map((el) => {
       if (el.value === algoSettings.attemptsCount) {
         el.selected = true;
@@ -1066,7 +1069,7 @@ export class Chart {
       return el;
     });
     modal.show({
-      title: `Алготрейдинг – ${symbol} ($${balance.toFixed(1)})`,
+      title: `Racket – ${symbol} ($${balance.toFixed(1)})`,
       body: this.templates.algotradingSettingsTemplate({
         attemptsList,
         ...algoSettings,
@@ -1076,8 +1079,8 @@ export class Chart {
       size: "md",
       actions: {
         buttons: [
-          { text: "Отмена", class: "btn-secondary", dismiss: true },
-          { text: "Сохранить", class: "btn-primary", action: "submit" },
+          { text: "Cancel", class: "btn-secondary", dismiss: true },
+          { text: "Save", class: "btn-primary", action: "submit" },
         ],
         onAction: async (action) => {
           if (action === "submit") {
@@ -1102,7 +1105,12 @@ export class Chart {
                 balance,
                 priceScale,
               };
-              this.updateIndicators(this.candles, newSettings.candlesCount, newSettings.touchCount, newSettings.candlesPart);
+              this.updateIndicators(
+                this.candles,
+                newSettings.candlesCount,
+                newSettings.touchCount,
+                newSettings.candlesPart,
+              );
               try {
                 await this.app
                   .get("api")

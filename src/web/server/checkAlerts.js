@@ -61,8 +61,8 @@ export const checkTriggers = async () => {
                 );
               }
             });
-            //attempts from [0-5] algotrading
-            if (attemptsCount <= 5) {
+            //attempts 0-check position 1-on algotrading
+            if (attemptsCount <= 1) {
               await algoTrading(
                 ticker,
                 close,
@@ -73,7 +73,7 @@ export const checkTriggers = async () => {
               );
             }
             //only alert
-            if (attemptsCount === 6) {
+            if (attemptsCount === 2) {
               const timestampSeconds = Math.round(Date.now() / 1000);
               const silent10min =
                 !lastNotified ||

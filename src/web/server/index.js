@@ -13,7 +13,6 @@ app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.json());
-const PORT = 3003;
 startScanner();
 //firebase rest api
 async function firebaseRequest(endpoint, body) {
@@ -319,6 +318,6 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
   }
 });
 //run app
-app.listen(PORT, () => {
-  console.log(`v3.0.0 app listening on port ${PORT}`);
+app.listen(process.env.PORT, () => {
+  console.log(`Racket v3.0.0 listening on port ${process.env.PORT}`);
 });
