@@ -321,7 +321,7 @@ class UserAPI {
     };
     const response = await this.bybitClient.getActiveOrders(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error getTickersOrders: ${response.retMsg}`);
+      throw new Error(`Error getTickersOrders: ${response.retMsg} code:${response.retCode}`);
     }
     const stop = response.result.list
       .filter((o) => ["Stop"].includes(o.stopOrderType))

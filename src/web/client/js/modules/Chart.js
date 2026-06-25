@@ -165,6 +165,30 @@ export class Chart {
         lineVisible: false,
         axisLabelVisible: false,
       }),
+      4: this.candlestickSeries.createPriceLine({
+        price: 1,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      5: this.candlestickSeries.createPriceLine({
+        price: 1,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      6: this.candlestickSeries.createPriceLine({
+        price: 1,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
     };
     //price lines for position
     this.positionLines = {
@@ -224,6 +248,30 @@ export class Chart {
         lineVisible: false,
         axisLabelVisible: false,
       }),
+      stop3: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 0,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      stop4: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 0,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      stop5: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 0,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
     };
     //simulator lines
     this.longLines = {
@@ -234,7 +282,6 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Long",
       }),
       enter2: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -243,7 +290,6 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Long",
       }),
       enter3: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -252,7 +298,30 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Long",
+      }),
+      enter4: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      enter5: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      enter6: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
       }),
       sl: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -287,7 +356,6 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Short",
       }),
       enter2: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -296,7 +364,6 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Short",
       }),
       enter3: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -305,7 +372,30 @@ export class Chart {
         lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
-        title: "Short",
+      }),
+      enter4: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      enter5: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      enter6: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: false,
+        axisLabelVisible: false,
       }),
       sl: this.candlestickSeries.createPriceLine({
         price: 0,
@@ -503,7 +593,7 @@ export class Chart {
           <div class="d-flex justify-content-start algo-info">
             <div class="btn-group btn-group-sm">
               <button class="btn btn-sm" data-action="setTriggers">🪮</button>
-              <button class="btn btn-sm" data-action="openAlgoSettings">${Handlebars.helpers.tradingIcon(algoSettings)}</button>
+              <button class="btn btn-sm" data-action="openAlgoSettings">${Handlebars.helpers.tradingIcon(algoSettings, { hash: { btn: true } })}</button>
             </div>
           </div>
         `;
@@ -624,11 +714,13 @@ export class Chart {
     if (this.app.state.get("chartMode") == "simulator") return;
     const { support, resistance } = this.levelsLines;
     const tolerance = this.app.state.get("algoSettings.tolerance") || 0.1;
+    const size = this.app.state.get("algoSettings.size") || 1000;
     const data = {
       support: support.options().price,
       resistance: resistance.options().price,
       tolerance,
       user: this.app.state.get("bybitUser"),
+      size,
     };
     try {
       const res = await this.app
@@ -644,20 +736,22 @@ export class Chart {
     Object.values(this.triggersLines).forEach((item) => {
       item.applyOptions({
         lineVisible: visible,
+        axisLabelVisible: visible,
       });
     });
   }
   showTriggers(triggers) {
     this.visiblePositions(false);
     this.flagTriggers = true;
-    for (const [name, triiger] of Object.entries(triggers || {})) {
+    for (const [name, triger] of Object.entries(triggers || {})) {
       const color =
         this.app.state.get("bybitUser") === "main" ? "green" : "red";
       this.triggersLines[name].applyOptions({
-        price: triiger.price,
+        price: triger.price,
         lineVisible: true,
-        lineStyle: triiger.active ? 1 : 0,
-        color,
+        axisLabelVisible: true,
+        color: triger.active ? color : "black",
+        title: triger.size.toFixed(1) || 0,
       });
     }
   }
@@ -1057,7 +1151,6 @@ export class Chart {
     const modal = this.app.get("modal");
     const attemptsList = [
       { value: -1, name: "🔴 Off" },
-      { value: 0, name: "🟠 Check position" },
       { value: 1, name: "🟢 On" },
       { value: 2, name: "🔔 Only alerts" },
     ].map((el) => {

@@ -291,26 +291,16 @@ export class Simulator {
   }
   setTriggers(side) {
     this.app.get("chart").visibleLevels(true);
+    const support = this.app
+      .get("chart")
+      .levelsLines["support"].options().price;
+    const resistance = this.app
+      .get("chart")
+      .levelsLines["resistance"].options().price;
     if (side === "Long") {
-      const color = this.app
-        .get("chart")
-        .levelsLines["support"].options().color;
-      if (color === "green") {
-        const entryPrice = this.app
-          .get("chart")
-          .levelsLines["support"].options().price;
-        this.setLongTriggers(entryPrice);
-      }
-    } else {
-      const color = this.app
-        .get("chart")
-        .levelsLines["resistance"].options().color;
-      if (color === "red") {
-        const entryPrice = this.app
-          .get("chart")
-          .levelsLines["resistance"].options().price;
-        this.setShortTriggers(entryPrice);
-      }
+      this.setLongTriggers(support, resistance);
+    } else {  
+      this.setShortTriggers(support, resistance);
     }
   }
   //get Candles
@@ -346,7 +336,7 @@ export class Simulator {
     this.candleIndex = 0;
     this.app.get("chart").visibleTriggers(false);
     this.app.get("chart").visiblePositions(false);
-    this.app.get("chart").visibleLevels(true);
+    this.app.get("chart").visibleLevels(false);
     this.trades = [];
     this.longPosition.size = 0;
     this.shortPosition.size = 0;
@@ -507,23 +497,41 @@ export class Simulator {
     this.shortPosition.size = 0;
   }
   //first set Triggers
-  setLongTriggers(entryPrice) {
+  setLongTriggers(support, resistance) {
     const { tolerance = 0.2 } = this.getDefaultConfig();
     this.app.get("chart").longLines["enter1"].applyOptions({
       color: "black",
-      price: entryPrice * (1 + tolerance / 100),
+      price: support * (1 + tolerance / 100),
       lineVisible: true,
       axisLabelVisible: true,
     });
     this.app.get("chart").longLines["enter2"].applyOptions({
       color: "black",
-      price: entryPrice,
+      price: support,
       lineVisible: true,
       axisLabelVisible: true,
     });
     this.app.get("chart").longLines["enter3"].applyOptions({
       color: "black",
-      price: entryPrice * (1 - tolerance / 100),
+      price: support * (1 - tolerance / 100),
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").longLines["enter4"].applyOptions({
+      color: "black",
+      price: resistance * (1 + tolerance / 100),
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").longLines["enter5"].applyOptions({
+      color: "black",
+      price: resistance,
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").longLines["enter6"].applyOptions({
+      color: "black",
+      price: resistance * (1 - tolerance / 100),
       lineVisible: true,
       axisLabelVisible: true,
     });
@@ -588,23 +596,41 @@ export class Simulator {
       price: entryPrice * (1 + tp / 100),
     };
   }
-  setShortTriggers(entryPrice) {
+  setShortTriggers(support, resistance) {
     const { tolerance = 0.2 } = this.getDefaultConfig();
     this.app.get("chart").shortLines["enter1"].applyOptions({
       color: "black",
-      price: entryPrice * (1 - tolerance / 100),
+      price: support * (1 - tolerance / 100),
       lineVisible: true,
       axisLabelVisible: true,
     });
     this.app.get("chart").shortLines["enter2"].applyOptions({
       color: "black",
-      price: entryPrice,
+      price: support,
       lineVisible: true,
       axisLabelVisible: true,
     });
     this.app.get("chart").shortLines["enter3"].applyOptions({
       color: "black",
-      price: entryPrice * (1 + tolerance / 100),
+      price: support * (1 + tolerance / 100),
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").shortLines["enter4"].applyOptions({
+      color: "black",
+      price: resistance * (1 - tolerance / 100),
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").shortLines["enter5"].applyOptions({
+      color: "black",
+      price: resistance,
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.app.get("chart").shortLines["enter6"].applyOptions({
+      color: "black",
+      price: resistance * (1 + tolerance / 100),
       lineVisible: true,
       axisLabelVisible: true,
     });
@@ -746,7 +772,7 @@ export class Simulator {
       //open position
       if (
         visible &&
-        ["enter1", "enter2", "enter3"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -756,13 +782,13 @@ export class Simulator {
         const { size } = this.getDefaultConfig();
         if (this.longPosition.size === 0) {
           this.longPosition = {
-            size: size / 3,
+            size: size / 6,
             entryPrice: price,
             createdTime: candle.time * 1000,
           };
         } else {
           if (this.longPosition.size < size) {
-            this.longPosition.size = this.longPosition.size + size / 3;
+            this.longPosition.size = longPosition.size + size / 6;
             this.longPosition.entryPrice =
               (this.longPosition.entryPrice + price) / 2;
           }
@@ -902,7 +928,7 @@ export class Simulator {
       }
       if (
         visible &&
-        ["enter1", "enter2", "enter3"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -912,13 +938,13 @@ export class Simulator {
         const { size } = this.getDefaultConfig();
         if (this.shortPosition.size === 0) {
           this.shortPosition = {
-            size: size / 3,
+            size: size / 6,
             entryPrice: price,
             createdTime: candle.time * 1000,
           };
         } else {
           if (this.shortPosition.size < size) {
-            this.shortPosition.size = this.shortPosition.size + size / 3;
+            this.shortPosition.size = this.shortPosition.size + size / 6;
             this.shortPosition.entryPrice =
               (this.shortPosition.entryPrice + price) / 2;
           }

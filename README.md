@@ -145,4 +145,4 @@ yarn start
 pm2 save
 pm2 startup systemd
 ```
-You may be using [Live Preview](https://a76e317e.bybit-telegram-bot.pages.dev/)
+You may be using [Live Preview](https://bybit-telegram-bot.pages.dev/)

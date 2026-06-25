@@ -29,45 +29,49 @@ class Ticker {
     return null;
   }
   //create Triggers
-  static async setTriggers(symbol, support, resistance, user, tolerance) {
-    //const step = Math.abs(sl / 5 / 100);
+  static async setTriggers(symbol, support, resistance, user, tolerance, size) {
     //clear All stop orders
     const side = user === "main" ? "Buy" : "Sell";
+    const price = user === "main" ? support : resistance;
+    const toleranceSide = user === "main" ? tolerance : -tolerance;
     await bybitUsers[user].cancelAllOrders(symbol, side);
-    if (support && user === "main") {
+    const positions = await bybitUsers[user].getTickerPositions(symbol);
+    const position = positions.find((p) => p.side === side);
+    const triggerSize = position
+      ? (size - position.avgPrice * position.size) / 6
+      : size / 6;
+    if (price && triggerSize) {
       const triggers = {
         [`${user}Triggers`]: {
           1: {
-            price: support * (1 - tolerance / 100),
+            price: price * (1 + toleranceSide / 100),
             active: true,
+            size: triggerSize,
           },
           2: {
-            price: support,
+            price: price,
             active: true,
+            size: triggerSize,
           },
           3: {
-            price: support * (1 + tolerance / 100),
+            price: price * (1 - toleranceSide / 100),
             active: true,
+            size: triggerSize,
           },
-        },
-      };
-      await Ticker.update(symbol, triggers);
-      return triggers[`${user}Triggers`];
-    }
-    if (resistance && user === "sub") {
-      const triggers = {
-        [`${user}Triggers`]: {
-          1: {
-            price: resistance * (1 + tolerance / 100),
+          4: {
+            price: price * (1 - (toleranceSide * 2) / 100),
             active: true,
+            size: triggerSize,
           },
-          2: {
-            price: resistance,
+          5: {
+            price: price * (1 - (toleranceSide * 3) / 100),
             active: true,
+            size: triggerSize,
           },
-          3: {
-            price: resistance * (1 - tolerance / 100),
+          6: {
+            price: price * (1 - (toleranceSide * 4) / 100),
             active: true,
+            size: triggerSize,
           },
         },
       };

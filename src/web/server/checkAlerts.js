@@ -62,14 +62,13 @@ export const checkTriggers = async () => {
               }
             });
             //attempts 0-check position 1-on algotrading
-            if (attemptsCount <= 1) {
+            if (attemptsCount === 1) {
               await algoTrading(
                 ticker,
                 close,
                 bybit,
                 user,
                 triggersRun,
-                attemptsCount,
               );
             }
             //only alert

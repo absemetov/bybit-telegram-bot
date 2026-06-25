@@ -117,13 +117,14 @@ app.post("/api/tickers", auth, async (req, res) => {
 app.post("/api/:symbol/triggers/set", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { support, resistance, tolerance } = req.body;
+    const { support, resistance, tolerance, size } = req.body;
     const triggers = await Ticker.setTriggers(
       symbol,
       support,
       resistance,
       req.bybitUser,
       tolerance,
+      size,
     );
     return res.json(triggers);
   } catch (error) {

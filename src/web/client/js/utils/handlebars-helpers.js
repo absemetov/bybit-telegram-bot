@@ -10,18 +10,18 @@ export function registerHelpers(Handlebars) {
     return Number(c) >= 0 ? "text-success" : "text-danger";
   });
 
-  Handlebars.registerHelper("tradingIcon", (algoSettings = {}) => {
+  Handlebars.registerHelper("tradingIcon", (algoSettings = {}, options) => {
     const { attemptsCount, size } = algoSettings;
-    if (attemptsCount === 0) {
-      return `${size}🟠`;
+    const btn = options.hash?.btn;
+    if (attemptsCount === 1) {
+      return `${size}🟢`;
     }
-    if (attemptsCount > 0 && attemptsCount <= 5) {
-      return `${size}🟢(${attemptsCount})`;
-    }
-    if (attemptsCount === 6) {
+    if (attemptsCount === 2) {
       return "🔔";
     }
-    return "🔴";
+    if (btn) {
+      return "🔴";
+    }
   });
   Handlebars.registerHelper("formatNumber", (value = 0, decimals) => {
     if (value === undefined || value === null) return "—";

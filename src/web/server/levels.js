@@ -134,13 +134,7 @@ const checkPositions = async (
   }
 };
 //telegram close position msg
-async function sendTelegramReport(
-  symbol,
-  bybit,
-  user,
-  attemptsCount,
-  priceScale,
-) {
+async function sendTelegramReport(symbol, bybit, user, priceScale) {
   const closedPositions = await bybit.getClosedPositionsHistory(symbol);
   const lastClosedPosition = closedPositions.positions[0];
   const { closedPnl, side } = lastClosedPosition;
@@ -184,7 +178,6 @@ async function sendTelegramReport(
       `${closedPnl > 0 ? "✅" : "⛔️"}[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
       `${closedPnl > 0 ? "👍Profit" : "☝️Loss"} ${side !== "Buy" ? "📈 Long" : "📉 Short"} position closed\n` +
       `💰Balance: ${balance.toFixed(2)}$\n` +
-      `Attempts left: ${attemptsCount}\n` +
       `${positions.length} trades analytics\n` +
       `Total Pnl: ${totalData.pnl.toFixed(2)}$ (${totalData.totalPrcnt > 0 ? "+" : ""}${totalData.totalPrcnt.toFixed(2)}%), WinRate: ${winRate}%, profitTrades: +${profitableTrades}(+${totalData.profPrcnt.toFixed(2)}%), lossTrades: -${lossTrades}(-${totalData.lossPrcnt.toFixed(2)}%)\n` +
       closedPositions.positions
@@ -207,37 +200,29 @@ async function sendTelegramReport(
   });
 }
 //core 2/03/2026 4/03/2026
-export const algoTrading = async (
-  ticker,
-  price,
-  bybit,
-  user,
-  trigger,
-  attemptsCount,
-) => {
+export const algoTrading = async (ticker, price, bybit, user, trigger) => {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   try {
     const { size, slOpen, tp, part } = algoSettings || {};
     //your trading account must not drop below 90% of the initial account balance!!!
     const orders = await bybit.getTickerOrders(symbol);
-    const longOrders = orders.stop.filter((o) => o.side === "Buy");
-    const shortOrders = orders.stop.filter((o) => o.side === "Sell");
+    //const longOrders = orders.stop.filter((o) => o.side === "Buy");
+    //const shortOrders = orders.stop.filter((o) => o.side === "Sell");
     const positions = await bybit.getTickerPositions(symbol);
-    const longPosition = positions.find((p) => p.side === "Buy");
-    const shortPosition = positions.find((p) => p.side === "Sell");
-    
+    // const longPosition = positions.find((p) => p.side === "Buy");
+    // const shortPosition = positions.find((p) => p.side === "Sell");
     // const longOrdersSum = longOrders.reduce((sum, order) => {
     //   return sum + (order.price * order.qty);
     // }, 0);
     // const shortOrdersSum = shortOrders.reduce((sum, order) => {
     //   return sum + (order.price * order.qty);
     // }, 0);
-    const longSize = longPosition
-      ? (size - longPosition.avgPrice * longPosition.size) / 3
-      : size / 3;
-    const shortSize = shortPosition
-      ? (size - shortPosition.avgPrice * shortPosition.size) / 3
-      : size / 3;
+    // const longSize = longPosition
+    //   ? size - longPosition.avgPrice * longPosition.size
+    //   : size;
+    // const shortSize = shortPosition
+    //   ? size - shortPosition.avgPrice * shortPosition.size
+    //   : size;
     //New 28/02/2026 add open close event save position value in firestore
     const currentMap = {};
     positions.forEach((p) => {
@@ -251,7 +236,6 @@ export const algoTrading = async (
       if (!ticker[`position${side}Value`] && currentPosition) {
         const posValue = currentPosition.avgPrice * currentPosition.size;
         await Ticker.update(symbol, {
-          [`${user}.attemptsCount`]: --attemptsCount,
           [`${user}Position${side}Value`]: posValue,
           [`${user}.sl`]: slOpen,
         });
@@ -270,7 +254,6 @@ export const algoTrading = async (
             `Position ${posIcon} Opened +${posValue.toFixed(1)}$\n` +
             `avgPrice ${currentPosition.avgPrice.toFixed(priceScale)}$\n` +
             `Size: ${posValue.toFixed(1)} (${size})$\n` +
-            `Attempts left: ${attemptsCount}\n` +
             `#${symbol.slice(0, -4)}_${user}`,
         });
       }
@@ -315,55 +298,43 @@ export const algoTrading = async (
           [`${user}Position${side}Value`]: 0,
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendTelegramReport(
-          symbol,
-          bybit,
-          user,
-          attemptsCount,
-          priceScale,
-        );
+        await sendTelegramReport(symbol, bybit, user, priceScale);
       }
     }
     //create LONG orders by alerts 4/03/2026
-    if (
-      trigger &&
-      longSize > 20 &&
-      (attemptsCount > 0 || longPosition) &&
-      user === "main"
-    ) {
+    if (trigger && user === "main") {
       const triggerId = trigger[0];
       const triggerPrice = trigger[1].price;
-      await bybit.createStopLimitOrder(
-        symbol,
-        "Buy",
-        triggerPrice,
-        longSize,
-        triggerPrice * (1 + tp / 100),
-        triggerPrice * (1 - Math.abs(slOpen) / 100),
-      );
+      const triggerSize = trigger[1].size;
+      if (triggerSize && triggerPrice)
+        await bybit.createStopLimitOrder(
+          symbol,
+          "Buy",
+          triggerPrice,
+          triggerSize,
+          triggerPrice * (1 + tp / 100),
+          triggerPrice * (1 - Math.abs(slOpen) / 100),
+        );
       //disable trigger
       await Ticker.update(symbol, {
         [`${user}Triggers.${triggerId}.active`]: false,
       });
     }
     //create SHORT order min size 20$
-    if (
-      trigger &&
-      shortSize > 20 &&
-      (attemptsCount > 0 || shortPosition) &&
-      user === "sub"
-    ) {
+    if (trigger && user === "sub") {
       //const triggerPrice = trigger[0] * (1 - tolerance / 100);
       const triggerId = trigger[0];
       const triggerPrice = trigger[1].price;
-      await bybit.createStopLimitOrder(
-        symbol,
-        "Sell",
-        triggerPrice,
-        shortSize,
-        triggerPrice * (1 - tp / 100),
-        triggerPrice * (1 + Math.abs(slOpen) / 100),
-      );
+      const triggerSize = trigger[1].size;
+      if (triggerSize && triggerPrice)
+        await bybit.createStopLimitOrder(
+          symbol,
+          "Sell",
+          triggerPrice,
+          triggerSize,
+          triggerPrice * (1 - tp / 100),
+          triggerPrice * (1 + Math.abs(slOpen) / 100),
+        );
       //disable trigger
       await Ticker.update(symbol, {
         [`${user}Triggers.${triggerId}.active`]: false,
