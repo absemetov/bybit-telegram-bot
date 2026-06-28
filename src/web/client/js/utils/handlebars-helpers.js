@@ -13,11 +13,11 @@ export function registerHelpers(Handlebars) {
   Handlebars.registerHelper("tradingIcon", (algoSettings = {}, options) => {
     const { attemptsCount, size } = algoSettings;
     const btn = options.hash?.btn;
-    if (attemptsCount === 1) {
-      return `${size}🟢`;
-    }
-    if (attemptsCount === 2) {
+    if (attemptsCount === 6) {
       return "🔔";
+    }
+    if (attemptsCount >= 0) {
+      return `${size}<span class="badge text-bg-success rounded-pill">${attemptsCount}</span>`;
     }
     if (btn) {
       return "🔴";

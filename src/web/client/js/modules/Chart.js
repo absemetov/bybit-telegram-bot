@@ -140,56 +140,7 @@ export class Chart {
       }),
     };
     //price lines fir triggers
-    this.triggersLines = {
-      1: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      2: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      3: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      4: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      5: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      6: this.candlestickSeries.createPriceLine({
-        price: 1,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-    };
+    this.triggersLines = {};
     //price lines for position
     this.positionLines = {
       sl: this.candlestickSeries.createPriceLine({
@@ -224,102 +175,14 @@ export class Chart {
         lineVisible: false,
         axisLabelVisible: false,
       }),
-      stop0: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      stop1: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      stop2: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      stop3: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      stop4: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      stop5: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "green",
-        lineWidth: 2,
-        lineStyle: 0,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
     };
     //simulator lines
     this.longLines = {
-      enter1: this.candlestickSeries.createPriceLine({
+      enter: this.candlestickSeries.createPriceLine({
         price: 0,
         color: "black",
         lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter2: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter3: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter4: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter5: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter6: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
+        lineStyle: 0,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -349,51 +212,11 @@ export class Chart {
       }),
     };
     this.shortLines = {
-      enter1: this.candlestickSeries.createPriceLine({
+      enter: this.candlestickSeries.createPriceLine({
         price: 0,
         color: "black",
         lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter2: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter3: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter4: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter5: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: false,
-        axisLabelVisible: false,
-      }),
-      enter6: this.candlestickSeries.createPriceLine({
-        price: 0,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
+        lineStyle: 0,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -557,6 +380,7 @@ export class Chart {
       touchCount = 2,
       tolerance = 0.1,
       candlesPart = 3,
+      triggersCount = 6,
     } = tickerInfo?.algoSettings || {};
     this.app.state.set("algoSettings", {
       sl,
@@ -571,6 +395,7 @@ export class Chart {
       touchCount,
       tolerance,
       candlesPart,
+      triggersCount,
       balance: tickerInfo?.balance || 0,
     });
     this.updateAlgoPanel(this.app.state.get("algoSettings"));
@@ -579,7 +404,6 @@ export class Chart {
     this.showPositions(
       tickerInfo.positions,
       tickerInfo.partOrders,
-      tickerInfo.stopOrders,
     );
   }
   updateAlgoPanel(algoSettings) {
@@ -664,10 +488,10 @@ export class Chart {
         this.app.get("simulator").closeAllPositions();
       }
       if (action === "openSimulatorLong") {
-        this.app.get("simulator").showOpenOrderModal("Long");
+        this.app.get("simulator").setTriggers("Long");
       }
       if (action === "openSimulatorShort") {
-        this.app.get("simulator").showOpenOrderModal("Short");
+        this.app.get("simulator").setTriggers("Short");
       }
       if (action === "tickSimulator") {
         this.app.get("simulator").tick();
@@ -715,12 +539,14 @@ export class Chart {
     const { support, resistance } = this.levelsLines;
     const tolerance = this.app.state.get("algoSettings.tolerance") || 0.1;
     const size = this.app.state.get("algoSettings.size") || 1000;
+    const triggersCount = this.app.state.get("algoSettings.triggersCount") || 3;
     const data = {
       support: support.options().price,
       resistance: resistance.options().price,
       tolerance,
       user: this.app.state.get("bybitUser"),
       size,
+      triggersCount,
     };
     try {
       const res = await this.app
@@ -743,15 +569,22 @@ export class Chart {
   showTriggers(triggers) {
     this.visiblePositions(false);
     this.flagTriggers = true;
+    //first delete old price lines
+    Object.values(this.triggersLines).forEach((item) => {
+      this.candlestickSeries.removePriceLine(item);
+    });
+    this.triggersLines = {};
     for (const [name, triger] of Object.entries(triggers || {})) {
       const color =
         this.app.state.get("bybitUser") === "main" ? "green" : "red";
-      this.triggersLines[name].applyOptions({
+      this.triggersLines[name] = this.candlestickSeries.createPriceLine({
         price: triger.price,
-        lineVisible: true,
-        axisLabelVisible: true,
         color: triger.active ? color : "black",
         title: triger.size.toFixed(1) || 0,
+        lineWidth: 2,
+        lineStyle: triger.active ? 1 : 0,
+        lineVisible: true,
+        axisLabelVisible: true,
       });
     }
   }
@@ -765,7 +598,7 @@ export class Chart {
       });
     });
   }
-  showPositions(positions, partOrders, stopOrders) {
+  showPositions(positions, partOrders) {
     for (const position of positions) {
       const { avgPrice, unrealisedPnl, stopLoss, takeProfit, side } = position;
       this.position = position;
@@ -800,16 +633,6 @@ export class Chart {
       this.positionLines["part"].applyOptions({
         price,
         title: `Part:${tpPercent.toFixed(2)}%`,
-        lineVisible: true,
-        axisLabelVisible: true,
-        color: this.app.state.get("bybitUser") === "main" ? "green" : "red",
-      });
-    }
-    for (const [index, stopLimitOrder] of stopOrders.entries()) {
-      const { price, qty } = stopLimitOrder;
-      this.positionLines[`stop${index}`].applyOptions({
-        price,
-        title: `Order:${(price * qty).toFixed(2)}$`,
         lineVisible: true,
         axisLabelVisible: true,
         color: this.app.state.get("bybitUser") === "main" ? "green" : "red",
@@ -909,18 +732,18 @@ export class Chart {
         if (
           ["simTpLong", "simPartLong", "simSlLong"].includes(this.selectedLine)
         ) {
-          const enter = this.longLines["enter1"].options().price;
+          const enter = this.longLines["enter"].options().price;
           const tp = this.longLines["tp"].options().price;
           const part = this.longLines["part"].options().price;
           const sl = this.longLines["sl"].options().price;
           this.longLines["tp"].applyOptions({
-            title: `LT${(((tp - enter) / enter) * 100).toFixed(2)}%`,
+            title: `Long TP ${(((tp - enter) / enter) * 100).toFixed(2)}%`,
           });
           this.longLines["part"].applyOptions({
-            title: `LP${(((part - enter) / enter) * 100).toFixed(2)}%`,
+            title: `Long Part ${(((part - enter) / enter) * 100).toFixed(2)}%`,
           });
           this.longLines["sl"].applyOptions({
-            title: `LS${(((sl - enter) / enter) * 100).toFixed(2)}%`,
+            title: `Long SL ${(((sl - enter) / enter) * 100).toFixed(2)}%`,
           });
         }
         if (
@@ -928,18 +751,18 @@ export class Chart {
             this.selectedLine,
           )
         ) {
-          const enter = this.shortLines["enter1"].options().price;
+          const enter = this.shortLines["enter"].options().price;
           const tp = this.shortLines["tp"].options().price;
           const part = this.shortLines["part"].options().price;
           const sl = this.shortLines["sl"].options().price;
           this.shortLines["tp"].applyOptions({
-            title: `ST${(((tp - enter) / enter) * -1 * 100).toFixed(2)}%`,
+            title: `Short TP ${(((tp - enter) / enter) * -1 * 100).toFixed(2)}%`,
           });
           this.shortLines["part"].applyOptions({
-            title: `SP${(((part - enter) / enter) * -1 * 100).toFixed(2)}%`,
+            title: `Short Part ${(((part - enter) / enter) * -1 * 100).toFixed(2)}%`,
           });
           this.shortLines["sl"].applyOptions({
-            title: `SS${(((sl - enter) / enter) * -1 * 100).toFixed(2)}%`,
+            title: `Short SL${(((sl - enter) / enter) * -1 * 100).toFixed(2)}%`,
           });
         }
         this.chart.applyOptions({
@@ -1151,8 +974,13 @@ export class Chart {
     const modal = this.app.get("modal");
     const attemptsList = [
       { value: -1, name: "🔴 Off" },
-      { value: 1, name: "🟢 On" },
-      { value: 2, name: "🔔 Only alerts" },
+      { value: 0, name: "🟢 0 attempts" },
+      { value: 1, name: "🟢 1 attempts" },
+      { value: 2, name: "🟢 2 attempts" },
+      { value: 3, name: "🟢 3 attempts" },
+      { value: 4, name: "🟢 4 attempts" },
+      { value: 5, name: "🟢 5 attempts" },
+      { value: 6, name: "🔔 Only alerts" },
     ].map((el) => {
       if (el.value === algoSettings.attemptsCount) {
         el.selected = true;
@@ -1194,6 +1022,7 @@ export class Chart {
                 touchCount: parseFloat(data.get("touchCount")),
                 tolerance: parseFloat(data.get("tolerance")),
                 candlesPart: parseFloat(data.get("candlesPart")),
+                triggersCount: parseFloat(data.get("triggersCount")),
                 //autoLevels: !!data.get("autoLevels"),
                 balance,
                 priceScale,
@@ -1211,6 +1040,8 @@ export class Chart {
                 modal.hide();
                 this.app.state.set("algoSettings", newSettings);
                 this.app.get("chart").updateAlgoPanel(newSettings);
+                //calc new triggers
+                await this.setTriggers();
                 //this.app.emit("algo:settingsUpdated", { symbol, ...newSettings });
               } catch (err) {
                 alert(err.message || "Ошибка сохранения настроек");

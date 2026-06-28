@@ -57,6 +57,15 @@
           <label class="form-label text-danger" for="trailing">⚙️TrailingStop(%)</label>
           <input type="number" class="form-control" id="trailing" name="trailing" value="{{trailing}}" step="0.1" min="0" required>
       </div>
+  </div>
+  <div class="row">
+    <h6>Triggers</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="triggersCount">🎚Triggers count</label>
+          <input type="number" class="form-control" name="triggersCount" id="triggersCount" value="{{triggersCount}}" step="1" min="3">
+      </div>
       <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="tolerance">🎚Triggers (%)</label>
           <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" min="0.01">

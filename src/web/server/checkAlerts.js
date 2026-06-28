@@ -29,18 +29,16 @@ export const checkTriggers = async () => {
             } = ticker;
             const {
               attemptsCount = 0,
-              tolerance = 0.05,
+              tolerance = 0.15,
               candlesCount = 5,
               touchCount = 3,
               candlesPart = 3,
+              size = 1000,
+              triggersCount = 3,
             } = algoSettings;
             const bybit = bybitUsers[user];
-            //get candles
-            const candles = await bybit.getCandles(
-              symbol,
-              "4h",
-              candlesCount,
-            );
+            //get 4h candles
+            const candles = await bybit.getCandles(symbol, "4h", candlesCount);
             if (candles.length === 0) {
               continue;
             }
@@ -51,28 +49,94 @@ export const checkTriggers = async () => {
             const triggersRun = triggersArray.find((trigger) => {
               if (user === "main") {
                 return (
+                  trigger[1].size > 0 &&
                   trigger[1].active &&
                   (trigger[1].price - close) / close >= toleranceTrigger / 100
                 );
               } else {
                 return (
+                  trigger[1].size > 0 &&
                   trigger[1].active &&
                   (trigger[1].price - close) / close <= -toleranceTrigger / 100
                 );
               }
             });
-            //attempts 0-check position 1-on algotrading
-            if (attemptsCount === 1) {
-              await algoTrading(
-                ticker,
-                close,
-                bybit,
-                user,
-                triggersRun,
-              );
+            //attempts from [0-5] algotrading
+            if (attemptsCount <= 5) {
+              await algoTrading(ticker, close, bybit, user, triggersRun);
             }
-            //only alert
-            if (attemptsCount === 2) {
+            //set new triggers
+            const { support, resistance } = Indicators.calculateLevels(
+              candles,
+              touchCount,
+              candlesPart,
+            );
+            const triggerSupport =
+              triggersArray.length === 0 ||
+              triggersArray.find((trigger) => {
+                return (
+                  trigger[0] === "2" &&
+                  Math.abs(trigger[1].price - support) / support >
+                    toleranceTrigger / 100
+                );
+              });
+            const triggerResistance =
+              triggersArray.length === 0 ||
+              triggersArray.find((trigger) => {
+                return (
+                  trigger[0] === "2" &&
+                  Math.abs(trigger[1].price - resistance) / resistance >
+                    toleranceTrigger / 100
+                );
+              });
+            //support zone
+            if (support && triggerSupport && user === "main") {
+              await Ticker.setTriggers(
+                symbol,
+                support,
+                resistance,
+                user,
+                tolerance,
+                size,
+                triggersCount,
+              );
+              const pricePersent =
+                ((support - triggerSupport[1].price) /
+                  triggerSupport[1].price) *
+                100;
+              await bot.sendMessage({
+                text:
+                  `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                  `autoLevels 4h, size ${size}$ Support ${support.toFixed(priceScale)}$` +
+                  `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
+                  `#${symbol.slice(0, -4)}_auto`,
+              });
+            }
+            //resistance zone
+            if (resistance && triggerResistance && user === "sub") {
+              await Ticker.setTriggers(
+                symbol,
+                support,
+                resistance,
+                user,
+                tolerance,
+                size,
+                triggersCount,
+              );
+              const pricePersent =
+                ((resistance - triggerResistance[1].price) /
+                  triggerResistance[1].price) *
+                100;
+              await bot.sendMessage({
+                text:
+                  `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                  `autoLevels 4h, size ${size}$ Resistance ${resistance.toFixed(priceScale)}$` +
+                  `(${pricePersent > 0 ? "🔺+" : "🔺"}${pricePersent.toFixed(1)}%)\n` +
+                  `#${symbol.slice(0, -4)}_auto`,
+              });
+            }
+            //only alert [6]
+            if (attemptsCount === 6) {
               const timestampSeconds = Math.round(Date.now() / 1000);
               const silent10min =
                 !lastNotified ||

@@ -21,13 +21,14 @@ export class Simulator {
       deposit: 5000,
       balance: 5000,
       size: 5000,
-      speed: 100,
+      speed: 1000,
       part: 0,
-      tp: 2,
-      sl: -0.5,
-      candlesCount: 3,
-      touchCount: 2,
-      tolerance: 0.1,
+      tp: 3,
+      sl: -1,
+      candlesCount: 6,
+      touchCount: 3,
+      tolerance: 0.15,
+      triggersCount: 6,
       autoLong: false,
       autoShort: false,
       autoTp: false,
@@ -36,7 +37,7 @@ export class Simulator {
       result: null,
       breakeven: 0,
       trailing: 0,
-      candlesPart: 3,
+      candlesPart: 5,
     };
     this.longPosition = {
       size: 0,
@@ -57,6 +58,10 @@ export class Simulator {
     this.candleIndex = 0;
     this.trades = [];
     this._stopOptimization = false;
+    this.longTriggers = {};
+    this.shortTriggers = {};
+    this.longSilentTriggers = {};
+    this.shortSilentTriggers = {};
   }
   //save to LS
   saveField(key, value) {
@@ -127,6 +132,7 @@ export class Simulator {
         candlesCount: saved.candlesCount ?? this.defaultSettings.candlesCount,
         touchCount: saved.touchCount ?? this.defaultSettings.touchCount,
         tolerance: saved.tolerance ?? this.defaultSettings.tolerance,
+        triggersCount: saved.triggersCount ?? this.defaultSettings.triggersCount,
         candlesPart: saved.candlesPart ?? this.defaultSettings.candlesPart,
         autoLong: saved.autoLong ?? this.defaultSettings.autoLong,
         autoShort: saved.autoShort ?? this.defaultSettings.autoShort,
@@ -224,6 +230,7 @@ export class Simulator {
               part: parseFloat(data.get("part")),
               sl: parseFloat(data.get("sl")),
               candlesCount: parseFloat(data.get("candlesCount")),
+              triggersCount: parseFloat(data.get("triggersCount")),
               touchCount: parseFloat(data.get("touchCount")),
               tolerance: parseFloat(data.get("tolerance")),
               candlesPart: parseFloat(data.get("candlesPart")),
@@ -298,9 +305,9 @@ export class Simulator {
       .get("chart")
       .levelsLines["resistance"].options().price;
     if (side === "Long") {
-      this.setLongTriggers(support, resistance);
+      this.setLongTriggers(support);
     } else {  
-      this.setShortTriggers(support, resistance);
+      this.setShortTriggers(resistance);
     }
   }
   //get Candles
@@ -463,10 +470,8 @@ export class Simulator {
     //update Levels
     this.candleIndex++;
     const { autoLong, autoShort } = this.getDefaultConfig();
-    if (autoLong || autoLong) {
-      const candles = this.app.get("chart").candles.slice(0, this.candleIndex);
-      this.updateLevels(candles);
-    }
+    const candles = this.app.get("chart").candles.slice(0, this.candleIndex);
+    this.updateLevels(candles);
     if (autoLong) this.setTriggers("Long");
     if (autoShort) this.setTriggers("Short");
     this._checkPositions(candle);
@@ -485,6 +490,8 @@ export class Simulator {
   //positions
   closeAllPositions() {
     for (const line of [
+      ...Object.values(this.longTriggers),
+      ...Object.values(this.shortTriggers),
       ...Object.values(this.app.get("chart").longLines),
       ...Object.values(this.app.get("chart").shortLines),
     ]) {
@@ -497,53 +504,56 @@ export class Simulator {
     this.shortPosition.size = 0;
   }
   //first set Triggers
-  setLongTriggers(support, resistance) {
-    const { tolerance = 0.2 } = this.getDefaultConfig();
-    this.app.get("chart").longLines["enter1"].applyOptions({
-      color: "black",
+  setLongTriggers(support) {
+    const { tolerance, triggersCount } = this.getDefaultConfig();
+    //first delete old price lines
+    Object.values(this.longTriggers).forEach((item) => {
+      this.app.get("chart").candlestickSeries.removePriceLine(item);
+    });
+    this.longTriggers = {};
+    this.longTriggers["enter1"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: support * (1 + tolerance / 100),
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
       lineVisible: true,
       axisLabelVisible: true,
     });
-    this.app.get("chart").longLines["enter2"].applyOptions({
-      color: "black",
+    this.longTriggers["enter2"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: support,
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").longLines["enter3"].applyOptions({
       color: "black",
-      price: support * (1 - tolerance / 100),
+      lineWidth: 2,
+      lineStyle: 1,
       lineVisible: true,
       axisLabelVisible: true,
     });
-    this.app.get("chart").longLines["enter4"].applyOptions({
-      color: "black",
-      price: resistance * (1 + tolerance / 100),
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").longLines["enter5"].applyOptions({
-      color: "black",
-      price: resistance,
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").longLines["enter6"].applyOptions({
-      color: "black",
-      price: resistance * (1 - tolerance / 100),
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
+    let index = 1;
+    for (let i = 3; i <= triggersCount; i++) {
+      this.longTriggers[`enter${i}`] = this.app.get("chart").candlestickSeries.createPriceLine({
+        price: support * (1 - (tolerance * index++) / 100),
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: true,
+        axisLabelVisible: true,
+      });
+    }
   }
   setLongParams(entryPrice) {
     //if (this.longPosition.size > 0) return;
     const { tp = 2, sl = -0.5, part = 0 } = this.getDefaultConfig();
+    this.app.get("chart").longLines["enter"].applyOptions({
+      color: "black",
+      price: entryPrice,
+      lineVisible: true,
+      title: "Long",
+      axisLabelVisible: true,
+    });
     this.app.get("chart").longLines["sl"].applyOptions({
       color: "black",
       price: entryPrice * (1 - Math.abs(sl) / 100),
       lineVisible: true,
-      title: `LS${sl}%`,
+      title: `Long SL${sl}%`,
       axisLabelVisible: true,
     });
     if (part > 0) {
@@ -551,7 +561,7 @@ export class Simulator {
         color: "black",
         price: entryPrice * (1 + part / 100),
         lineVisible: true,
-        title: `LP${part}%`,
+        title: `Long Part ${part}%`,
         axisLabelVisible: true,
       });
     }
@@ -559,25 +569,30 @@ export class Simulator {
       color: "black",
       price: entryPrice * (1 + tp / 100),
       lineVisible: true,
-      title: `LT${tp}%`,
+      title: `Long TP ${tp}%`,
       axisLabelVisible: true,
     });
   }
   //Silent simulator
   setLongTriggerSilent(entryPrice, config) {
-    const { tolerance = 0.2 } = config;
-    this.longPosition["enter1"] = {
+    const { tolerance, triggersCount } = config;
+    //first delete old price lines
+    this.longSilentTriggers = {};
+    this.longSilentTriggers["enter1"] = {
       color: "black",
       price: entryPrice * (1 + tolerance / 100),
     };
-    this.longPosition["enter2"] = {
+    this.longSilentTriggers["enter2"] = {
       color: "black",
       price: entryPrice,
     };
-    this.longPosition["enter3"] = {
-      color: "black",
-      price: entryPrice * (1 - tolerance / 100),
-    };
+    let index = 1;
+    for (let i = 3; i <= triggersCount; i++) {
+      this.longSilentTriggers[`enter${i}`] = {
+        color: "black",
+        price: entryPrice * (1 - tolerance * index++ / 100),
+      };
+    }
   }
   setLongParamsSilent(entryPrice, config) {
     const { tp = 2, sl = -0.5, part = 0 } = config;
@@ -596,53 +611,56 @@ export class Simulator {
       price: entryPrice * (1 + tp / 100),
     };
   }
-  setShortTriggers(support, resistance) {
-    const { tolerance = 0.2 } = this.getDefaultConfig();
-    this.app.get("chart").shortLines["enter1"].applyOptions({
-      color: "black",
-      price: support * (1 - tolerance / 100),
-      lineVisible: true,
-      axisLabelVisible: true,
+  setShortTriggers(resistance) {
+    const { tolerance, triggersCount } = this.getDefaultConfig();
+    //first delete old price lines
+    Object.values(this.shortTriggers).forEach((item) => {
+      this.app.get("chart").candlestickSeries.removePriceLine(item);
     });
-    this.app.get("chart").shortLines["enter2"].applyOptions({
-      color: "black",
-      price: support,
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").shortLines["enter3"].applyOptions({
-      color: "black",
-      price: support * (1 + tolerance / 100),
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").shortLines["enter4"].applyOptions({
-      color: "black",
+    this.shortTriggers = {};
+    this.shortTriggers["enter1"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: resistance * (1 - tolerance / 100),
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
       lineVisible: true,
       axisLabelVisible: true,
     });
-    this.app.get("chart").shortLines["enter5"].applyOptions({
-      color: "black",
+    this.shortTriggers["enter2"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: resistance,
-      lineVisible: true,
-      axisLabelVisible: true,
-    });
-    this.app.get("chart").shortLines["enter6"].applyOptions({
       color: "black",
-      price: resistance * (1 + tolerance / 100),
+      lineWidth: 2,
+      lineStyle: 1,
       lineVisible: true,
       axisLabelVisible: true,
     });
+    let index = 1;
+    for (let i = 3; i <= triggersCount; i++) {
+      this.shortTriggers[`enter${i}`] = this.app.get("chart").candlestickSeries.createPriceLine({
+        price: resistance * (1 + tolerance * index++ / 100),
+        color: "black",
+        lineWidth: 2,
+        lineStyle: 1,
+        lineVisible: true,
+        axisLabelVisible: true,
+      });
+    }
   }
   setShortParams(entryPrice) {
     //if (this.shortPosition.size > 0) return;
     const { tp = 2, sl = -0.5, part = 0 } = this.getDefaultConfig();
+    this.app.get("chart").shortLines["enter"].applyOptions({
+      color: "black",
+      price: entryPrice,
+      lineVisible: true,
+      title: "Short",
+      axisLabelVisible: true,
+    });
     this.app.get("chart").shortLines["sl"].applyOptions({
       color: "black",
       price: entryPrice * (1 + Math.abs(sl) / 100),
       lineVisible: true,
-      title: `SS${sl}%`,
+      title: `Short SL${sl}%`,
       axisLabelVisible: true,
     });
     if (part > 0) {
@@ -650,7 +668,7 @@ export class Simulator {
         color: "black",
         price: entryPrice * (1 - part / 100),
         lineVisible: true,
-        title: `SP${part}%`,
+        title: `Short Part ${part}%`,
         axisLabelVisible: true,
       });
     }
@@ -658,24 +676,29 @@ export class Simulator {
       color: "black",
       price: entryPrice * (1 - tp / 100),
       lineVisible: true,
-      title: `ST${tp}%`,
+      title: `Short TP${tp}%`,
       axisLabelVisible: true,
     });
   }
   setShortTriggerSilent(entryPrice, config) {
-    const { tolerance = 0.2 } = config;
-    this.shortPosition["enter1"] = {
+    const { tolerance, triggersCount } = config;
+    //first delete old price lines
+    this.shortSilentTriggers = {};
+    this.shortSilentTriggers["enter1"] = {
       color: "black",
       price: entryPrice * (1 - tolerance / 100),
     };
-    this.shortPosition["enter2"] = {
+    this.shortSilentTriggers["enter2"] = {
       color: "black",
       price: entryPrice,
     };
-    this.shortPosition["enter3"] = {
-      color: "black",
-      price: entryPrice * (1 + tolerance / 100),
-    };
+    let index = 1;
+    for (let i = 3; i <= triggersCount; i++) {
+      this.shortSilentTriggers[`enter${i}`] = {
+        color: "black",
+        price: entryPrice * (1 + tolerance * index++ / 100),
+      };
+    }
   }
   setShortParamsSilent(entryPrice, config) {
     const { tp = 2, sl = -0.5, part = 0 } = config;
@@ -716,7 +739,7 @@ export class Simulator {
     //candle colors
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing } = this.getDefaultConfig();
+    const { autoTp, autoPart, breakeven, trailing, triggersCount } = this.getDefaultConfig();
     const support = this.app
       .get("chart")
       .levelsLines["support"].options().price;
@@ -732,7 +755,7 @@ export class Simulator {
     this.shortPosition.markPrice = candle.high;
     //LONG
     for (const [name, line] of Object.entries(
-      this.app.get("chart").longLines,
+      {...this.longTriggers, ...this.app.get("chart").longLines},
     )) {
       //autoTp Part
       if (name === "part" && this.longPosition.size > 0 && colorR && autoPart) {
@@ -772,7 +795,7 @@ export class Simulator {
       //open position
       if (
         visible &&
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -782,13 +805,13 @@ export class Simulator {
         const { size } = this.getDefaultConfig();
         if (this.longPosition.size === 0) {
           this.longPosition = {
-            size: size / 6,
+            size: size / triggersCount,
             entryPrice: price,
             createdTime: candle.time * 1000,
           };
         } else {
           if (this.longPosition.size < size) {
-            this.longPosition.size = longPosition.size + size / 6;
+            this.longPosition.size = this.longPosition.size + size / triggersCount;
             this.longPosition.entryPrice =
               (this.longPosition.entryPrice + price) / 2;
           }
@@ -884,7 +907,7 @@ export class Simulator {
     }
     //check Short
     for (const [name, line] of Object.entries(
-      this.app.get("chart").shortLines,
+      {...this.shortTriggers, ...this.app.get("chart").shortLines},
     )) {
       //autoPart Short
       if (
@@ -928,7 +951,7 @@ export class Simulator {
       }
       if (
         visible &&
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -938,13 +961,13 @@ export class Simulator {
         const { size } = this.getDefaultConfig();
         if (this.shortPosition.size === 0) {
           this.shortPosition = {
-            size: size / 6,
+            size: size / triggersCount,
             entryPrice: price,
             createdTime: candle.time * 1000,
           };
         } else {
           if (this.shortPosition.size < size) {
-            this.shortPosition.size = this.shortPosition.size + size / 6;
+            this.shortPosition.size = this.shortPosition.size + size / triggersCount;
             this.shortPosition.entryPrice =
               (this.shortPosition.entryPrice + price) / 2;
           }
@@ -1236,7 +1259,12 @@ export class Simulator {
     this.longPosition.markPrice = candle.low;
     this.shortPosition.markPrice = candle.high;
     //LONG
-    for (const name of ["enter1", "enter2", "enter3", "sl", "part", "tp"]) {
+    for (const [name, line] of Object.entries(
+      {...this.longSilentTriggers, ...this.longPosition},
+    )) {
+    //for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "sl", "part", "tp"]) {
+      if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
+        continue;
       //autoTp Part
       if (
         name === "part" &&
@@ -1254,8 +1282,8 @@ export class Simulator {
         if (resistance > entryPrice) this.longPosition[name].price = resistance;
       }
       //breakeven
-      const price = this.longPosition[name]?.price;
-      const color = this.longPosition[name]?.color;
+      const price = line.price;
+      const color = line.color;
       if (name === "sl" && this.longPosition.size > 0) {
         const { entryPrice, markPrice } = this.longPosition;
         const pnl = ((markPrice - entryPrice) / entryPrice) * 100;
@@ -1270,7 +1298,7 @@ export class Simulator {
       }
       //open position
       if (
-        ["enter1", "enter2", "enter3"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -1288,7 +1316,7 @@ export class Simulator {
           }
         }
         this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
-        this.longPosition[name].color = "green";
+        this.longSilentTriggers[name].color = "green";
       }
       //check position
       if (
@@ -1365,8 +1393,13 @@ export class Simulator {
       }
     }
     //check Short
-    for (const name of ["enter1", "enter2", "enter3", "sl", "tp", "part"]) {
+    for (const [name, line] of Object.entries(
+      {...this.shortSilentTriggers, ...this.shortPosition},
+    )) {
+    //for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "sl", "tp", "part"]) {
       //autoTp Short
+      if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
+        continue;
       if (
         name === "part" &&
         this.shortPosition.size > 0 &&
@@ -1382,8 +1415,8 @@ export class Simulator {
         const { entryPrice } = this.shortPosition;
         if (support < entryPrice) this.shortPosition[name].price = support;
       }
-      const price = this.shortPosition[name]?.price;
-      const color = this.shortPosition[name]?.color;
+      const price = line.price;
+      const color = line.color;
       //breakeven
       if (name === "sl" && this.shortPosition.size > 0) {
         const { entryPrice, markPrice } = this.shortPosition;
@@ -1398,7 +1431,7 @@ export class Simulator {
         }
       }
       if (
-        ["enter1", "enter2", "enter3"].includes(name) &&
+        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
         price <= candle.high &&
         price >= candle.low &&
         color === "black"
@@ -1416,7 +1449,7 @@ export class Simulator {
           }
         }
         this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
-        this.shortPosition[name].color = "green";
+        this.shortSilentTriggers[name].color = "green";
       }
       //check position
       if (
@@ -1507,24 +1540,16 @@ export class Simulator {
     this.trades = [];
     this.longPosition.size = 0;
     this.shortPosition.size = 0;
-    this.shortPosition["enter1"] = {
-      color: "green",
-    };
-    this.shortPosition["enter2"] = {
-      color: "green",
-    };
-    this.shortPosition["enter3"] = {
-      color: "green",
-    };
-    this.longPosition["enter1"] = {
-      color: "green",
-    };
-    this.longPosition["enter2"] = {
-      color: "green",
-    };
-    this.longPosition["enter3"] = {
-      color: "green",
-    };
+    this.longSilentTriggers = {};
+    this.shortSilentTriggers = {};
+    // for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"]) {
+    //   this.shortPosition[name] = {
+    //     color: "green",
+    //   };
+    //   this.longPosition[name] = {
+    //     color: "green",
+    //   };
+    // }
     this.stats = {
       profitableTrades: 0,
       lossTrades: 0,
@@ -1594,10 +1619,10 @@ export class Simulator {
         trailing_step: saved.trailing_step || 0.5,
 
         optCandles: saved.optCandles || false,
-        candlesCount: saved.candlesCount || "6,8,10,15",
+        candlesCount: saved.candlesCount || "3,4,5,6,8",
 
         optTouches: saved.optTouches || false,
-        touchCount: saved.touchCount || "3,4",
+        touchCount: saved.touchCount || "3,4,5",
       }),
       size: "lg",
       actions: {

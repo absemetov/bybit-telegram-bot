@@ -276,7 +276,7 @@ export class StatsWidget {
         axisLabelVisible: true,
         title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
       });
-      this.app.get("chart").shortLines["enter1"].applyOptions({
+      this.app.get("chart").shortLines["enter"].applyOptions({
         price: entryPrice,
         lineVisible: true,
         axisLabelVisible: true,
@@ -309,7 +309,7 @@ export class StatsWidget {
         axisLabelVisible: true,
         title: `${(((exitPrice - entryPrice) / entryPrice) * 100).toFixed(2)}%`,
       });
-      this.app.get("chart").longLines["enter1"].applyOptions({
+      this.app.get("chart").longLines["enter"].applyOptions({
         price: entryPrice,
         lineVisible: true,
         axisLabelVisible: true,

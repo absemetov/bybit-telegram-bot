@@ -15,8 +15,17 @@
           <label class="form-label text-primary" for="size">💰Position size ($)</label>
           <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
       </div>
+  </div>
+  <div class="row">
+    <h6>Triggers</h6>
+  </div>
+  <div class="row">
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="tolerance">🎚Triggers (%)</label>
+          <label class="form-label text-primary" for="triggersCount">🎚Triggers count</label>
+          <input type="number" class="form-control" name="triggersCount" id="triggersCount" value="{{triggersCount}}" step="1" max="10" min="3">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="tolerance">🎚Step (%)</label>
           <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
       </div>
   </div>
@@ -52,7 +61,7 @@
       </div>
   </div>
   <div class="row">
-    <h6>Levels settings</h6>
+    <h6>4h enter Levels settings</h6>
   </div>
   <div class="row">
       <div class="col-md-4 mb-3">

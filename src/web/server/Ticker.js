@@ -29,7 +29,7 @@ class Ticker {
     return null;
   }
   //create Triggers
-  static async setTriggers(symbol, support, resistance, user, tolerance, size) {
+  static async setTriggers(symbol, support, resistance, user, tolerance, size, triggersCount = 3) {
     //clear All stop orders
     const side = user === "main" ? "Buy" : "Sell";
     const price = user === "main" ? support : resistance;
@@ -38,43 +38,31 @@ class Ticker {
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const position = positions.find((p) => p.side === side);
     const triggerSize = position
-      ? (size - position.avgPrice * position.size) / 6
-      : size / 6;
-    if (price && triggerSize) {
+      ? (size - position.avgPrice * position.size) / triggersCount
+      : size / triggersCount;
+    if (price) {
       const triggers = {
         [`${user}Triggers`]: {
           1: {
             price: price * (1 + toleranceSide / 100),
             active: true,
-            size: triggerSize,
+            size: triggerSize > 0 ? triggerSize : 0,
           },
           2: {
             price: price,
             active: true,
-            size: triggerSize,
-          },
-          3: {
-            price: price * (1 - toleranceSide / 100),
-            active: true,
-            size: triggerSize,
-          },
-          4: {
-            price: price * (1 - (toleranceSide * 2) / 100),
-            active: true,
-            size: triggerSize,
-          },
-          5: {
-            price: price * (1 - (toleranceSide * 3) / 100),
-            active: true,
-            size: triggerSize,
-          },
-          6: {
-            price: price * (1 - (toleranceSide * 4) / 100),
-            active: true,
-            size: triggerSize,
+            size: triggerSize > 0 ? triggerSize : 0,
           },
         },
       };
+      let index = 1;
+      for (let i = 3; i <= triggersCount; i++) {
+        triggers[`${user}Triggers`][i] = {
+          price: price * (1 - (toleranceSide * index++) / 100),
+          active: true,
+          size: triggerSize > 0 ? triggerSize : 0,
+        }
+      }
       await Ticker.update(symbol, triggers);
       return triggers[`${user}Triggers`];
     }

@@ -117,7 +117,7 @@ app.post("/api/tickers", auth, async (req, res) => {
 app.post("/api/:symbol/triggers/set", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const { support, resistance, tolerance, size } = req.body;
+    const { support, resistance, tolerance, size, triggersCount } = req.body;
     const triggers = await Ticker.setTriggers(
       symbol,
       support,
@@ -125,6 +125,7 @@ app.post("/api/:symbol/triggers/set", auth, async (req, res) => {
       req.bybitUser,
       tolerance,
       size,
+      triggersCount,
     );
     return res.json(triggers);
   } catch (error) {
@@ -149,6 +150,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       trailing,
       part,
       priceScale,
+      triggersCount,
     } = req.body;
     await Ticker.update(symbol, {
       [req.bybitUser]: {
@@ -164,6 +166,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
         breakeven,
         trailing,
         part,
+        triggersCount,
       },
     });
     //set Part50

@@ -1,6 +1,6 @@
 import Ticker from "./Ticker.js";
 import bot from "./telegram.js";
-const MAX_POSITION_USDT = 16000;
+const MAX_POSITION_USDT = 10000;
 const TAKE_PROFIT = 3;
 const STOP_LOSS = -0.5;
 //check TP SL break set default values
@@ -199,31 +199,16 @@ async function sendTelegramReport(symbol, bybit, user, priceScale) {
     },
   });
 }
-//core 2/03/2026 4/03/2026
+//core 2/03/2026 4/03/2026 26/06/2026 only algotrading
+//The bot acts strictly according to predefined rules: no greed, fear, or hope. It will not move a stop-loss "because it feels right,"
+//nor will it enter a trade out of euphoria after news events.
+//Emotions are the primary reason retail traders blow up their accounts, and an algorithm completely removes them from the equation.
 export const algoTrading = async (ticker, price, bybit, user, trigger) => {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   try {
-    const { size, slOpen, tp, part } = algoSettings || {};
-    //your trading account must not drop below 90% of the initial account balance!!!
+    const { size, slOpen, tp, part, attemptsCount } = algoSettings || {};
     const orders = await bybit.getTickerOrders(symbol);
-    //const longOrders = orders.stop.filter((o) => o.side === "Buy");
-    //const shortOrders = orders.stop.filter((o) => o.side === "Sell");
     const positions = await bybit.getTickerPositions(symbol);
-    // const longPosition = positions.find((p) => p.side === "Buy");
-    // const shortPosition = positions.find((p) => p.side === "Sell");
-    // const longOrdersSum = longOrders.reduce((sum, order) => {
-    //   return sum + (order.price * order.qty);
-    // }, 0);
-    // const shortOrdersSum = shortOrders.reduce((sum, order) => {
-    //   return sum + (order.price * order.qty);
-    // }, 0);
-    // const longSize = longPosition
-    //   ? size - longPosition.avgPrice * longPosition.size
-    //   : size;
-    // const shortSize = shortPosition
-    //   ? size - shortPosition.avgPrice * shortPosition.size
-    //   : size;
-    //New 28/02/2026 add open close event save position value in firestore
     const currentMap = {};
     positions.forEach((p) => {
       currentMap[p.side] = p;
@@ -236,6 +221,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       if (!ticker[`position${side}Value`] && currentPosition) {
         const posValue = currentPosition.avgPrice * currentPosition.size;
         await Ticker.update(symbol, {
+          [`${user}.attemptsCount`]: attemptsCount - 1,
           [`${user}Position${side}Value`]: posValue,
           [`${user}.sl`]: slOpen,
         });

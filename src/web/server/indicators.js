@@ -5,11 +5,8 @@ class Indicators {
     const levelsHigh = [];
 
     candles.forEach((candle, index) => {
-      // ---------- Поддержка (нижняя 1/5) ----------
       const zoneLow = candle.low;
       const zoneHigh = candle.low + (candle.high - candle.low) / tolerance;
-
-      // Находим все свечи, пересекающиеся с зоной текущей свечи (включая саму свечу)
       const intersectingLow = candles.filter((c, i) => {
         const cLow = c.low;
         const cHigh = c.low + (c.high - c.low) / tolerance;
@@ -17,7 +14,6 @@ class Indicators {
       });
 
       if (intersectingLow.length >= touchCount) {
-        // Вычисляем общее пересечение
         const overlapLow = Math.max(...intersectingLow.map((c) => c.low));
         const overlapHigh = Math.min(
           ...intersectingLow.map((c) => c.low + (c.high - c.low) / tolerance),
@@ -26,7 +22,6 @@ class Indicators {
         levelsLow.push(mid);
       }
 
-      // ---------- Сопротивление (верхняя 1/5) ----------
       const resistLow = candle.high - (candle.high - candle.low) / tolerance;
       const resistHigh = candle.high;
 

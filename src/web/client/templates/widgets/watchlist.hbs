@@ -24,7 +24,7 @@
       <tbody>
         {{#each tickers}}
         <tr data-symbol="{{symbol}}">
-          <td><a href="#/{{symbol}}">{{symbol}}</a>{{#if ../isAuth}}{{tradingIcon algoSettings}}{{/if}}</td>
+          <td><a href="#/{{symbol}}">{{symbol}}</a>{{#if ../isAuth}} {{{tradingIcon algoSettings}}}{{/if}}</td>
           <td></td>
           <td></td>
           {{#if ../isAuth}}
