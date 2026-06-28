@@ -801,25 +801,25 @@ export class Simulator {
         color === "black"
       ) {
         //position opened
-        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
-        const { size } = this.getDefaultConfig();
-        if (this.longPosition.size === 0) {
-          this.longPosition = {
-            size: size / triggersCount,
-            entryPrice: price,
-            createdTime: candle.time * 1000,
-          };
-        } else {
-          if (this.longPosition.size < size) {
-            this.longPosition.size = this.longPosition.size + size / triggersCount;
-            this.longPosition.entryPrice =
-              (this.longPosition.entryPrice + price) / 2;
-          }
-        }
-        this.setLongParams(this.longPosition.entryPrice);
         line.applyOptions({
           color: "green",
         });
+        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
+        const { size } = this.getDefaultConfig();
+        if (this.longPosition.size === 0) {
+          this.longPosition.size = size / triggersCount;
+          this.longPosition.entryPrice = price;
+          this.longPosition.createdTime = candle.time * 1000;
+        } else {
+          if (this.longPosition.size < size) {
+            this.longPosition.size = this.longPosition.size + size / triggersCount;
+            // avg enter price
+            const greenTriggers = Object.values(this.longTriggers).filter((t) => t.options().color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
+            this.longPosition.entryPrice = sum / greenTriggers.length;
+          }
+        }
+        this.setLongParams(this.longPosition.entryPrice);
       }
       //check position
       if (
@@ -957,25 +957,25 @@ export class Simulator {
         color === "black"
       ) {
         //position opened
+        line.applyOptions({
+          color: "green",
+        });
         if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
         const { size } = this.getDefaultConfig();
         if (this.shortPosition.size === 0) {
-          this.shortPosition = {
-            size: size / triggersCount,
-            entryPrice: price,
-            createdTime: candle.time * 1000,
-          };
+          this.shortPosition.size = size / triggersCount;
+          this.shortPosition.entryPrice = price;
+          this.shortPosition.createdTime = candle.time * 1000;
         } else {
           if (this.shortPosition.size < size) {
             this.shortPosition.size = this.shortPosition.size + size / triggersCount;
+            const greenTriggers = Object.values(this.shortTriggers).filter((t) => t.options().color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
             this.shortPosition.entryPrice =
               (this.shortPosition.entryPrice + price) / 2;
           }
         }
         this.setShortParams(this.shortPosition.entryPrice);
-        line.applyOptions({
-          color: "green",
-        });
       }
       //check positions
       if (
@@ -1262,7 +1262,6 @@ export class Simulator {
     for (const [name, line] of Object.entries(
       {...this.longSilentTriggers, ...this.longPosition},
     )) {
-    //for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "sl", "part", "tp"]) {
       if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
         continue;
       //autoTp Part
@@ -1304,6 +1303,7 @@ export class Simulator {
         color === "black"
       ) {
         //position opened
+        this.longSilentTriggers[name].color = "green";
         if (this.longPosition.size === 0) {
           this.longPosition.size = size / 3;
           this.longPosition.entryPrice = price;
@@ -1311,12 +1311,12 @@ export class Simulator {
         } else {
           if (this.longPosition.size < size) {
             this.longPosition.size = this.longPosition.size + size / 3;
-            this.longPosition.entryPrice =
-              (this.longPosition.entryPrice + price) / 2;
+            const greenTriggers = Object.values(this.longSilentTriggers).filter((t) => t.color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
+            this.longPosition.entryPrice = sum / greenTriggers.length;
           }
         }
         this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
-        this.longSilentTriggers[name].color = "green";
       }
       //check position
       if (
@@ -1396,7 +1396,6 @@ export class Simulator {
     for (const [name, line] of Object.entries(
       {...this.shortSilentTriggers, ...this.shortPosition},
     )) {
-    //for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "sl", "tp", "part"]) {
       //autoTp Short
       if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
         continue;
@@ -1437,6 +1436,7 @@ export class Simulator {
         color === "black"
       ) {
         //position opened
+        this.shortSilentTriggers[name].color = "green";
         if (this.shortPosition.size === 0) {
           this.shortPosition.size = size / 3;
           this.shortPosition.entryPrice = price;
@@ -1444,12 +1444,12 @@ export class Simulator {
         } else {
           if (this.shortPosition.size < size) {
             this.shortPosition.size = this.shortPosition.size + size / 3;
-            this.shortPosition.entryPrice =
-              (this.shortPosition.entryPrice + price) / 2;
+            const greenTriggers = Object.values(this.shortSilentTriggers).filter((t) => t.color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
+            this.shortPosition.entryPrice = sum / greenTriggers.length;
           }
         }
         this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
-        this.shortSilentTriggers[name].color = "green";
       }
       //check position
       if (

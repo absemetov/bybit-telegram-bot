@@ -35,7 +35,10 @@ export function registerHelpers(Handlebars) {
     return str.replace(/\./g, ",");
   });
   Handlebars.registerHelper("changePercent", (a, b) => {
-    return ((Math.abs(a - b) / b) * 100).toFixed(2);
+    const numA = parseFloat(a);
+    const numB = parseFloat(b);
+    if (isNaN(numA) || isNaN(numB) || numB === 0) return "—";
+    return ((Math.abs(numA - numB) / numB) * 100).toFixed(2);
   });
   Handlebars.registerHelper("formatDate", (dateString) => {
     if (!dateString) return "";

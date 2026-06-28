@@ -288,7 +288,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       }
     }
     //create LONG orders by alerts 4/03/2026
-    if (trigger && user === "main") {
+    if (trigger && user === "main" && attemptsCount > 0) {
       const triggerId = trigger[0];
       const triggerPrice = trigger[1].price;
       const triggerSize = trigger[1].size;
@@ -307,7 +307,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       });
     }
     //create SHORT order min size 20$
-    if (trigger && user === "sub") {
+    if (trigger && user === "sub" && attemptsCount > 0) {
       //const triggerPrice = trigger[0] * (1 - tolerance / 100);
       const triggerId = trigger[0];
       const triggerPrice = trigger[1].price;
