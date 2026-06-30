@@ -343,7 +343,7 @@ export class Simulator {
     this.candleIndex = 0;
     this.app.get("chart").visibleTriggers(false);
     this.app.get("chart").visiblePositions(false);
-    this.app.get("chart").visibleLevels(false);
+    this.app.get("chart").visibleLevels(true);
     this.trades = [];
     this.longPosition.size = 0;
     this.shortPosition.size = 0;

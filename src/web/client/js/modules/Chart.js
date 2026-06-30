@@ -678,13 +678,14 @@ export class Chart {
         const candlesCount =
           this.app.state.get("algoSettings.candlesCount") || 5;
         const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
+        const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
         document.querySelector(`[data-bind="candleInfo"]`).textContent =
           `${this.volumeSeries.priceFormatter().format(datapoints.value)}
         (${
           candle.close > candle.open
             ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}`
             : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`
-        }%) [${candlesCount}, ${touchCount}]`;
+        }%) [${candlesCount}, ${touchCount}, ${candlesPart}]`;
       }
     }
     //drag and drop priceLines

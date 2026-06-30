@@ -134,7 +134,7 @@ const checkPositions = async (
   }
 };
 //telegram close position msg
-async function sendTelegramReport(symbol, bybit, user, priceScale) {
+async function sendTelegramReport(symbol, bybit, user, priceScale, attemptsCount) {
   const closedPositions = await bybit.getClosedPositionsHistory(symbol);
   const lastClosedPosition = closedPositions.positions[0];
   const { closedPnl, side } = lastClosedPosition;
@@ -178,6 +178,7 @@ async function sendTelegramReport(symbol, bybit, user, priceScale) {
       `${closedPnl > 0 ? "✅" : "⛔️"}[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
       `${closedPnl > 0 ? "👍Profit" : "☝️Loss"} ${side !== "Buy" ? "📈 Long" : "📉 Short"} position closed\n` +
       `💰Balance: ${balance.toFixed(2)}$\n` +
+      `html<b>attemptsCount: ${attemptsCount}</b>html\n` +
       `${positions.length} trades analytics\n` +
       `Total Pnl: ${totalData.pnl.toFixed(2)}$ (${totalData.totalPrcnt > 0 ? "+" : ""}${totalData.totalPrcnt.toFixed(2)}%), WinRate: ${winRate}%, profitTrades: +${profitableTrades}(+${totalData.profPrcnt.toFixed(2)}%), lossTrades: -${lossTrades}(-${totalData.lossPrcnt.toFixed(2)}%)\n` +
       closedPositions.positions
@@ -284,7 +285,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
           [`${user}Position${side}Value`]: 0,
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendTelegramReport(symbol, bybit, user, priceScale);
+        await sendTelegramReport(symbol, bybit, user, priceScale, attemptsCount);
       }
     }
     //create LONG orders by alerts 4/03/2026
