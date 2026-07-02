@@ -1,49 +1,49 @@
 class Indicators {
   //levels
   static calculateLevels(candles, touchCount = 4, tolerance = 3) {
+    const max = Math.max(...candles.map((c) => c.high));
+    const min = Math.min(...candles.map((c) => c.low));
+    const range = max - min;
+    const step = range / 20;
     const levelsLow = [];
     const levelsHigh = [];
 
-    candles.forEach((candle) => {
-      const supportLow = candle.low;
-      const supportHigh = candle.low + (candle.high - candle.low) / tolerance;
-      const intersectingSupport = candles.filter((c) => {
-        const cLow = c.low;
-        const cHigh = c.low + (c.high - c.low) / tolerance;
-        return Math.max(supportLow, cLow) < Math.min(supportHigh, cHigh);
+    for (let level = min; level <= max; level += step) {
+      const lowBound = level;
+      const highBound = level + step;
+
+      // Поддержка
+      const supportCandles = candles.filter((c) => {
+        const zoneLow = c.low;
+        const zoneHigh = c.low + (c.high - c.low) / tolerance;
+        return Math.max(zoneLow, lowBound) < Math.min(zoneHigh, highBound);
       });
 
-      if (intersectingSupport.length - 1 >= touchCount) {
-        const overlapLow = Math.max(...intersectingSupport.map((c) => c.low));
+      if (supportCandles.length >= touchCount) {
+        const overlapLow = Math.max(...supportCandles.map((c) => c.low));
         const overlapHigh = Math.min(
-          ...intersectingSupport.map(
-            (c) => c.low + (c.high - c.low) / tolerance,
-          ),
+          ...supportCandles.map((c) => c.low + (c.high - c.low) / tolerance),
         );
         const mid = (overlapLow + overlapHigh) / 2;
         levelsLow.push(mid);
       }
 
-      const resistLow = candle.high - (candle.high - candle.low) / tolerance;
-      const resistHigh = candle.high;
-
-      const intersectingResist = candles.filter((c) => {
-        const cLow = c.high - (c.high - c.low) / tolerance;
-        const cHigh = c.high;
-        return Math.max(resistLow, cLow) < Math.min(resistHigh, cHigh);
+      // Сопротивление
+      const resistCandles = candles.filter((c) => {
+        const zoneLow = c.high - (c.high - c.low) / tolerance;
+        const zoneHigh = c.high;
+        return Math.max(zoneLow, lowBound) < Math.min(zoneHigh, highBound);
       });
 
-      if (intersectingResist.length - 1 >= touchCount) {
+      if (resistCandles.length >= touchCount) {
         const overlapLow = Math.max(
-          ...intersectingResist.map(
-            (c) => c.high - (c.high - c.low) / tolerance,
-          ),
+          ...resistCandles.map((c) => c.high - (c.high - c.low) / tolerance),
         );
-        const overlapHigh = Math.min(...intersectingResist.map((c) => c.high));
+        const overlapHigh = Math.min(...resistCandles.map((c) => c.high));
         const mid = (overlapLow + overlapHigh) / 2;
         levelsHigh.push(mid);
       }
-    });
+    }
 
     const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
     const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;

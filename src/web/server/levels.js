@@ -305,6 +305,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       //disable trigger
       await Ticker.update(symbol, {
         [`${user}Triggers.${triggerId}.active`]: false,
+        [`${user}.sl`]: slOpen,
       });
     }
     //create SHORT order min size 20$
@@ -325,6 +326,7 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       //disable trigger
       await Ticker.update(symbol, {
         [`${user}Triggers.${triggerId}.active`]: false,
+        [`${user}.sl`]: slOpen,
       });
     }
     //set TP/SL break trailing control FOMO

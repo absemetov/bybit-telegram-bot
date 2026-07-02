@@ -44,11 +44,16 @@ class Ticker {
       const triggers = {
         [`${user}Triggers`]: {
           1: {
-            price: price * (1 + toleranceSide / 100),
+            price: price * (1 + (toleranceSide * 2) / 100),
             active: true,
             size: triggerSize > 0 ? triggerSize : 0,
           },
           2: {
+            price: price * (1 + toleranceSide / 100),
+            active: true,
+            size: triggerSize > 0 ? triggerSize : 0,
+          },
+          3: {
             price: price,
             active: true,
             size: triggerSize > 0 ? triggerSize : 0,
@@ -56,7 +61,7 @@ class Ticker {
         },
       };
       let index = 1;
-      for (let i = 3; i <= triggersCount; i++) {
+      for (let i = 4; i <= triggersCount; i++) {
         triggers[`${user}Triggers`][i] = {
           price: price * (1 - (toleranceSide * index++) / 100),
           active: true,

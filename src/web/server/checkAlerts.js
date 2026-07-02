@@ -32,7 +32,7 @@ export const checkTriggers = async () => {
               tolerance = 0.15,
               candlesCount = 5,
               touchCount = 3,
-              candlesPart = 3,
+              candlesPart = 0.5,
               size = 1000,
               triggersCount = 3,
             } = algoSettings;
@@ -75,7 +75,7 @@ export const checkTriggers = async () => {
               triggersArray.length === 0 ||
               triggersArray.find((trigger) => {
                 return (
-                  trigger[0] === "2" &&
+                  trigger[0] === "3" &&
                   Math.abs(trigger[1].price - support) / support >
                     toleranceTrigger / 100
                 );
@@ -84,7 +84,7 @@ export const checkTriggers = async () => {
               triggersArray.length === 0 ||
               triggersArray.find((trigger) => {
                 return (
-                  trigger[0] === "2" &&
+                  trigger[0] === "3" &&
                   Math.abs(trigger[1].price - resistance) / resistance >
                     toleranceTrigger / 100
                 );
@@ -131,7 +131,7 @@ export const checkTriggers = async () => {
                 text:
                   `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
                   `autoLevels 4h, size ${size}$ Resistance ${resistance.toFixed(priceScale)}$` +
-                  `(${pricePersent > 0 ? "🔺+" : "🔺"}${pricePersent.toFixed(1)}%)\n` +
+                  `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
                   `#${symbol.slice(0, -4)}_auto`,
               });
             }

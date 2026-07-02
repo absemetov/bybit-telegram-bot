@@ -296,7 +296,7 @@ export class Simulator {
     slInput.addEventListener("input", updateCalculations);
     updateCalculations();
   }
-  setTriggers(side) {
+  setTriggers(side, auto) {
     this.app.get("chart").visibleLevels(true);
     const support = this.app
       .get("chart")
@@ -304,6 +304,21 @@ export class Simulator {
     const resistance = this.app
       .get("chart")
       .levelsLines["resistance"].options().price;
+    if (auto) {
+      const supportColor = this.app
+        .get("chart")
+        .levelsLines["support"].options().color;
+      const resistanceColor = this.app
+        .get("chart")
+        .levelsLines["resistance"].options().color;
+      if (side === "Long" && supportColor === "green") {
+        this.setLongTriggers(support);
+      }
+      if (side === "Short" && resistanceColor === "red") {  
+        this.setShortTriggers(resistance);
+      }
+      return;
+    }
     if (side === "Long") {
       this.setLongTriggers(support);
     } else {  
@@ -345,8 +360,12 @@ export class Simulator {
     this.app.get("chart").visiblePositions(false);
     this.app.get("chart").visibleLevels(true);
     this.trades = [];
-    this.longPosition.size = 0;
-    this.shortPosition.size = 0;
+    this.longPosition = {
+      size: 0,
+    };
+    this.shortPosition = {
+      size: 0,
+    };
     this.stats = {
       profitableTrades: 0,
       lossTrades: 0,
@@ -472,8 +491,8 @@ export class Simulator {
     const { autoLong, autoShort } = this.getDefaultConfig();
     const candles = this.app.get("chart").candles.slice(0, this.candleIndex);
     this.updateLevels(candles);
-    if (autoLong) this.setTriggers("Long");
-    if (autoShort) this.setTriggers("Short");
+    if (autoLong) this.setTriggers("Long", true);
+    if (autoShort) this.setTriggers("Short", true);
     this._checkPositions(candle);
   }
   //delete last candle
@@ -512,7 +531,7 @@ export class Simulator {
     });
     this.longTriggers = {};
     this.longTriggers["enter1"] = this.app.get("chart").candlestickSeries.createPriceLine({
-      price: support * (1 + tolerance / 100),
+      price: support * (1 + (tolerance * 2) / 100),
       color: "black",
       lineWidth: 2,
       lineStyle: 1,
@@ -520,6 +539,14 @@ export class Simulator {
       axisLabelVisible: true,
     });
     this.longTriggers["enter2"] = this.app.get("chart").candlestickSeries.createPriceLine({
+      price: support * (1 + tolerance / 100),
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.longTriggers["enter3"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: support,
       color: "black",
       lineWidth: 2,
@@ -528,7 +555,7 @@ export class Simulator {
       axisLabelVisible: true,
     });
     let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    for (let i = 4; i <= triggersCount; i++) {
       this.longTriggers[`enter${i}`] = this.app.get("chart").candlestickSeries.createPriceLine({
         price: support * (1 - (tolerance * index++) / 100),
         color: "black",
@@ -540,7 +567,6 @@ export class Simulator {
     }
   }
   setLongParams(entryPrice) {
-    //if (this.longPosition.size > 0) return;
     const { tp = 2, sl = -0.5, part = 0 } = this.getDefaultConfig();
     this.app.get("chart").longLines["enter"].applyOptions({
       color: "black",
@@ -580,14 +606,18 @@ export class Simulator {
     this.longSilentTriggers = {};
     this.longSilentTriggers["enter1"] = {
       color: "black",
-      price: entryPrice * (1 + tolerance / 100),
+      price: entryPrice * (1 + (tolerance * 2) / 100),
     };
     this.longSilentTriggers["enter2"] = {
+      color: "black",
+      price: entryPrice * (1 + tolerance / 100),
+    };
+    this.longSilentTriggers["enter3"] = {
       color: "black",
       price: entryPrice,
     };
     let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    for (let i = 4; i <= triggersCount; i++) {
       this.longSilentTriggers[`enter${i}`] = {
         color: "black",
         price: entryPrice * (1 - tolerance * index++ / 100),
@@ -619,7 +649,7 @@ export class Simulator {
     });
     this.shortTriggers = {};
     this.shortTriggers["enter1"] = this.app.get("chart").candlestickSeries.createPriceLine({
-      price: resistance * (1 - tolerance / 100),
+      price: resistance * (1 - (tolerance * 2) / 100),
       color: "black",
       lineWidth: 2,
       lineStyle: 1,
@@ -627,6 +657,14 @@ export class Simulator {
       axisLabelVisible: true,
     });
     this.shortTriggers["enter2"] = this.app.get("chart").candlestickSeries.createPriceLine({
+      price: resistance * (1 - tolerance / 100),
+      color: "black",
+      lineWidth: 2,
+      lineStyle: 1,
+      lineVisible: true,
+      axisLabelVisible: true,
+    });
+    this.shortTriggers["enter3"] = this.app.get("chart").candlestickSeries.createPriceLine({
       price: resistance,
       color: "black",
       lineWidth: 2,
@@ -635,7 +673,7 @@ export class Simulator {
       axisLabelVisible: true,
     });
     let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    for (let i = 4; i <= triggersCount; i++) {
       this.shortTriggers[`enter${i}`] = this.app.get("chart").candlestickSeries.createPriceLine({
         price: resistance * (1 + tolerance * index++ / 100),
         color: "black",
@@ -686,14 +724,18 @@ export class Simulator {
     this.shortSilentTriggers = {};
     this.shortSilentTriggers["enter1"] = {
       color: "black",
-      price: entryPrice * (1 - tolerance / 100),
+      price: entryPrice * (1 - (tolerance * 2) / 100),
     };
     this.shortSilentTriggers["enter2"] = {
+      color: "black",
+      price: entryPrice * (1 - tolerance / 100),
+    };
+    this.shortSilentTriggers["enter3"] = {
       color: "black",
       price: entryPrice,
     };
     let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    for (let i = 4; i <= triggersCount; i++) {
       this.shortSilentTriggers[`enter${i}`] = {
         color: "black",
         price: entryPrice * (1 + tolerance * index++ / 100),
@@ -754,9 +796,43 @@ export class Simulator {
     this.longPosition.markPrice = candle.low;
     this.shortPosition.markPrice = candle.high;
     //LONG
-    for (const [name, line] of Object.entries(
-      {...this.longTriggers, ...this.app.get("chart").longLines},
-    )) {
+    for (const [name, line] of Object.entries(this.longTriggers)) {
+      const price = line.options().price;
+      const color = line.options().color;
+      const visible = line.options().lineVisible;
+      //open position
+      if (
+        visible &&
+        price <= candle.high &&
+        price >= candle.low &&
+        color === "black"
+      ) {
+        //position opened
+        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
+        const { size } = this.getDefaultConfig();
+        if (this.longPosition.size === 0) {
+          line.applyOptions({
+            color: "green",
+          });
+          this.longPosition.size = size / triggersCount;
+          this.longPosition.entryPrice = price;
+          this.longPosition.createdTime = candle.time * 1000;
+        } else {
+          if (this.longPosition.size < size) {
+            line.applyOptions({
+              color: "green",
+            });
+            this.longPosition.size = this.longPosition.size + size / triggersCount;
+            // avg enter price
+            const greenTriggers = Object.values(this.longTriggers).filter((t) => t.options().color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
+            this.longPosition.entryPrice = sum / greenTriggers.length;
+          }
+        }
+        this.setLongParams(this.longPosition.entryPrice);
+      }
+    }
+    for (const [name, line] of Object.entries(this.app.get("chart").longLines)) {
       //autoTp Part
       if (name === "part" && this.longPosition.size > 0 && colorR && autoPart) {
         const { entryPrice } = this.longPosition;
@@ -792,35 +868,6 @@ export class Simulator {
           }
         }
       }
-      //open position
-      if (
-        visible &&
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
-        price <= candle.high &&
-        price >= candle.low &&
-        color === "black"
-      ) {
-        //position opened
-        line.applyOptions({
-          color: "green",
-        });
-        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
-        const { size } = this.getDefaultConfig();
-        if (this.longPosition.size === 0) {
-          this.longPosition.size = size / triggersCount;
-          this.longPosition.entryPrice = price;
-          this.longPosition.createdTime = candle.time * 1000;
-        } else {
-          if (this.longPosition.size < size) {
-            this.longPosition.size = this.longPosition.size + size / triggersCount;
-            // avg enter price
-            const greenTriggers = Object.values(this.longTriggers).filter((t) => t.options().color === "green");
-            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
-            this.longPosition.entryPrice = sum / greenTriggers.length;
-          }
-        }
-        this.setLongParams(this.longPosition.entryPrice);
-      }
       //check position
       if (
         visible &&
@@ -853,7 +900,9 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.longPosition.size = 0;
+          this.longPosition = {
+            size: 0,
+          };
         }
         if (name === "part" && candleUp) {
           if (this.getDefaultConfig().sound) this.app.get("sound").play("tp");
@@ -901,14 +950,49 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.longPosition.size = 0;
+          this.longPosition = {
+            size: 0,
+          };
         }
       }
     }
     //check Short
-    for (const [name, line] of Object.entries(
-      {...this.shortTriggers, ...this.app.get("chart").shortLines},
-    )) {
+    for (const [name, line] of Object.entries(this.shortTriggers)) {
+      const price = line.options().price;
+      const color = line.options().color;
+      const visible = line.options().lineVisible;
+      if (
+        visible &&
+        price <= candle.high &&
+        price >= candle.low &&
+        color === "black"
+      ) {
+        //position opened
+        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
+        const { size } = this.getDefaultConfig();
+        if (this.shortPosition.size === 0) {
+          line.applyOptions({
+            color: "green",
+          });
+          this.shortPosition.size = size / triggersCount;
+          this.shortPosition.entryPrice = price;
+          this.shortPosition.createdTime = candle.time * 1000;
+        } else {
+          if (this.shortPosition.size < size) {
+            line.applyOptions({
+              color: "green",
+            });
+            this.shortPosition.size = this.shortPosition.size + size / triggersCount;
+            const greenTriggers = Object.values(this.shortTriggers).filter((t) => t.options().color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
+            this.shortPosition.entryPrice =
+              (this.shortPosition.entryPrice + price) / 2;
+          }
+        }
+        this.setShortParams(this.shortPosition.entryPrice);
+      }
+    }
+    for (const [name, line] of Object.entries(this.app.get("chart").shortLines)) {
       //autoPart Short
       if (
         name === "part" &&
@@ -949,34 +1033,6 @@ export class Simulator {
           }
         }
       }
-      if (
-        visible &&
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
-        price <= candle.high &&
-        price >= candle.low &&
-        color === "black"
-      ) {
-        //position opened
-        line.applyOptions({
-          color: "green",
-        });
-        if (this.getDefaultConfig().sound) this.app.get("sound").play("open");
-        const { size } = this.getDefaultConfig();
-        if (this.shortPosition.size === 0) {
-          this.shortPosition.size = size / triggersCount;
-          this.shortPosition.entryPrice = price;
-          this.shortPosition.createdTime = candle.time * 1000;
-        } else {
-          if (this.shortPosition.size < size) {
-            this.shortPosition.size = this.shortPosition.size + size / triggersCount;
-            const greenTriggers = Object.values(this.shortTriggers).filter((t) => t.options().color === "green");
-            const sum = greenTriggers.reduce((acc, t) => acc + (t.options().price || 0), 0);
-            this.shortPosition.entryPrice =
-              (this.shortPosition.entryPrice + price) / 2;
-          }
-        }
-        this.setShortParams(this.shortPosition.entryPrice);
-      }
       //check positions
       if (
         visible &&
@@ -1009,7 +1065,9 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.shortPosition.size = 0;
+          this.shortPosition = {
+            size: 0,
+          };
         }
         if (name === "part" && !candleUp) {
           if (this.getDefaultConfig().sound) this.app.get("sound").play("tp");
@@ -1056,7 +1114,9 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.shortPosition.size = 0;
+          this.shortPosition = {
+            size: 0,
+          };
         }
       }
     }
@@ -1255,14 +1315,39 @@ export class Simulator {
     //gren or red candle
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing, size } = testConfig;
+    const { autoTp, autoPart, breakeven, trailing, size, triggersCount } = testConfig;
     this.longPosition.markPrice = candle.low;
     this.shortPosition.markPrice = candle.high;
     //LONG
-    for (const [name, line] of Object.entries(
-      {...this.longSilentTriggers, ...this.longPosition},
-    )) {
-      if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
+    for (const [name, line] of Object.entries(this.longSilentTriggers)) {
+      //open position
+      const price = line.price;
+      const color = line.color;
+      if (
+        price <= candle.high &&
+        price >= candle.low &&
+        color === "black"
+      ) {
+        //position opened
+        if (this.longPosition.size === 0) {
+          this.longSilentTriggers[name].color = "green";
+          this.longPosition.size = size / triggersCount;
+          this.longPosition.entryPrice = price;
+          this.longPosition.createdTime = candle.time * 1000;
+        } else {
+          if (this.longPosition.size < size) {
+            this.longSilentTriggers[name].color = "green";
+            this.longPosition.size = this.longPosition.size + size / triggersCount;
+            const greenTriggers = Object.values(this.longSilentTriggers).filter((t) => t.color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
+            this.longPosition.entryPrice = sum / greenTriggers.length;
+          }
+        }
+        this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
+      }
+    }
+    for (const [name, line] of Object.entries(this.longPosition)) {
+      if (!["sl", "tp", "part"].includes(name))
         continue;
       //autoTp Part
       if (
@@ -1295,29 +1380,7 @@ export class Simulator {
           }
         }
       }
-      //open position
-      if (
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
-        price <= candle.high &&
-        price >= candle.low &&
-        color === "black"
-      ) {
-        //position opened
-        this.longSilentTriggers[name].color = "green";
-        if (this.longPosition.size === 0) {
-          this.longPosition.size = size / 3;
-          this.longPosition.entryPrice = price;
-          this.longPosition.createdTime = candle.time * 1000;
-        } else {
-          if (this.longPosition.size < size) {
-            this.longPosition.size = this.longPosition.size + size / 3;
-            const greenTriggers = Object.values(this.longSilentTriggers).filter((t) => t.color === "green");
-            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
-            this.longPosition.entryPrice = sum / greenTriggers.length;
-          }
-        }
-        this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
-      }
+      
       //check position
       if (
         this.longPosition.size > 0 &&
@@ -1346,7 +1409,10 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.longPosition.size = 0;
+          this.longPosition = {
+            size: 0,
+          };
+          //this.longSilentTriggers = {};
         }
         if (name === "part" && candleUp) {
           const part = ((price - entryPrice) / entryPrice) * 100;
@@ -1388,16 +1454,43 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.longPosition.size = 0;
+          this.longPosition = {
+            size: 0,
+          };
+          //this.longSilentTriggers = {};
         }
       }
     }
     //check Short
-    for (const [name, line] of Object.entries(
-      {...this.shortSilentTriggers, ...this.shortPosition},
-    )) {
+    for (const [name, line] of Object.entries(this.shortSilentTriggers)) {
+      const price = line.price;
+      const color = line.color;
+      if (
+        price <= candle.high &&
+        price >= candle.low &&
+        color === "black"
+      ) {
+        //position opened
+        if (this.shortPosition.size === 0) {
+          this.shortSilentTriggers[name].color = "green";
+          this.shortPosition.size = size / triggersCount;
+          this.shortPosition.entryPrice = price;
+          this.shortPosition.createdTime = candle.time * 1000;
+        } else {
+          if (this.shortPosition.size < size) {
+            this.shortSilentTriggers[name].color = "green";
+            this.shortPosition.size = this.shortPosition.size + size / triggersCount;
+            const greenTriggers = Object.values(this.shortSilentTriggers).filter((t) => t.color === "green");
+            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
+            this.shortPosition.entryPrice = sum / greenTriggers.length;
+          }
+        }
+        this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
+      }
+    }
+    for (const [name, line] of Object.entries(this.shortPosition)) {
       //autoTp Short
-      if (!["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10", "sl", "tp", "part"].includes(name))
+      if (!["sl", "tp", "part"].includes(name))
         continue;
       if (
         name === "part" &&
@@ -1429,28 +1522,6 @@ export class Simulator {
           }
         }
       }
-      if (
-        ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6", "enter7", "enter8", "enter9", "enter10"].includes(name) &&
-        price <= candle.high &&
-        price >= candle.low &&
-        color === "black"
-      ) {
-        //position opened
-        this.shortSilentTriggers[name].color = "green";
-        if (this.shortPosition.size === 0) {
-          this.shortPosition.size = size / 3;
-          this.shortPosition.entryPrice = price;
-          this.shortPosition.createdTime = candle.time * 1000;
-        } else {
-          if (this.shortPosition.size < size) {
-            this.shortPosition.size = this.shortPosition.size + size / 3;
-            const greenTriggers = Object.values(this.shortSilentTriggers).filter((t) => t.color === "green");
-            const sum = greenTriggers.reduce((acc, t) => acc + (t.price || 0), 0);
-            this.shortPosition.entryPrice = sum / greenTriggers.length;
-          }
-        }
-        this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
-      }
       //check position
       if (
         this.shortPosition.size > 0 &&
@@ -1479,7 +1550,10 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.shortPosition.size = 0;
+          this.shortPosition = {
+            size: 0,
+          };
+          //this.shortSilentTriggers = {};
         }
         if (name === "part" && !candleUp) {
           const part = ((price - entryPrice) / entryPrice) * 100 * -1;
@@ -1520,7 +1594,10 @@ export class Simulator {
           };
           this.trades.push(trade);
           this.calcStats(trade);
-          this.shortPosition.size = 0;
+          this.shortPosition = {
+            size: 0,
+          };
+          //this.shortSilentTriggers = {};
         }
       }
     }
@@ -1538,18 +1615,14 @@ export class Simulator {
     };
     this.saveField("balance", testConfig.deposit);
     this.trades = [];
-    this.longPosition.size = 0;
-    this.shortPosition.size = 0;
+    this.longPosition = {
+      size: 0,
+    };
+    this.shortPosition = {
+      size: 0,
+    };
     this.longSilentTriggers = {};
     this.shortSilentTriggers = {};
-    // for (const name of ["enter1", "enter2", "enter3", "enter4", "enter5", "enter6"]) {
-    //   this.shortPosition[name] = {
-    //     color: "green",
-    //   };
-    //   this.longPosition[name] = {
-    //     color: "green",
-    //   };
-    // }
     this.stats = {
       profitableTrades: 0,
       lossTrades: 0,
