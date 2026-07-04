@@ -15,6 +15,14 @@
           <label class="form-label text-primary" for="size">💰Position size ($)</label>
           <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
       </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-success" for="attemptsCount">Timeframe</label>
+          <select class="form-select" name="timeframe" id="timeframe">
+            {{#each timeframeList}}
+              <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+      </div>
   </div>
   <div class="row">
     <h6>Triggers</h6>

@@ -29,6 +29,7 @@ export const checkTriggers = async () => {
             } = ticker;
             const {
               attemptsCount = 0,
+              timeframe = "4h",
               tolerance = 0.15,
               candlesCount = 5,
               touchCount = 3,
@@ -37,8 +38,8 @@ export const checkTriggers = async () => {
               triggersCount = 3,
             } = algoSettings;
             const bybit = bybitUsers[user];
-            //get 4h candles
-            const candles = await bybit.getCandles(symbol, "4h", candlesCount);
+            //get timeframe candles
+            const candles = await bybit.getCandles(symbol, timeframe, candlesCount);
             if (candles.length === 0) {
               continue;
             }
@@ -107,7 +108,7 @@ export const checkTriggers = async () => {
               await bot.sendMessage({
                 text:
                   `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                  `autoLevels 4h, size ${size}$ Support ${support.toFixed(priceScale)}$` +
+                  `autoLevels ${timeframe}, size ${size}$ Support ${support.toFixed(priceScale)}$` +
                   `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
                   `#${symbol.slice(0, -4)}_auto`,
               });
@@ -130,7 +131,7 @@ export const checkTriggers = async () => {
               await bot.sendMessage({
                 text:
                   `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                  `autoLevels 4h, size ${size}$ Resistance ${resistance.toFixed(priceScale)}$` +
+                  `autoLevels ${timeframe}, size ${size}$ Resistance ${resistance.toFixed(priceScale)}$` +
                   `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
                   `#${symbol.slice(0, -4)}_auto`,
               });

@@ -373,6 +373,7 @@ export class Chart {
       tp = 2,
       size = 1000,
       attemptsCount = -1,
+      timeframe = "4h",
       breakeven = 0,
       trailing = 0,
       part = 0,
@@ -388,6 +389,7 @@ export class Chart {
       tp,
       size,
       attemptsCount,
+      timeframe,
       breakeven,
       trailing,
       part,
@@ -990,10 +992,25 @@ export class Chart {
       }
       return el;
     });
+    const timeframeList = [
+      { value: "2h", name: "2h" },
+      { value: "4h", name: "4h" },
+      { value: "6h", name: "6h" },
+      { value: "12h", name: "12h" },
+      { value: "1d", name: "1d" },
+    ].map((el) => {
+      if (el.value === algoSettings.timeframe) {
+        el.selected = true;
+      } else {
+        el.selected = false;
+      }
+      return el;
+    });
     modal.show({
       title: `Racket – ${symbol} ($${balance.toFixed(1)})`,
       body: this.templates.algotradingSettingsTemplate({
         attemptsList,
+        timeframeList,
         ...algoSettings,
         fundingRate: tickerData.fundingRate,
         countDownTime: tickerData.countDownTime,
@@ -1016,6 +1033,7 @@ export class Chart {
                 slOpen: parseFloat(data.get("slOpen")),
                 size: parseFloat(data.get("size")),
                 attemptsCount: parseFloat(data.get("attemptsCount")),
+                timeframe: data.get("timeframe"),
                 breakeven: parseFloat(data.get("breakeven")),
                 trailing: parseFloat(data.get("trailing")),
                 part: parseFloat(data.get("part")),

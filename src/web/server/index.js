@@ -142,6 +142,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       slOpen,
       size,
       attemptsCount,
+      timeframe,
       candlesCount,
       touchCount,
       tolerance,
@@ -155,6 +156,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
     await Ticker.update(symbol, {
       [req.bybitUser]: {
         attemptsCount,
+        timeframe,
         tp,
         sl,
         slOpen,
