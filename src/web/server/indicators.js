@@ -1,12 +1,11 @@
 class Indicators {
   //levels
-  static calculateLevels(candles, touchCount = 4, tolerance = 3) {
+  static calculateLevels(candles, touchCount = 4, tolerance = 3, step = 0.15) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
     const levelsLow = [];
     const levelsHigh = [];
     let level = min;
-    const step = 0.15;
     do {
       const lowBound = level;
       level = level * (1 + step / 100);
@@ -31,7 +30,6 @@ class Indicators {
         levelsHigh.push(lowBound * (1 - step / 100));
       }
     } while (level <= max);
-    
     const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
     const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
 

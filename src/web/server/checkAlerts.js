@@ -85,6 +85,7 @@ export const checkTriggers = async () => {
               candles,
               touchCount,
               candlesPart,
+              tolerance,
             );
             const triggerSupport =
               triggersArrayBuy.length === 0 ||

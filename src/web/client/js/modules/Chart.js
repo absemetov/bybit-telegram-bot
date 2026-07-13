@@ -302,20 +302,26 @@ export class Chart {
       this.handleCrosshairMove(param);
     });
     this.chart.subscribeDblClick(() => {
-      const candlesCount = this.app.state.get("algoSettings.candlesCount") || 5;
-      const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-      const candlesPart = this.app.state.get("algoSettings.candlesPart") || 4;
+      const { candlesCount, touchCount, candlesPart, tolerance } =
+        this.app.state.get("algoSettings");
       if (this.app.state.get("chartMode") == "simulator") {
         const candles = this.app
           .get("chart")
           .candles.slice(0, this.app.get("simulator").candleIndex);
-        this.updateIndicators(candles, candlesCount, touchCount, candlesPart);
+        this.updateIndicators(
+          candles,
+          candlesCount,
+          touchCount,
+          candlesPart,
+          tolerance,
+        );
       } else {
         this.updateIndicators(
           this.candles,
           candlesCount,
           touchCount,
           candlesPart,
+          tolerance,
         );
       }
       this.visibleLevels(!this.flagLevels);
@@ -366,10 +372,15 @@ export class Chart {
       await this.loadTickerData(symbol);
     }
     //calc Indicators
-    const candlesCount = this.app.state.get("algoSettings.candlesCount") || 5;
-    const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-    const candlesPart = this.app.state.get("algoSettings.candlesPart") || 4;
-    this.updateIndicators(this.candles, candlesCount, touchCount, candlesPart);
+    const { candlesCount, touchCount, candlesPart, tolerance } =
+      this.app.state.get("algoSettings");
+    this.updateIndicators(
+      this.candles,
+      candlesCount,
+      touchCount,
+      candlesPart,
+      tolerance,
+    );
     this.visibleLevels(false);
     console.log(`[chart:render ${symbol}]`);
     this.app.emit("chart:loadedSymbol", symbol);
@@ -702,11 +713,17 @@ export class Chart {
       }
     }
   }
-  updateIndicators(candles, candlesCount, touchCount, candlesPart) {
+  updateIndicators(candles, candlesCount, touchCount, candlesPart, tolerance) {
     if (candles.length === 0) return;
+    const candlesSlice = candles.slice(-candlesCount);
     const { support, resistance, min, max } = this.app
       .get("indicators")
-      .calculateLevels(candles, candlesCount, touchCount, candlesPart);
+      .findLevels(
+        candlesSlice,
+        touchCount,
+        candlesPart,
+        tolerance,
+      );
     const sPrice = support || min;
     const rPrice = resistance || max;
     this.levelsLines["support"].applyOptions({
@@ -936,14 +953,14 @@ export class Chart {
     const lineName = this.selectedLine;
     this.selectedLine = null;
     //real position edit lines
-    const linesTransform = {
-      buyTp: "tp",
-      buySl: "sl",
-      buyPart: "part",
-      sellTp: "tp",
-      sellSl: "sl",
-      sellPart: "part",
-    };
+    // const linesTransform = {
+    //   buyTp: "tp",
+    //   buySl: "sl",
+    //   buyPart: "part",
+    //   sellTp: "tp",
+    //   sellSl: "sl",
+    //   sellPart: "part",
+    // };
     if (["buyTp", "buySl", "buyPart"].includes(lineName)) {
       const enter = this.buyPositionLines["enter"].options().price;
       const tp = this.buyPositionLines["tp"].options().price;
@@ -1168,6 +1185,7 @@ export class Chart {
                 newSettings.candlesCount,
                 newSettings.touchCount,
                 newSettings.candlesPart,
+                newSettings.tolerance,
               );
               try {
                 await this.app
