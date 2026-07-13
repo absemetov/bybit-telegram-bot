@@ -32,6 +32,9 @@ export class Header {
         this.render();
       }
     });
+    this.app.on("symbolChanged", (symbol) =>
+      this.render(),
+    );
   }
 
   render() {
@@ -42,6 +45,7 @@ export class Header {
       balance: state.algoSettings.balance,
       bybitUser: state.bybitUser || "main",
       locale: state.settings.locale,
+      symbol: ` / ${this.app.state.get("symbol")}`,
     });
   }
 

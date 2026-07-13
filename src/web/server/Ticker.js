@@ -29,11 +29,11 @@ class Ticker {
     return null;
   }
   //create Triggers
-  static async setTriggers(symbol, support, resistance, user, tolerance, size, triggersCount = 3) {
+  static async setTriggers(symbol, price, user, tolerance, size, triggersCount = 3, side) {
     //clear All stop orders
-    const side = user === "main" ? "Buy" : "Sell";
-    const price = user === "main" ? support : resistance;
-    const toleranceSide = user === "main" ? tolerance : -tolerance;
+    //const side = user === "main" ? "Buy" : "Sell";
+    //const price = user === "main" ? support : resistance;
+    const toleranceSide = side === "Buy" ? tolerance : -tolerance;
     await bybitUsers[user].cancelAllOrders(symbol, side);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const position = positions.find((p) => p.side === side);
@@ -42,7 +42,7 @@ class Ticker {
       : size / triggersCount;
     if (price) {
       const triggers = {
-        [`${user}Triggers`]: {
+        [`${user}Triggers${side}`]: {
           1: {
             price: price * (1 + (toleranceSide * 2) / 100),
             active: true,
@@ -62,14 +62,14 @@ class Ticker {
       };
       let index = 1;
       for (let i = 4; i <= triggersCount; i++) {
-        triggers[`${user}Triggers`][i] = {
+        triggers[`${user}Triggers${side}`][i] = {
           price: price * (1 - (toleranceSide * index++) / 100),
           active: true,
           size: triggerSize > 0 ? triggerSize : 0,
         }
       }
       await Ticker.update(symbol, triggers);
-      return triggers[`${user}Triggers`];
+      return triggers[`${user}Triggers${side}`];
     }
   }
   //get ticker info
@@ -81,7 +81,8 @@ class Ticker {
       const balance = await bybitUsers[user].getBybitBalance();
       return {
         algoSettings: tickerDoc.data()[user],
-        triggers: tickerDoc.data()[`${user}Triggers`],
+        triggersBuy: tickerDoc.data()[`${user}TriggersBuy`],
+        triggersSell: tickerDoc.data()[`${user}TriggersSell`],
         stopOrders: orders.stop,
         partOrders: orders.part,
         positions,
@@ -157,7 +158,8 @@ class Ticker {
         return {
           symbol: doc.id,
           star: doc.data().star,
-          triggers: doc.data()[`${user}Triggers`],
+          triggersBuy: doc.data()[`${user}TriggersBuy`],
+          triggersSell: doc.data()[`${user}TriggersSell`],
           lastNotified: doc.data()[`${user}LastNotified`],
           positionBuyValue: doc.data()[`${user}PositionBuyValue`],
           positionSellValue: doc.data()[`${user}PositionSellValue`],

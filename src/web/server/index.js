@@ -46,7 +46,7 @@ function auth(req, res, next) {
     next();
   });
 }
-// API для управления сканером
+//scaner
 app.get("/api/scanner/status", (req, res) => {
   res.json({ running: getScannerStatus() });
 });
@@ -114,24 +114,6 @@ app.post("/api/tickers", auth, async (req, res) => {
   );
   return res.json(data);
 });
-app.post("/api/:symbol/triggers/set", auth, async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const { support, resistance, tolerance, size, triggersCount } = req.body;
-    const triggers = await Ticker.setTriggers(
-      symbol,
-      support,
-      resistance,
-      req.bybitUser,
-      tolerance,
-      size,
-      triggersCount,
-    );
-    return res.json(triggers);
-  } catch (error) {
-    return res.status(422).json({ message: error.message });
-  }
-});
 //AlgoTrading
 app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
   try {
@@ -139,10 +121,10 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
     const {
       tp,
       sl,
-      slOpen,
       size,
       attemptsCount,
       timeframe,
+      trend,
       candlesCount,
       touchCount,
       tolerance,
@@ -157,9 +139,9 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       [req.bybitUser]: {
         attemptsCount,
         timeframe,
+        trend,
         tp,
         sl,
-        slOpen,
         size,
         candlesCount,
         touchCount,
@@ -170,15 +152,13 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
         part,
         triggersCount,
       },
+      [`${req.bybitUser}TriggersBuy`]: {},
+      [`${req.bybitUser}TriggersSell`]: {},
     });
     //set Part50
-    const side = req.bybitUser === "main" ? "Buy" : "Sell";
-    await bybitUsers[req.bybitUser].setPart50All(
-      symbol,
-      part,
-      priceScale,
-      side,
-    );
+    await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Buy");
+    await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Sell");
+    await bybitUsers[req.bybitUser].setPart50All(symbol, part, priceScale);
     return res.json({ ok: "Goodluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -325,5 +305,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Racket v3.0.0 listening on port ${process.env.PORT}`);
+  console.log(`Racket v3.0.7 listening on port ${process.env.PORT}`);
 });

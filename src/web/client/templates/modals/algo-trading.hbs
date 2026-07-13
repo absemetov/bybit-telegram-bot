@@ -12,29 +12,16 @@
           </select>
       </div>
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="size">💰Position size ($)</label>
-          <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-success" for="attemptsCount">Timeframe</label>
-          <select class="form-select" name="timeframe" id="timeframe">
-            {{#each timeframeList}}
+          <label class="form-label text-success" for="side">Trend</label>
+          <select class="form-select" name="trend" id="trend">
+            {{#each trendList}}
               <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
             {{/each}}
           </select>
       </div>
-  </div>
-  <div class="row">
-    <h6>Triggers</h6>
-  </div>
-  <div class="row">
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="triggersCount">🎚Triggers count</label>
-          <input type="number" class="form-control" name="triggersCount" id="triggersCount" value="{{triggersCount}}" step="1" max="10" min="3">
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="tolerance">🎚Step (%)</label>
-          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
+          <label class="form-label text-primary" for="size">💰Position size ($)</label>
+          <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
       </div>
   </div>
   <div class="row">
@@ -51,7 +38,7 @@
       </div>
       <div class="col-md-4 mb-3">
           <label class="form-label text-danger" for="sl">💸Stop Loss(%)</label>
-          <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" min="-1.5" required>
+          <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" min="-1.5" max="-0.1" required>
       </div>
   </div>
   <div class="row">
@@ -63,26 +50,43 @@
           <label class="form-label text-danger" for="trailing">⚙️TrailingStop(%)</label>
           <input type="number" class="form-control" id="trailing" name="trailing" value="{{trailing}}" step="0.1" min="0" required>
       </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-danger" for="slOpen">💸SL Open(%)</label>
-          <input type="number" class="form-control is-invalid" name="slOpen" id="slOpen" value="{{slOpen}}" step="0.01" max="-0.1" min="-1.5" required>
+  </div>
+  <div class="row">
+    <h6>Levels settings</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-3 mb-3">
+          <label class="form-label text-success" for="attemptsCount">Timeframe</label>
+          <select class="form-select" name="timeframe" id="timeframe">
+            {{#each timeframeList}}
+              <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
       </div>
-  </div>
-  <div class="row">
-    <h6>4h enter Levels settings</h6>
-  </div>
-  <div class="row">
-      <div class="col-md-4 mb-3">
+      <div class="col-md-3 mb-3">
           <label class="form-label text-primary" for="candlesCount">🕯Candles</label>
           <input type="number" class="form-control" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
       </div>
-      <div class="col-md-4 mb-3">
+      <div class="col-md-3 mb-3">
           <label class="form-label text-primary" for="touchCount">🧲Touch</label>
           <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="1">
       </div>
-      <div class="col-md-4 mb-3">
+      <div class="col-md-3 mb-3">
           <label class="form-label text-primary" for="candlesPart">🎚Part</label>
           <input type="number" class="form-control" name="candlesPart" id="candlesPart" value="{{candlesPart}}" step="0.1" min="1">
+      </div>
+  </div>
+  <div class="row">
+    <h6>Triggers</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="triggersCount">🎚Triggers count</label>
+          <input type="number" class="form-control" name="triggersCount" id="triggersCount" value="{{triggersCount}}" step="1" max="10" min="3">
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="tolerance">🎚Step (%)</label>
+          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
       </div>
   </div>
   <div class="row">

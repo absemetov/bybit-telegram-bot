@@ -2,16 +2,16 @@ import Ticker from "./Ticker.js";
 import bot from "./telegram.js";
 const MAX_POSITION_USDT = 10000;
 const TAKE_PROFIT = 3;
-const STOP_LOSS = -0.5;
+const STOP_LOSS = -1;
 //check TP SL break set default values
-const checkPositions = async (
+async function checkPositions(
   ticker,
   currentPrice,
   bybit,
   user,
   positions,
   orders,
-) => {
+) {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   const { sl, tp, breakeven, trailing } = algoSettings || {};
   //const tolerance = 0.1;
@@ -48,23 +48,27 @@ const checkPositions = async (
       const newStopLoss = avgPrice * (1 - tickerStopLoss / 100);
       if (
         !stopLoss ||
-        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03 &&
+          stopLoss > avgPrice)
       ) {
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
       }
       //breakeven trailing stop
       if (breakeven !== 0 && pnlPersent < -breakeven) {
         const newStopLoss = markPrice * (1 + trailing / 100);
-        if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2) {
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+        if (
+          ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2 &&
+          newStopLoss <= avgPrice
+        ) {
+          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
             newStopLoss.toFixed(priceScale),
           );
-          await Ticker.update(symbol, {
-            [`${user}.sl`]: +slPersent.toFixed(2),
-          });
+          // await Ticker.update(symbol, {
+          //   [`${user}.sl`]: +slPersent.toFixed(2),
+          // });
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
@@ -92,23 +96,27 @@ const checkPositions = async (
       const newStopLoss = avgPrice * (1 + tickerStopLoss / 100);
       if (
         !stopLoss ||
-        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03 &&
+          stopLoss < avgPrice)
       ) {
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
       }
       //breakeven
       if (breakeven !== 0 && pnlPersent > breakeven) {
         const newStopLoss = markPrice * (1 - trailing / 100);
-        if (((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2) {
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+        if (
+          ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2 &&
+          newStopLoss >= avgPrice
+        ) {
+          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
             newStopLoss.toFixed(priceScale),
           );
-          await Ticker.update(symbol, {
-            [`${user}.sl`]: +slPersent.toFixed(2),
-          });
+          // await Ticker.update(symbol, {
+          //   [`${user}.sl`]: +slPersent.toFixed(2),
+          // });
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
@@ -132,9 +140,15 @@ const checkPositions = async (
       }
     }
   }
-};
+}
 //telegram close position msg
-async function sendTelegramReport(symbol, bybit, user, priceScale, attemptsCount) {
+async function sendTelegramReport(
+  symbol,
+  bybit,
+  user,
+  priceScale,
+  attemptsCount,
+) {
   const closedPositions = await bybit.getClosedPositionsHistory(symbol);
   const lastClosedPosition = closedPositions.positions[0];
   const { closedPnl, side } = lastClosedPosition;
@@ -204,12 +218,61 @@ async function sendTelegramReport(symbol, bybit, user, priceScale, attemptsCount
 //The bot acts strictly according to predefined rules: no greed, fear, or hope. It will not move a stop-loss "because it feels right,"
 //nor will it enter a trade out of euphoria after news events.
 //Emotions are the primary reason retail traders blow up their accounts, and an algorithm completely removes them from the equation.
-export const algoTrading = async (ticker, price, bybit, user, trigger) => {
+export const algoTrading = async (
+  ticker,
+  price,
+  bybit,
+  user,
+  trend,
+  triggerBuy,
+  triggerSell,
+) => {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   try {
-    const { size, slOpen, tp, part, attemptsCount } = algoSettings || {};
+    const { size, tp, sl, part, attemptsCount } = algoSettings || {};
     const orders = await bybit.getTickerOrders(symbol);
     const positions = await bybit.getTickerPositions(symbol);
+    //create LONG orders
+    if (triggerBuy && ["up", "flat"].includes(trend) && attemptsCount > 0) {
+      const triggerId = triggerBuy[0];
+      const triggerPrice = triggerBuy[1].price;
+      const triggerSize = triggerBuy[1].size;
+      if (triggerSize && triggerPrice)
+        await bybit.createStopLimitOrder(
+          symbol,
+          "Buy",
+          triggerPrice,
+          triggerSize,
+          triggerPrice * (1 + tp / 100),
+          triggerPrice * (1 - Math.abs(sl) / 100),
+        );
+      //disable trigger
+      await Ticker.update(symbol, {
+        [`${user}TriggersBuy.${triggerId}.active`]: false,
+      });
+    }
+    //create SHORT order
+    if (triggerSell && ["down", "flat"].includes(trend) && attemptsCount > 0) {
+      const triggerId = triggerSell[0];
+      const triggerPrice = triggerSell[1].price;
+      const triggerSize = triggerSell[1].size;
+      if (triggerSize && triggerPrice)
+        await bybit.createStopLimitOrder(
+          symbol,
+          "Sell",
+          triggerPrice,
+          triggerSize,
+          triggerPrice * (1 - tp / 100),
+          triggerPrice * (1 + Math.abs(sl) / 100),
+        );
+      //disable trigger
+      await Ticker.update(symbol, {
+        [`${user}TriggersSell.${triggerId}.active`]: false,
+      });
+    }
+    //set TP/SL break trailing control FOMO
+    await checkPositions(ticker, price, bybit, user, positions, orders);
+    //events
     const currentMap = {};
     positions.forEach((p) => {
       currentMap[p.side] = p;
@@ -224,7 +287,6 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
         await Ticker.update(symbol, {
           [`${user}.attemptsCount`]: attemptsCount - 1,
           [`${user}Position${side}Value`]: posValue,
-          [`${user}.sl`]: slOpen,
         });
         //part50
         await bybit.setPart50(
@@ -281,60 +343,25 @@ export const algoTrading = async (ticker, price, bybit, user, trigger) => {
       }
       //position closed
       if (ticker[`position${side}Value`] && !currentMap[side]) {
+        //delete triggers
         await Ticker.update(symbol, {
           [`${user}Position${side}Value`]: 0,
+          [`${user}Triggers${side}`]: {},
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendTelegramReport(symbol, bybit, user, priceScale, attemptsCount);
+        await sendTelegramReport(
+          symbol,
+          bybit,
+          user,
+          priceScale,
+          attemptsCount,
+        );
       }
     }
-    //create LONG orders by alerts 4/03/2026
-    if (trigger && user === "main" && attemptsCount > 0) {
-      const triggerId = trigger[0];
-      const triggerPrice = trigger[1].price;
-      const triggerSize = trigger[1].size;
-      if (triggerSize && triggerPrice)
-        await bybit.createStopLimitOrder(
-          symbol,
-          "Buy",
-          triggerPrice,
-          triggerSize,
-          triggerPrice * (1 + tp / 100),
-          triggerPrice * (1 - Math.abs(slOpen) / 100),
-        );
-      //disable trigger
-      await Ticker.update(symbol, {
-        [`${user}Triggers.${triggerId}.active`]: false,
-        [`${user}.sl`]: slOpen,
-      });
-    }
-    //create SHORT order min size 20$
-    if (trigger && user === "sub" && attemptsCount > 0) {
-      //const triggerPrice = trigger[0] * (1 - tolerance / 100);
-      const triggerId = trigger[0];
-      const triggerPrice = trigger[1].price;
-      const triggerSize = trigger[1].size;
-      if (triggerSize && triggerPrice)
-        await bybit.createStopLimitOrder(
-          symbol,
-          "Sell",
-          triggerPrice,
-          triggerSize,
-          triggerPrice * (1 - tp / 100),
-          triggerPrice * (1 + Math.abs(slOpen) / 100),
-        );
-      //disable trigger
-      await Ticker.update(symbol, {
-        [`${user}Triggers.${triggerId}.active`]: false,
-        [`${user}.sl`]: slOpen,
-      });
-    }
-    //set TP/SL break trailing control FOMO
-    await checkPositions(ticker, price, bybit, user, positions, orders);
   } catch (error) {
     console.error(`Error processing:`, error.message);
     await bot.sendMessage({
-      text: `AlgoTrading Error [${user}] ${symbol} ${error.message}`,
+      text: `Error in levels.js [${user}] ${symbol} ${error.message}`,
     });
   }
 };

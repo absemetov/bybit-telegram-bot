@@ -23,7 +23,8 @@ export const checkTriggers = async () => {
             const {
               symbol,
               priceScale,
-              triggers = {},
+              triggersBuy = {},
+              triggersSell = {},
               lastNotified,
               algoSettings = {},
             } = ticker;
@@ -36,35 +37,48 @@ export const checkTriggers = async () => {
               candlesPart = 0.5,
               size = 1000,
               triggersCount = 3,
+              trend = "up",
             } = algoSettings;
             const bybit = bybitUsers[user];
             //get timeframe candles
-            const candles = await bybit.getCandles(symbol, timeframe, candlesCount);
+            const candles = await bybit.getCandles(
+              symbol,
+              timeframe,
+              candlesCount,
+            );
             if (candles.length === 0) {
               continue;
             }
             const { close } = candles[candles.length - 1];
-            const triggersArray = Object.entries(triggers);
+            const triggersArrayBuy = Object.entries(triggersBuy);
+            const triggersArraySell = Object.entries(triggersSell);
             const toleranceTrigger = 0.1;
-            //find cross
-            const triggersRun = triggersArray.find((trigger) => {
-              if (user === "main") {
-                return (
-                  trigger[1].size > 0 &&
-                  trigger[1].active &&
-                  (trigger[1].price - close) / close >= toleranceTrigger / 100
-                );
-              } else {
-                return (
-                  trigger[1].size > 0 &&
-                  trigger[1].active &&
-                  (trigger[1].price - close) / close <= -toleranceTrigger / 100
-                );
-              }
+            //activate triggers
+            const triggersRunBuy = triggersArrayBuy.find((trigger) => {
+              return (
+                trigger[1].size > 0 &&
+                trigger[1].active &&
+                (trigger[1].price - close) / close >= toleranceTrigger / 100
+              );
+            });
+            const triggersRunSell = triggersArraySell.find((trigger) => {
+              return (
+                trigger[1].size > 0 &&
+                trigger[1].active &&
+                (trigger[1].price - close) / close <= -toleranceTrigger / 100
+              );
             });
             //attempts from [0-5] algotrading
             if (attemptsCount <= 5) {
-              await algoTrading(ticker, close, bybit, user, triggersRun);
+              await algoTrading(
+                ticker,
+                close,
+                bybit,
+                user,
+                trend,
+                triggersRunBuy,
+                triggersRunSell,
+              );
             }
             //set new triggers
             const { support, resistance } = Indicators.calculateLevels(
@@ -73,8 +87,8 @@ export const checkTriggers = async () => {
               candlesPart,
             );
             const triggerSupport =
-              triggersArray.length === 0 ||
-              triggersArray.find((trigger) => {
+              triggersArrayBuy.length === 0 ||
+              triggersArrayBuy.find((trigger) => {
                 return (
                   trigger[0] === "3" &&
                   Math.abs(trigger[1].price - support) / support >
@@ -82,8 +96,8 @@ export const checkTriggers = async () => {
                 );
               });
             const triggerResistance =
-              triggersArray.length === 0 ||
-              triggersArray.find((trigger) => {
+              triggersArraySell.length === 0 ||
+              triggersArraySell.find((trigger) => {
                 return (
                   trigger[0] === "3" &&
                   Math.abs(trigger[1].price - resistance) / resistance >
@@ -91,50 +105,32 @@ export const checkTriggers = async () => {
                 );
               });
             //support zone
-            if (support && triggerSupport && user === "main") {
+            if (support && triggerSupport && ["up", "flat"].includes(trend)) {
               await Ticker.setTriggers(
                 symbol,
                 support,
-                resistance,
                 user,
                 tolerance,
                 size,
                 triggersCount,
+                "Buy",
               );
-              const pricePersent =
-                ((support - triggerSupport[1].price) /
-                  triggerSupport[1].price) *
-                100;
-              await bot.sendMessage({
-                text:
-                  `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                  `autoLevels ${timeframe}, size ${size}$ Support ${support.toFixed(priceScale)}$` +
-                  `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
-                  `#${symbol.slice(0, -4)}_auto`,
-              });
             }
             //resistance zone
-            if (resistance && triggerResistance && user === "sub") {
+            if (
+              resistance &&
+              triggerResistance &&
+              ["down", "flat"].includes(trend)
+            ) {
               await Ticker.setTriggers(
                 symbol,
-                support,
                 resistance,
                 user,
                 tolerance,
                 size,
                 triggersCount,
+                "Sell",
               );
-              const pricePersent =
-                ((resistance - triggerResistance[1].price) /
-                  triggerResistance[1].price) *
-                100;
-              await bot.sendMessage({
-                text:
-                  `🟰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                  `autoLevels ${timeframe}, size ${size}$ Resistance ${resistance.toFixed(priceScale)}$` +
-                  `(${pricePersent > 0 ? "🔺+" : "🔻"}${pricePersent.toFixed(1)}%)\n` +
-                  `#${symbol.slice(0, -4)}_auto`,
-              });
             }
             //only alert [6]
             if (attemptsCount === 6) {
@@ -142,11 +138,25 @@ export const checkTriggers = async () => {
               const silent10min =
                 !lastNotified ||
                 timestampSeconds - lastNotified._seconds >= 600;
-              if (triggersRun && silent10min) {
+              if (triggersRunBuy && silent10min) {
                 await bot.sendMessage({
                   text:
                     `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `Trigger #${triggersRun[0]} cross price ${triggersRun[1].price.toFixed(priceScale)}$, toleranceTriggerUp: ${toleranceTrigger}%\n` +
+                    `Trigger Buy #${triggersRunBuy[0]} cross price ${triggersRunBuy[1].price.toFixed(priceScale)}$, toleranceTriggerUp: ${toleranceTrigger}%\n` +
+                    `#${symbol.slice(0, -4)}_trigger`,
+                });
+                arrayNotify.push({
+                  symbol,
+                  data: {
+                    [`${user}LastNotified`]: new Date(),
+                  },
+                });
+              }
+              if (triggersRunSell && silent10min) {
+                await bot.sendMessage({
+                  text:
+                    `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                    `Trigger Sell Buy #${triggersRunSell[0]} cross price ${triggersRunSell[1].price.toFixed(priceScale)}$, toleranceTriggerUp: ${toleranceTrigger}%\n` +
                     `#${symbol.slice(0, -4)}_trigger`,
                 });
                 arrayNotify.push({
@@ -174,7 +184,7 @@ export const checkTriggers = async () => {
     }
   } catch (error) {
     console.error(
-      `[${new Date().toISOString()}] Error in cron job checkTriggers:`,
+      `[${new Date().toISOString()}] Error in checkAlerts:`,
       error.message,
     );
     await bot.sendMessage({

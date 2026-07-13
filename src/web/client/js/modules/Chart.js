@@ -139,10 +139,44 @@ export class Chart {
         axisLabelVisible: false,
       }),
     };
-    //price lines fir triggers
+    //price lines for triggers
     this.triggersLines = {};
     //price lines for position
-    this.positionLines = {
+    this.buyPositionLines = {
+      sl: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "red",
+        lineWidth: 2,
+        lineStyle: 3,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      enter: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 3,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      tp: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 3,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+      part: this.candlestickSeries.createPriceLine({
+        price: 0,
+        color: "green",
+        lineWidth: 2,
+        lineStyle: 0,
+        lineVisible: false,
+        axisLabelVisible: false,
+      }),
+    };
+    this.sellPositionLines = {
       sl: this.candlestickSeries.createPriceLine({
         price: 0,
         color: "red",
@@ -249,9 +283,12 @@ export class Chart {
     this.dragLines = {
       support: this.levelsLines["support"],
       resistance: this.levelsLines["resistance"],
-      sl: this.positionLines["sl"],
-      tp: this.positionLines["tp"],
-      part: this.positionLines["part"],
+      buySl: this.buyPositionLines["sl"],
+      buyTp: this.buyPositionLines["tp"],
+      buyPart: this.buyPositionLines["part"],
+      sellSl: this.sellPositionLines["sl"],
+      sellTp: this.sellPositionLines["tp"],
+      sellPart: this.sellPositionLines["part"],
       simSlLong: this.longLines["sl"],
       simTpLong: this.longLines["tp"],
       simPartLong: this.longLines["part"],
@@ -267,7 +304,7 @@ export class Chart {
     this.chart.subscribeDblClick(() => {
       const candlesCount = this.app.state.get("algoSettings.candlesCount") || 5;
       const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-      const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
+      const candlesPart = this.app.state.get("algoSettings.candlesPart") || 4;
       if (this.app.state.get("chartMode") == "simulator") {
         const candles = this.app
           .get("chart")
@@ -294,7 +331,6 @@ export class Chart {
   }
   async load(symbol, timeframe) {
     this.app.state.set("chartMode", "live");
-    document.querySelector(`[data-bind="symbol"]`).textContent = symbol;
     const data = await this.app
       .get("api")
       .get(
@@ -330,9 +366,9 @@ export class Chart {
       await this.loadTickerData(symbol);
     }
     //calc Indicators
-    const candlesCount = this.app.state.get("algoSettings.candlesCount") || 8;
+    const candlesCount = this.app.state.get("algoSettings.candlesCount") || 5;
     const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-    const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
+    const candlesPart = this.app.state.get("algoSettings.candlesPart") || 4;
     this.updateIndicators(this.candles, candlesCount, touchCount, candlesPart);
     this.visibleLevels(false);
     console.log(`[chart:render ${symbol}]`);
@@ -361,35 +397,36 @@ export class Chart {
     this.app.get("simulator").closeAllPositions();
     this.app.get("simulator").updateSimilatorPanel();
     this.markerSeries.setMarkers([]);
-    this.position = null;
+    this.positionLong = null;
+    this.positionShort = null;
     //load ticker data algo-trading
     const tickerData = await this.getTickerInfo(symbol);
     this.app.state.set("tickerData", tickerData);
     const tickerInfo = await this.app.get("api").post(`/api/${symbol}/info`);
     if (!tickerInfo) return;
     const {
-      sl = -0.5,
-      slOpen = -0.5,
-      tp = 2,
+      sl = -1,
+      tp = 5,
       size = 1000,
       attemptsCount = -1,
       timeframe = "4h",
+      trend = "up",
       breakeven = 0,
       trailing = 0,
       part = 0,
-      candlesCount = 3,
-      touchCount = 2,
-      tolerance = 0.1,
-      candlesPart = 3,
-      triggersCount = 6,
+      candlesCount = 5,
+      touchCount = 3,
+      tolerance = 0.15,
+      candlesPart = 4,
+      triggersCount = 5,
     } = tickerInfo?.algoSettings || {};
     this.app.state.set("algoSettings", {
       sl,
-      slOpen,
       tp,
       size,
       attemptsCount,
       timeframe,
+      trend,
       breakeven,
       trailing,
       part,
@@ -402,11 +439,8 @@ export class Chart {
     });
     this.updateAlgoPanel(this.app.state.get("algoSettings"));
     //show triggers
-    this.showTriggers(tickerInfo?.triggers);
-    this.showPositions(
-      tickerInfo.positions,
-      tickerInfo.partOrders,
-    );
+    this.showTriggers(tickerInfo);
+    this.showPositions(tickerInfo.positions, tickerInfo.partOrders);
   }
   updateAlgoPanel(algoSettings) {
     if (!this.container) return;
@@ -418,7 +452,6 @@ export class Chart {
         panel.innerHTML = `
           <div class="d-flex justify-content-start algo-info">
             <div class="btn-group btn-group-sm">
-              <button class="btn btn-sm" data-action="setTriggers">🪮</button>
               <button class="btn btn-sm" data-action="openAlgoSettings">${Handlebars.helpers.tradingIcon(algoSettings, { hash: { btn: true } })}</button>
             </div>
           </div>
@@ -460,7 +493,6 @@ export class Chart {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
       const action = btn.dataset.action;
-      if (action === "setTriggers") await this.setTriggers();
       if (action === "openAlgoSettings") {
         this.showAlgotradingSettingsModal();
       }
@@ -536,29 +568,6 @@ export class Chart {
       });
     });
   }
-  async setTriggers() {
-    if (this.app.state.get("chartMode") == "simulator") return;
-    const { support, resistance } = this.levelsLines;
-    const tolerance = this.app.state.get("algoSettings.tolerance") || 0.1;
-    const size = this.app.state.get("algoSettings.size") || 1000;
-    const triggersCount = this.app.state.get("algoSettings.triggersCount") || 3;
-    const data = {
-      support: support.options().price,
-      resistance: resistance.options().price,
-      tolerance,
-      user: this.app.state.get("bybitUser"),
-      size,
-      triggersCount,
-    };
-    try {
-      const res = await this.app
-        .get("api")
-        .post(`/api/${this.app.state.get("symbol")}/triggers/set`, data);
-      this.showTriggers(res);
-    } catch (err) {
-      alert(err);
-    }
-  }
   visibleTriggers(visible) {
     this.flagTriggers = visible;
     Object.values(this.triggersLines).forEach((item) => {
@@ -576,24 +585,42 @@ export class Chart {
       this.candlestickSeries.removePriceLine(item);
     });
     this.triggersLines = {};
-    for (const [name, triger] of Object.entries(triggers || {})) {
-      const color =
-        this.app.state.get("bybitUser") === "main" ? "green" : "red";
-      this.triggersLines[name] = this.candlestickSeries.createPriceLine({
-        price: triger.price,
-        color: triger.active ? color : "black",
-        title: triger.size.toFixed(1) || 0,
-        lineWidth: 2,
-        lineStyle: triger.active ? 1 : 0,
-        lineVisible: true,
-        axisLabelVisible: true,
-      });
+    for (const [name, triger] of Object.entries(triggers?.triggersBuy || {})) {
+      this.triggersLines[`${name}Buy`] = this.candlestickSeries.createPriceLine(
+        {
+          price: triger.price,
+          color: triger.active ? "green" : "black",
+          title: triger.size.toFixed(1) || 0,
+          lineWidth: 2,
+          lineStyle: triger.active ? 1 : 0,
+          lineVisible: true,
+          axisLabelVisible: true,
+        },
+      );
+    }
+    for (const [name, triger] of Object.entries(triggers?.triggersSell || {})) {
+      this.triggersLines[`${name}Sell`] =
+        this.candlestickSeries.createPriceLine({
+          price: triger.price,
+          color: triger.active ? "red" : "black",
+          title: triger.size.toFixed(1) || 0,
+          lineWidth: 2,
+          lineStyle: triger.active ? 1 : 0,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
     }
   }
   //new visible
   visiblePositions(visible) {
     this.flagPositions = visible;
-    Object.values(this.positionLines).forEach((item) => {
+    Object.values(this.buyPositionLines).forEach((item) => {
+      item.applyOptions({
+        lineVisible: visible,
+        axisLabelVisible: visible,
+      });
+    });
+    Object.values(this.sellPositionLines).forEach((item) => {
       item.applyOptions({
         lineVisible: visible,
         axisLabelVisible: visible,
@@ -602,43 +629,77 @@ export class Chart {
   }
   showPositions(positions, partOrders) {
     for (const position of positions) {
-      const { avgPrice, unrealisedPnl, stopLoss, takeProfit, side } = position;
-      this.position = position;
       this.flagPositions = true;
-      this.positionLines["enter"].applyOptions({
-        price: avgPrice,
-        lineVisible: true,
-        axisLabelVisible: true,
-        title: `${side === "Buy" ? "Long" : "Short"}: ${unrealisedPnl.toFixed(1)}$`,
-        color: this.app.state.get("bybitUser") === "main" ? "green" : "red",
-      });
-      const slPercent = ((stopLoss - avgPrice) / avgPrice) * 100;
-      this.positionLines["sl"].applyOptions({
-        price: stopLoss,
-        title: `SL:${slPercent.toFixed(2)}%`,
-        lineVisible: true,
-        axisLabelVisible: true,
-      });
-      const tpPercent = ((takeProfit - avgPrice) / avgPrice) * 100;
-      this.positionLines["tp"].applyOptions({
-        price: position.takeProfit,
-        title: `TP:${tpPercent.toFixed(2)}%`,
-        lineVisible: true,
-        axisLabelVisible: true,
-        color: this.app.state.get("bybitUser") === "main" ? "green" : "red",
-      });
+      const { avgPrice, unrealisedPnl, stopLoss, takeProfit, side } = position;
+      if (side === "Buy") {
+        this.positionLong = position;
+        this.buyPositionLines["enter"].applyOptions({
+          price: avgPrice,
+          lineVisible: true,
+          axisLabelVisible: true,
+          title: `Long: ${unrealisedPnl.toFixed(1)}$`,
+        });
+        const slPercent = ((stopLoss - avgPrice) / avgPrice) * 100;
+        this.buyPositionLines["sl"].applyOptions({
+          price: stopLoss,
+          title: `buySL:${slPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+        const tpPercent = ((takeProfit - avgPrice) / avgPrice) * 100;
+        this.buyPositionLines["tp"].applyOptions({
+          price: position.takeProfit,
+          title: `buyTP:${tpPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+      }
+      if (side === "Sell") {
+        this.positionShort = position;
+        this.sellPositionLines["enter"].applyOptions({
+          price: avgPrice,
+          lineVisible: true,
+          axisLabelVisible: true,
+          title: `Short: ${unrealisedPnl.toFixed(1)}$`,
+        });
+        const slPercent = ((stopLoss - avgPrice) / avgPrice) * 100;
+        this.sellPositionLines["sl"].applyOptions({
+          price: stopLoss,
+          title: `sellSL:${slPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+        const tpPercent = ((takeProfit - avgPrice) / avgPrice) * 100;
+        this.sellPositionLines["tp"].applyOptions({
+          price: position.takeProfit,
+          title: `sellTP:${tpPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+      }
     }
     for (const partOrder of partOrders) {
-      const { price } = partOrder;
-      const { avgPrice } = this.position;
-      const tpPercent = ((price - avgPrice) / avgPrice) * 100;
-      this.positionLines["part"].applyOptions({
-        price,
-        title: `Part:${tpPercent.toFixed(2)}%`,
-        lineVisible: true,
-        axisLabelVisible: true,
-        color: this.app.state.get("bybitUser") === "main" ? "green" : "red",
-      });
+      const { price, side } = partOrder;
+      if (side === "Sell") {
+        const { avgPrice } = this.positionLong;
+        const tpPercent = ((price - avgPrice) / avgPrice) * 100;
+        this.buyPositionLines["part"].applyOptions({
+          price,
+          title: `sellPart:${tpPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+      }
+      if (side === "Buy") {
+        const { avgPrice } = this.positionShort;
+        const tpPercent = ((price - avgPrice) / avgPrice) * 100;
+        this.sellPositionLines["part"].applyOptions({
+          price,
+          title: `sellPart:${tpPercent.toFixed(2)}%`,
+          lineVisible: true,
+          axisLabelVisible: true,
+        });
+      }
     }
   }
   updateIndicators(candles, candlesCount, touchCount, candlesPart) {
@@ -707,19 +768,34 @@ export class Chart {
         line.applyOptions({
           price: this.currentPriceMove,
         });
-        if (["tp", "sl", "part"].includes(this.selectedLine)) {
-          const enter = this.positionLines["enter"].options().price;
-          const tp = this.positionLines["tp"].options().price;
-          const part = this.positionLines["part"].options().price;
-          const sl = this.positionLines["sl"].options().price;
-          this.positionLines["tp"].applyOptions({
-            title: `tp${(((tp - enter) / enter) * 100).toFixed(2)}%`,
+        if (["buyTp", "buySl", "buyPart"].includes(this.selectedLine)) {
+          const enter = this.buyPositionLines["enter"].options().price;
+          const tp = this.buyPositionLines["tp"].options().price;
+          const part = this.buyPositionLines["part"].options().price;
+          const sl = this.buyPositionLines["sl"].options().price;
+          this.buyPositionLines["tp"].applyOptions({
+            title: `buyTp${(((tp - enter) / enter) * 100).toFixed(2)}%`,
           });
-          this.positionLines["part"].applyOptions({
-            title: `part${(((part - enter) / enter) * 100).toFixed(2)}%`,
+          this.buyPositionLines["part"].applyOptions({
+            title: `buyPart${(((part - enter) / enter) * 100).toFixed(2)}%`,
           });
-          this.positionLines["sl"].applyOptions({
-            title: `sl${(((sl - enter) / enter) * 100).toFixed(2)}%`,
+          this.buyPositionLines["sl"].applyOptions({
+            title: `buySl${(((sl - enter) / enter) * 100).toFixed(2)}%`,
+          });
+        }
+        if (["sellTp", "sellSl", "sellPart"].includes(this.selectedLine)) {
+          const enter = this.sellPositionLines["enter"].options().price;
+          const tp = this.sellPositionLines["tp"].options().price;
+          const part = this.sellPositionLines["part"].options().price;
+          const sl = this.sellPositionLines["sl"].options().price;
+          this.sellPositionLines["tp"].applyOptions({
+            title: `sellTp${(((tp - enter) / enter) * 100).toFixed(2)}%`,
+          });
+          this.sellPositionLines["part"].applyOptions({
+            title: `sellPart${(((part - enter) / enter) * 100).toFixed(2)}%`,
+          });
+          this.sellPositionLines["sl"].applyOptions({
+            title: `sellSl${(((sl - enter) / enter) * 100).toFixed(2)}%`,
           });
         }
         if (["resistance", "support"].includes(this.selectedLine)) {
@@ -860,59 +936,96 @@ export class Chart {
     const lineName = this.selectedLine;
     this.selectedLine = null;
     //real position edit lines
-    if (["tp", "sl", "part"].includes(lineName)) {
-      const enter = this.positionLines["enter"].options().price;
-      const tp = this.positionLines["tp"].options().price;
-      const part = this.positionLines["part"].options().price;
-      const sl = this.positionLines["sl"].options().price;
+    const linesTransform = {
+      buyTp: "tp",
+      buySl: "sl",
+      buyPart: "part",
+      sellTp: "tp",
+      sellSl: "sl",
+      sellPart: "part",
+    };
+    if (["buyTp", "buySl", "buyPart"].includes(lineName)) {
+      const enter = this.buyPositionLines["enter"].options().price;
+      const tp = this.buyPositionLines["tp"].options().price;
+      const part = this.buyPositionLines["part"].options().price;
+      const sl = this.buyPositionLines["sl"].options().price;
       let newSl = ((sl - enter) / enter) * 100;
       const slMax = -1.5;
-      const { side } = this.position;
       const saveParams = {};
       const tpPercent = Math.abs((((tp - enter) / enter) * 100).toFixed(2));
       saveParams.tp = tpPercent;
-      this.app.state.set("algoSettings.tp", tpPercent);
+      //this.app.state.set("algoSettings.tp", tpPercent);
       if (part > 0) {
         const tpPart = Math.abs((((part - enter) / enter) * 100).toFixed(2));
         saveParams.part = tpPart;
-        this.app.state.set("algoSettings.part", tpPart);
+        //this.app.state.set("algoSettings.part", tpPart);
       }
-      if (side === "Buy") {
-        if (newSl > slMax) {
-          this.app.state.set("algoSettings.sl", newSl.toFixed(2));
-        } else {
-          this.positionLines["sl"].applyOptions({
-            price: enter * (1 + slMax / 100),
-            title: `LS${slMax}%!`,
-          });
-          newSl = slMax;
-          this.app.state.set("algoSettings.sl", slMax);
-        }
-      }
-      if (side === "Sell") {
-        newSl = newSl * -1;
-        if (newSl > slMax) {
-          this.app.state.set("algoSettings.sl", newSl.toFixed(2));
-        } else {
-          this.positionLines["sl"].applyOptions({
-            price: enter * (1 - slMax / 100),
-            title: `LS${slMax}%!`,
-          });
-          newSl = slMax;
-          this.app.state.set("algoSettings.sl", slMax);
-        }
+      if (newSl > slMax) {
+        //this.app.state.set("algoSettings.sl", newSl.toFixed(2));
+      } else {
+        this.buyPositionLines["sl"].applyOptions({
+          price: enter * (1 + slMax / 100),
+          title: `LS${slMax}%!`,
+        });
+        newSl = slMax;
+        //this.app.state.set("algoSettings.sl", slMax);
       }
       saveParams.sl = +newSl.toFixed(2);
       //save api
-      try {
-        const { symbol, priceScale } = this.app.state.get();
-        saveParams.priceScale = priceScale;
-        await this.app
-          .get("api")
-          .post(`/api/algo-trading/${symbol}/edit/${lineName}`, saveParams);
-      } catch (err) {
-        alert(err.message || "Ошибка сохранения настроек");
+      // try {
+      //   const { symbol, priceScale } = this.app.state.get();
+      //   saveParams.priceScale = priceScale;
+      //   await this.app
+      //     .get("api")
+      //     .post(
+      //       `/api/algo-trading/${symbol}/edit/${linesTransform[lineName]}`,
+      //       saveParams,
+      //     );
+      // } catch (err) {
+      //   alert(err.message || "Ошибка сохранения настроек");
+      // }
+    }
+    if (["sellTp", "sellSl", "sellPart"].includes(lineName)) {
+      const enter = this.sellPositionLines["enter"].options().price;
+      const tp = this.sellPositionLines["tp"].options().price;
+      const part = this.sellPositionLines["part"].options().price;
+      const sl = this.sellPositionLines["sl"].options().price;
+      let newSl = ((sl - enter) / enter) * 100;
+      const slMax = -1.5;
+      const saveParams = {};
+      const tpPercent = Math.abs((((tp - enter) / enter) * 100).toFixed(2));
+      saveParams.tp = tpPercent;
+      //this.app.state.set("algoSettings.tp", tpPercent);
+      if (part > 0) {
+        const tpPart = Math.abs((((part - enter) / enter) * 100).toFixed(2));
+        saveParams.part = tpPart;
+        //this.app.state.set("algoSettings.part", tpPart);
       }
+      newSl = newSl * -1;
+      if (newSl > slMax) {
+        //this.app.state.set("algoSettings.sl", newSl.toFixed(2));
+      } else {
+        this.sellPositionLines["sl"].applyOptions({
+          price: enter * (1 - slMax / 100),
+          title: `LS${slMax}%!`,
+        });
+        newSl = slMax;
+        //this.app.state.set("algoSettings.sl", slMax);
+      }
+      saveParams.sl = +newSl.toFixed(2);
+      //save api
+      // try {
+      //   const { symbol, priceScale } = this.app.state.get();
+      //   saveParams.priceScale = priceScale;
+      //   await this.app
+      //     .get("api")
+      //     .post(
+      //       `/api/algo-trading/${symbol}/edit/${linesTransform[lineName]}`,
+      //       saveParams,
+      //     );
+      // } catch (err) {
+      //   alert(err.message || "Ошибка сохранения настроек");
+      // }
     }
     this.defaultLines();
   }
@@ -936,33 +1049,24 @@ export class Chart {
     });
     //}
     //positions
-    if (this.position) {
-      const { avgPrice, size, side } = this.position;
-      const pnl =
-        size * (newCandle.close - avgPrice) * (side === "Buy" ? 1 : -1);
-      const pnlPercent =
-        ((newCandle.close - avgPrice) / avgPrice) *
-        100 *
-        (side === "Buy" ? 1 : -1);
-      this.positionLines["enter"].applyOptions({
-        title: `${side === "Buy" ? "Long" : "Short"} ${pnl.toFixed(1)}$ (${pnlPercent.toFixed(1)}%)`,
+    if (this.positionLong) {
+      const { avgPrice, size } = this.positionLong;
+      const pnl = size * (newCandle.close - avgPrice);
+      const pnlPercent = ((newCandle.close - avgPrice) / avgPrice) * 100;
+      this.buyPositionLines["enter"].applyOptions({
+        title: `Long ${pnl.toFixed(1)}$ (${pnlPercent.toFixed(1)}%)`,
+      });
+    }
+    if (this.positionShort) {
+      const { avgPrice, size } = this.positionShort;
+      const pnl = size * (newCandle.close - avgPrice) * -1;
+      const pnlPercent = ((newCandle.close - avgPrice) / avgPrice) * -100;
+      this.sellPositionLines["enter"].applyOptions({
+        title: `Short ${pnl.toFixed(1)}$ (${pnlPercent.toFixed(1)}%)`,
       });
     }
   }
   defaultLines() {
-    // this.positionLines["tp"].applyOptions({
-    //   color: "green",
-    // });
-    // this.positionLines["sl"].applyOptions({
-    //   color: "red",
-    // });
-    // //todo
-    // this.levelsLines["support"].applyOptions({
-    //   color: "green",
-    // });
-    // this.levelsLines["resistance"].applyOptions({
-    //   color: "red",
-    // });
     this.container.style.cursor = "default";
     this.chart.applyOptions({
       handleScroll: true,
@@ -1006,11 +1110,24 @@ export class Chart {
       }
       return el;
     });
+    const trendList = [
+      { value: "up", name: "Up" },
+      { value: "down", name: "Down" },
+      { value: "flat", name: "Flat" },
+    ].map((el) => {
+      if (el.value === algoSettings.trend) {
+        el.selected = true;
+      } else {
+        el.selected = false;
+      }
+      return el;
+    });
     modal.show({
       title: `Racket – ${symbol} ($${balance.toFixed(1)})`,
       body: this.templates.algotradingSettingsTemplate({
         attemptsList,
         timeframeList,
+        trendList,
         ...algoSettings,
         fundingRate: tickerData.fundingRate,
         countDownTime: tickerData.countDownTime,
@@ -1030,10 +1147,10 @@ export class Chart {
               const newSettings = {
                 tp: parseFloat(data.get("tp")),
                 sl: parseFloat(data.get("sl")),
-                slOpen: parseFloat(data.get("slOpen")),
                 size: parseFloat(data.get("size")),
                 attemptsCount: parseFloat(data.get("attemptsCount")),
                 timeframe: data.get("timeframe"),
+                trend: data.get("trend"),
                 breakeven: parseFloat(data.get("breakeven")),
                 trailing: parseFloat(data.get("trailing")),
                 part: parseFloat(data.get("part")),
@@ -1060,7 +1177,7 @@ export class Chart {
                 this.app.state.set("algoSettings", newSettings);
                 this.app.get("chart").updateAlgoPanel(newSettings);
                 //calc new triggers
-                await this.setTriggers();
+                //await this.setTriggers();
                 //this.app.emit("algo:settingsUpdated", { symbol, ...newSettings });
               } catch (err) {
                 alert(err.message || "Ошибка сохранения настроек");
@@ -1078,7 +1195,7 @@ export class Chart {
     if (!form) return;
 
     const posInput = form.querySelector('[name="size"]');
-    const slInput = form.querySelector('[name="slOpen"]');
+    const slInput = form.querySelector('[name="sl"]');
     const attemptsDisplay = document.getElementById("calculatedAttempts");
     const attemptsSelect = form.querySelector('[name="attemptsCount"]');
 

@@ -8,7 +8,7 @@ async function checkTriggersOnce() {
   if (isProcessing) return;
   isProcessing = true;
   try {
-    console.log(`[1min] Экстренное сканирование запущено`);
+    console.log(`[1min] Scan run`);
     await checkTriggers();
   } finally {
     isProcessing = false;

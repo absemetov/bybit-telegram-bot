@@ -188,10 +188,11 @@ class UserAPI {
         positionIdx: order.positionIdx,
       }));
   }
-  async setPart50All(symbol, part, priceScale, side) {
+  async setPart50All(symbol, part, priceScale) {
     const orders = await this.getTickerOrders(symbol);
     const positions = await this.getTickerPositions(symbol);
-    await this.setPart50(symbol, part, priceScale, side, orders, positions);
+    await this.setPart50(symbol, part, priceScale, "Buy", orders, positions);
+    await this.setPart50(symbol, part, priceScale, "Sell", orders, positions);
   }
   async setPart50(symbol, part, priceScale, side, orders, positions) {
     const longPosition = positions.find((p) => p.side === "Buy");
