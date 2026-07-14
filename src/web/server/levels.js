@@ -48,7 +48,7 @@ async function checkPositions(
       const newStopLoss = avgPrice * (1 - tickerStopLoss / 100);
       if (
         !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03 &&
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
           stopLoss > avgPrice)
       ) {
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
@@ -82,7 +82,7 @@ async function checkPositions(
       const newTakeProfit = avgPrice * (1 - tickerTakeProfit / 100);
       if (
         !takeProfit ||
-        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.03
+        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
       ) {
         await bybit.editTakeProfit(
           symbol,
@@ -96,7 +96,7 @@ async function checkPositions(
       const newStopLoss = avgPrice * (1 + tickerStopLoss / 100);
       if (
         !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.03 &&
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
           stopLoss < avgPrice)
       ) {
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
@@ -130,7 +130,7 @@ async function checkPositions(
       const newTakeProfit = avgPrice * (1 + tickerTakeProfit / 100);
       if (
         !takeProfit ||
-        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.03
+        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
       ) {
         await bybit.editTakeProfit(
           symbol,
@@ -199,7 +199,7 @@ async function sendTelegramReport(
         .slice(0, 10)
         .map(
           (item, index) =>
-            `${index + 1}) ${item.closedPnl > 0 ? "🟢" : "🔴"} ` +
+            `${index + 1}) ${item.side !== "Buy" ? "📈 Long" : "📉 Short"}${item.closedPnl > 0 ? "🟢" : "🔴"} ` +
             `html<b>${(+item.closedPnl).toFixed(1)}$</b>html |` +
             `${formatDate(item.updatedTime)} |` +
             `Entry ${(+item.avgEntryPrice).toFixed(priceScale)}$ |` +
