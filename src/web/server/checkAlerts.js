@@ -105,6 +105,25 @@ export const checkTriggers = async () => {
                     toleranceTrigger / 100
                 );
               });
+            //delete triggers
+            if (triggersArrayBuy.length > 0 && support === 0) {
+              await bybitUsers[user].cancelAllOrders(symbol, "Buy");
+              arrayNotify.push({
+                symbol,
+                data: {
+                  [`${user}TriggersBuy`]: {},
+                },
+              });
+            }
+            if (triggersArraySell.length > 0 && resistance === 0) {
+              await bybitUsers[user].cancelAllOrders(symbol, "Sell");
+              arrayNotify.push({
+                symbol,
+                data: {
+                  [`${user}TriggersSell`]: {},
+                },
+              });
+            }
             //support zone
             if (support && triggerSupport && ["up", "flat"].includes(trend)) {
               await Ticker.setTriggers(

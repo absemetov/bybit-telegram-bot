@@ -312,6 +312,20 @@ export class Simulator {
       const resistanceColor = this.app
         .get("chart")
         .levelsLines["resistance"].options().color;
+      //delete triggers
+      if (supportColor !== "green") {
+        Object.values(this.longTriggers).forEach((item) => {
+          this.app.get("chart").candlestickSeries.removePriceLine(item);
+        });
+        this.longTriggers = {};
+      }
+      if (resistanceColor !== "red") {
+        Object.values(this.shortTriggers).forEach((item) => {
+          this.app.get("chart").candlestickSeries.removePriceLine(item);
+        });
+        this.shortTriggers = {};
+      }
+      
       if (side === "Long" && supportColor === "green") {
         this.setLongTriggers(support);
       }
@@ -1705,6 +1719,14 @@ export class Simulator {
       if (this.getDefaultConfig().balance < 0) {
         console.log("balance < 0");
         break;
+      }
+      //delete triggers
+      if (autoLong && support === 0) {
+        this.longSilentTriggers = {};
+      }
+      //open Short
+      if (autoShort && resistance === 0) {
+        this.shortSilentTriggers = {};
       }
       if (autoLong && support > 0) {
         this.setLongTriggerSilent(support, testConfig);

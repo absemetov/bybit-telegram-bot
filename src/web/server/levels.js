@@ -250,6 +250,12 @@ export const algoTrading = async (
       await Ticker.update(symbol, {
         [`${user}TriggersBuy.${triggerId}.active`]: false,
       });
+      await bot.sendMessage({
+        text:
+          `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          `triggersBuy.${triggerId}.active\n` +
+          `#${symbol.slice(0, -4)}_${user}`,
+      });
     }
     //create SHORT order
     if (triggerSell && ["down", "flat"].includes(trend) && attemptsCount > 0) {
@@ -268,6 +274,12 @@ export const algoTrading = async (
       //disable trigger
       await Ticker.update(symbol, {
         [`${user}TriggersSell.${triggerId}.active`]: false,
+      });
+      await bot.sendMessage({
+        text:
+          `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          `triggersSell.${triggerId}.active\n` +
+          `#${symbol.slice(0, -4)}_${user}`,
       });
     }
     //set TP/SL break trailing control FOMO
