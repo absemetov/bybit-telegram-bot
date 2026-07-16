@@ -755,10 +755,7 @@ export class Chart {
     if (param.time && candle) {
       const datapoints = param.seriesData.get(this.volumeSeries);
       if (datapoints) {
-        const candlesCount =
-          this.app.state.get("algoSettings.candlesCount") || 5;
-        const touchCount = this.app.state.get("algoSettings.touchCount") || 3;
-        const candlesPart = this.app.state.get("algoSettings.candlesPart") || 3;
+        const { candlesCount, touchCount, candlesPart } = this.app.state.get("algoSettings");
         document.querySelector(`[data-bind="candleInfo"]`).textContent =
           `${this.volumeSeries.priceFormatter().format(datapoints.value)}
         (${
@@ -1128,9 +1125,9 @@ export class Chart {
       return el;
     });
     const trendList = [
-      { value: "up", name: "Up" },
-      { value: "down", name: "Down" },
-      { value: "flat", name: "Flat" },
+      { value: "up", name: "↗️Up" },
+      { value: "down", name: "↘️Down" },
+      { value: "flat", name: "↕️Flat" },
     ].map((el) => {
       if (el.value === algoSettings.trend) {
         el.selected = true;

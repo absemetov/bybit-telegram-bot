@@ -1,6 +1,6 @@
 import Ticker from "./Ticker.js";
 import bot from "./telegram.js";
-const MAX_POSITION_USDT = 10000;
+const MAX_POSITION_USDT = 12000;
 const TAKE_PROFIT = 3;
 const STOP_LOSS = -1;
 //check TP SL break set default values
@@ -14,7 +14,6 @@ async function checkPositions(
 ) {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   const { sl, tp, breakeven, trailing } = algoSettings || {};
-  //const tolerance = 0.1;
   const tickerStopLoss = sl || STOP_LOSS;
   const tickerTakeProfit = tp || TAKE_PROFIT;
   //edit TP, SL set breakeven
@@ -66,9 +65,6 @@ async function checkPositions(
             side,
             newStopLoss.toFixed(priceScale),
           );
-          // await Ticker.update(symbol, {
-          //   [`${user}.sl`]: +slPersent.toFixed(2),
-          // });
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
@@ -108,15 +104,11 @@ async function checkPositions(
           ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2 &&
           newStopLoss >= avgPrice
         ) {
-          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
             newStopLoss.toFixed(priceScale),
           );
-          // await Ticker.update(symbol, {
-          //   [`${user}.sl`]: +slPersent.toFixed(2),
-          // });
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
@@ -210,7 +202,7 @@ async function sendTelegramReport(
       `\n#${symbol.slice(0, -4)}_${user} #${closedPnl > 0 ? "profit" : "loss"}`,
     button: {
       text: `${symbol} chart`,
-      url: `https://bybit.rzk.com.ru/#/${symbol}`,
+      url: `https://kz.rzk.com.ru/#/${symbol}`,
     },
   });
 }
@@ -253,7 +245,7 @@ export const algoTrading = async (
       await bot.sendMessage({
         text:
           `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-          `triggersBuy.${triggerId}.active\n` +
+          `triggersBuy.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
           `#${symbol.slice(0, -4)}_${user}`,
       });
     }
@@ -278,7 +270,7 @@ export const algoTrading = async (
       await bot.sendMessage({
         text:
           `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-          `triggersSell.${triggerId}.active\n` +
+          `triggersSell.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
           `#${symbol.slice(0, -4)}_${user}`,
       });
     }

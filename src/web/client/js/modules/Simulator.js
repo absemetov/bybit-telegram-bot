@@ -479,11 +479,7 @@ export class Simulator {
 
   tick() {
     if (this.getDefaultConfig().balance < 0) {
-      this.saveField(
-        "result",
-        `Liquidation ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
-      );
-      this.showSimulatorSettingsModal();
+      alert(`Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`);
       this.stop();
       return;
     }
@@ -1715,9 +1711,9 @@ export class Simulator {
           candlesPart,
           tolerance,
         );
-      //open Long
+      //control balance
       if (this.getDefaultConfig().balance < 0) {
-        console.log("balance < 0");
+        alert(`Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`);
         break;
       }
       //delete triggers

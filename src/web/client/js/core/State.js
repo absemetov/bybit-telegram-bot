@@ -10,6 +10,10 @@ export class State {
       settings: { theme: "dark", sound: true, locale: "en" },
       algoSettings: {
         balance: 10000,
+        candlesCount: 5,
+        touchCount: 3,
+        candlesPart: 5,
+        tolerance: 0.1,
       },
       watchlist: {
         tickers: [],
