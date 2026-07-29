@@ -130,9 +130,7 @@ class UserAPI {
       const lossTrades = positions.filter(
         (trade) => parseFloat(trade.closedPnl) < 0,
       ).length;
-      const winRate = ((profitableTrades / positions.length) * 100).toFixed(
-        2,
-      );
+      const winRate = ((profitableTrades / positions.length) * 100).toFixed(2);
       const total = {
         pnl: 0,
         lossPrcnt: 0,
@@ -197,32 +195,84 @@ class UserAPI {
   async setPart50(symbol, part, priceScale, side, orders, positions) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
+    //short
     if (shortPosition && side === "Sell") {
-      for (const order of orders.part.filter((o) => o.side === "Buy")) {
-        await this.cancelOrder(symbol, order.orderId);
-      }
-      if (part > 0) {
-        const { avgPrice } = shortPosition;
-        const newPart50 = avgPrice * (1 - part / 100);
+      const { avgPrice } = shortPosition;
+      const partOrders = orders.part.filter((o) => o.side === "Buy");
+      if (partOrders.length > 0) {
+        if (part > 0) {
+          const newPart50 = avgPrice * (1 - part / 100);
+          if (
+            (Math.abs(newPart50 - partOrders[0].price) /
+              partOrders[0].price) *
+              100 >=
+            0.06
+          ) {
+            //delete parts
+            for (const order of partOrders) {
+              await this.cancelOrder(symbol, order.orderId);
+            }
+            //edit
+            await this.setPartialTakeProfit(
+              shortPosition,
+              newPart50.toFixed(priceScale),
+            );
+          }
+        } else {
+          //delete parts
+          for (const order of partOrders) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+        }
+      } else {
         //create new
-        await this.setPartialTakeProfit(
-          shortPosition,
-          newPart50.toFixed(priceScale),
-        );
+        if (part > 0) {
+          const newPart50 = avgPrice * (1 - part / 100);
+          await this.setPartialTakeProfit(
+            shortPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
       }
     }
+    //long position
     if (longPosition && side === "Buy") {
-      for (const order of orders.part.filter((o) => o.side === "Sell")) {
-        await this.cancelOrder(symbol, order.orderId);
-      }
-      if (part > 0) {
+      const { avgPrice } = longPosition;
+      const partOrders = orders.part.filter((o) => o.side === "Sell");
+      if (partOrders.length > 0) {
+        if (part > 0) {
+          const newPart50 = avgPrice * (1 + part / 100);
+          if (
+            (Math.abs(newPart50 - partOrders[0].price) /
+              partOrders[0].price) *
+              100 >=
+            0.06
+          ) {
+            //delete parts
+            for (const order of partOrders) {
+              await this.cancelOrder(symbol, order.orderId);
+            }
+            //create new
+            await this.setPartialTakeProfit(
+              longPosition,
+              newPart50.toFixed(priceScale),
+            );
+          }
+        } else {
+          //delete parts
+          for (const order of partOrders) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+        }
+      } else {
         //create new
-        const { avgPrice } = longPosition;
-        const newPart50 = avgPrice * (1 + part / 100);
-        await this.setPartialTakeProfit(
-          longPosition,
-          newPart50.toFixed(priceScale),
-        );
+        if (part > 0) {
+          const newPart50 = avgPrice * (1 + part / 100);
+          await this.setPartialTakeProfit(
+            longPosition,
+            newPart50.toFixed(priceScale),
+          );
+        }
       }
     }
   }
@@ -322,7 +372,9 @@ class UserAPI {
     };
     const response = await this.bybitClient.getActiveOrders(params);
     if (response.retCode !== 0) {
-      throw new Error(`Error getTickersOrders: ${response.retMsg} code:${response.retCode}`);
+      throw new Error(
+        `Error getTickersOrders: ${response.retMsg} code:${response.retCode}`,
+      );
     }
     const stop = response.result.list
       .filter((o) => ["Stop"].includes(o.stopOrderType))

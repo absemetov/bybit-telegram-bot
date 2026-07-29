@@ -22,13 +22,14 @@ export class Simulator {
       balance: 5000,
       size: 5000,
       speed: 1000,
-      part: 0,
-      tp: 3,
+      part: 2,
+      tp: 5,
       sl: -1,
-      candlesCount: 6,
-      touchCount: 3,
-      tolerance: 0.15,
-      triggersCount: 6,
+      candlesCount: 4,
+      touchesCount: 3,
+      candlePart: 4,
+      triggersStep: 0.1,
+      triggersCount: 4,
       autoLong: false,
       autoShort: false,
       autoTp: false,
@@ -37,7 +38,6 @@ export class Simulator {
       result: null,
       breakeven: 0,
       trailing: 0,
-      candlesPart: 5,
     };
     this.longPosition = {
       size: 0,
@@ -62,6 +62,8 @@ export class Simulator {
     this.shortTriggers = {};
     this.longSilentTriggers = {};
     this.shortSilentTriggers = {};
+    this.longTriggersSize = 0;
+    this.shortTriggersSize = 0;
   }
   //save to LS
   saveField(key, value) {
@@ -130,11 +132,11 @@ export class Simulator {
         tp: saved.tp ?? this.defaultSettings.tp,
         sl: saved.sl ?? this.defaultSettings.sl,
         candlesCount: saved.candlesCount ?? this.defaultSettings.candlesCount,
-        touchCount: saved.touchCount ?? this.defaultSettings.touchCount,
-        tolerance: saved.tolerance ?? this.defaultSettings.tolerance,
+        touchesCount: saved.touchesCount ?? this.defaultSettings.touchesCount,
+        triggersStep: saved.triggersStep ?? this.defaultSettings.triggersStep,
         triggersCount:
           saved.triggersCount ?? this.defaultSettings.triggersCount,
-        candlesPart: saved.candlesPart ?? this.defaultSettings.candlesPart,
+        candlePart: saved.candlePart ?? this.defaultSettings.candlePart,
         autoLong: saved.autoLong ?? this.defaultSettings.autoLong,
         autoShort: saved.autoShort ?? this.defaultSettings.autoShort,
         autoTp: saved.autoTp ?? this.defaultSettings.autoTp,
@@ -232,9 +234,9 @@ export class Simulator {
               sl: parseFloat(data.get("sl")),
               candlesCount: parseFloat(data.get("candlesCount")),
               triggersCount: parseFloat(data.get("triggersCount")),
-              touchCount: parseFloat(data.get("touchCount")),
-              tolerance: parseFloat(data.get("tolerance")),
-              candlesPart: parseFloat(data.get("candlesPart")),
+              touchesCount: parseFloat(data.get("touchesCount")),
+              triggersStep: parseFloat(data.get("triggersStep")),
+              candlePart: parseFloat(data.get("candlePart")),
               autoLong: !!data.get("autoLong"),
               autoShort: !!data.get("autoShort"),
               autoTp: !!data.get("autoTp"),
@@ -298,7 +300,6 @@ export class Simulator {
     updateCalculations();
   }
   setTriggers(side, auto) {
-    this.app.get("chart").visibleLevels(true);
     const support = this.app
       .get("chart")
       .levelsLines["support"].options().price;
@@ -325,7 +326,6 @@ export class Simulator {
         });
         this.shortTriggers = {};
       }
-      
       if (side === "Long" && supportColor === "green") {
         this.setLongTriggers(support);
       }
@@ -361,26 +361,22 @@ export class Simulator {
     }
   }
   updateLevels(candles) {
-    const { candlesCount, touchCount, candlesPart, tolerance } =
-      this.getDefaultConfig();
+    const { candlesCount, touchesCount, candlePart } = this.getDefaultConfig();
     this.app
       .get("chart")
-      .updateIndicators(
-        candles,
-        candlesCount,
-        touchCount,
-        candlesPart,
-        tolerance,
-      );
+      .updateIndicators(candles, candlesCount, touchesCount, candlePart);
   }
   startSimulator() {
     if (this.isRunning) this.stop();
     this.closeAllPositions();
     this.app.state.set("chartMode", "simulator");
     this.candleIndex = 0;
-    this.app.get("chart").visibleTriggers(false);
-    this.app.get("chart").visiblePositions(false);
-    this.app.get("chart").visibleLevels(true);
+    this.app.get("chart").flagLevels = true;
+    this.app.get("chart").flagTriggers = false;
+    this.app.get("chart").flagPositions = false;
+    this.app.get("chart").visibleTriggers();
+    this.app.get("chart").visiblePositions();
+    this.app.get("chart").visibleLevels();
     this.trades = [];
     this.longPosition = {
       size: 0,
@@ -471,15 +467,14 @@ export class Simulator {
     this.app
       .get("chart")
       .load(this.app.state.get("symbol"), this.app.state.get("timeframe"));
-    this.app.get("chart").visibleTriggers(true);
-    this.app.get("chart").visiblePositions(true);
-    this.app.get("chart").visibleLevels(true);
     this.app.emit("simulator:reset");
   }
 
   tick() {
     if (this.getDefaultConfig().balance < 0) {
-      alert(`Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`);
+      alert(
+        `Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
+      );
       this.stop();
       return;
     }
@@ -544,7 +539,8 @@ export class Simulator {
   }
   //first set Triggers
   setLongTriggers(support) {
-    const { tolerance, triggersCount } = this.getDefaultConfig();
+    const { triggersStep, triggersCount, size } = this.getDefaultConfig();
+    this.longTriggersSize = (size - this.longPosition.size) / triggersCount;
     //first delete old price lines
     Object.values(this.longTriggers).forEach((item) => {
       this.app.get("chart").candlestickSeries.removePriceLine(item);
@@ -553,7 +549,7 @@ export class Simulator {
     this.longTriggers["enter1"] = this.app
       .get("chart")
       .candlestickSeries.createPriceLine({
-        price: support * (1 + (tolerance * 2) / 100),
+        price: support * (1 + triggersStep / 100),
         color: "black",
         lineWidth: 2,
         lineStyle: 1,
@@ -561,16 +557,6 @@ export class Simulator {
         axisLabelVisible: true,
       });
     this.longTriggers["enter2"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: support * (1 + tolerance / 100),
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: true,
-      });
-    this.longTriggers["enter3"] = this.app
       .get("chart")
       .candlestickSeries.createPriceLine({
         price: support,
@@ -581,11 +567,11 @@ export class Simulator {
         axisLabelVisible: true,
       });
     let index = 1;
-    for (let i = 4; i <= triggersCount; i++) {
+    for (let i = 3; i <= triggersCount; i++) {
       this.longTriggers[`enter${i}`] = this.app
         .get("chart")
         .candlestickSeries.createPriceLine({
-          price: support * (1 - (tolerance * index++) / 100),
+          price: support * (1 - (triggersStep * index++) / 100),
           color: "black",
           lineWidth: 2,
           lineStyle: 1,
@@ -629,26 +615,23 @@ export class Simulator {
   }
   //Silent simulator
   setLongTriggerSilent(entryPrice, config) {
-    const { tolerance, triggersCount } = config;
+    const { triggersStep, triggersCount, size } = config;
+    this.longTriggersSize = (size - this.longPosition.size) / triggersCount;
     //first delete old price lines
     this.longSilentTriggers = {};
     this.longSilentTriggers["enter1"] = {
       color: "black",
-      price: entryPrice * (1 + (tolerance * 2) / 100),
+      price: entryPrice * (1 + triggersStep / 100),
     };
     this.longSilentTriggers["enter2"] = {
-      color: "black",
-      price: entryPrice * (1 + tolerance / 100),
-    };
-    this.longSilentTriggers["enter3"] = {
       color: "black",
       price: entryPrice,
     };
     let index = 1;
-    for (let i = 4; i <= triggersCount; i++) {
+    for (let i = 3; i <= triggersCount; i++) {
       this.longSilentTriggers[`enter${i}`] = {
         color: "black",
-        price: entryPrice * (1 - (tolerance * index++) / 100),
+        price: entryPrice * (1 - (triggersStep * index++) / 100),
       };
     }
   }
@@ -670,7 +653,8 @@ export class Simulator {
     };
   }
   setShortTriggers(resistance) {
-    const { tolerance, triggersCount } = this.getDefaultConfig();
+    const { triggersStep, triggersCount, size } = this.getDefaultConfig();
+    this.shortTriggersSize = (size - this.shortPosition.size) / triggersCount;
     //first delete old price lines
     Object.values(this.shortTriggers).forEach((item) => {
       this.app.get("chart").candlestickSeries.removePriceLine(item);
@@ -679,7 +663,7 @@ export class Simulator {
     this.shortTriggers["enter1"] = this.app
       .get("chart")
       .candlestickSeries.createPriceLine({
-        price: resistance * (1 - (tolerance * 2) / 100),
+        price: resistance * (1 - triggersStep / 100),
         color: "black",
         lineWidth: 2,
         lineStyle: 1,
@@ -687,16 +671,6 @@ export class Simulator {
         axisLabelVisible: true,
       });
     this.shortTriggers["enter2"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: resistance * (1 - tolerance / 100),
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: true,
-      });
-    this.shortTriggers["enter3"] = this.app
       .get("chart")
       .candlestickSeries.createPriceLine({
         price: resistance,
@@ -707,11 +681,11 @@ export class Simulator {
         axisLabelVisible: true,
       });
     let index = 1;
-    for (let i = 4; i <= triggersCount; i++) {
+    for (let i = 3; i <= triggersCount; i++) {
       this.shortTriggers[`enter${i}`] = this.app
         .get("chart")
         .candlestickSeries.createPriceLine({
-          price: resistance * (1 + (tolerance * index++) / 100),
+          price: resistance * (1 + (triggersStep * index++) / 100),
           color: "black",
           lineWidth: 2,
           lineStyle: 1,
@@ -755,26 +729,23 @@ export class Simulator {
     });
   }
   setShortTriggerSilent(entryPrice, config) {
-    const { tolerance, triggersCount } = config;
+    const { triggersStep, triggersCount, size } = config;
+    this.shortTriggersSize = (size - this.shortPosition.size) / triggersCount;
     //first delete old price lines
     this.shortSilentTriggers = {};
     this.shortSilentTriggers["enter1"] = {
       color: "black",
-      price: entryPrice * (1 - (tolerance * 2) / 100),
+      price: entryPrice * (1 - triggersStep / 100),
     };
     this.shortSilentTriggers["enter2"] = {
-      color: "black",
-      price: entryPrice * (1 - tolerance / 100),
-    };
-    this.shortSilentTriggers["enter3"] = {
       color: "black",
       price: entryPrice,
     };
     let index = 1;
-    for (let i = 4; i <= triggersCount; i++) {
+    for (let i = 3; i <= triggersCount; i++) {
       this.shortSilentTriggers[`enter${i}`] = {
         color: "black",
-        price: entryPrice * (1 + (tolerance * index++) / 100),
+        price: entryPrice * (1 + (triggersStep * index++) / 100),
       };
     }
   }
@@ -817,8 +788,7 @@ export class Simulator {
     //candle colors
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing, triggersCount } =
-      this.getDefaultConfig();
+    const { autoTp, autoPart, breakeven, trailing } = this.getDefaultConfig();
     const support = this.app
       .get("chart")
       .levelsLines["support"].options().price;
@@ -851,25 +821,21 @@ export class Simulator {
           line.applyOptions({
             color: "green",
           });
-          this.longPosition.size = size / triggersCount;
+          this.longPosition.size = this.longTriggersSize;
           this.longPosition.entryPrice = price;
           this.longPosition.createdTime = candle.time * 1000;
         } else {
-          if (this.longPosition.size < size) {
+          const remaining = size - this.longPosition.size;
+          if (remaining) {
             line.applyOptions({
               color: "green",
             });
-            this.longPosition.size =
-              this.longPosition.size + size / triggersCount;
-            // avg enter price
-            const greenTriggers = Object.values(this.longTriggers).filter(
-              (t) => t.options().color === "green",
-            );
-            const sum = greenTriggers.reduce(
-              (acc, t) => acc + (t.options().price || 0),
-              0,
-            );
-            this.longPosition.entryPrice = sum / greenTriggers.length;
+            const qtyPosition =
+              this.longPosition.size / this.longPosition.entryPrice;
+            const qtyTrigger = this.longTriggersSize / price;
+            this.longPosition.size += this.longTriggersSize;
+            this.longPosition.entryPrice =
+              this.longPosition.size / (qtyPosition + qtyTrigger);
           }
         }
         this.setLongParams(this.longPosition.entryPrice);
@@ -1019,25 +985,21 @@ export class Simulator {
           line.applyOptions({
             color: "green",
           });
-          this.shortPosition.size = size / triggersCount;
+          this.shortPosition.size = this.shortTriggersSize;
           this.shortPosition.entryPrice = price;
           this.shortPosition.createdTime = candle.time * 1000;
         } else {
-          if (this.shortPosition.size < size) {
+          const remaining = size - this.shortPosition.size;
+          if (remaining) {
             line.applyOptions({
               color: "green",
             });
-            this.shortPosition.size =
-              this.shortPosition.size + size / triggersCount;
-            // avg enter price
-            const greenTriggers = Object.values(this.shortTriggers).filter(
-              (t) => t.options().color === "green",
-            );
-            const sum = greenTriggers.reduce(
-              (acc, t) => acc + (t.options().price || 0),
-              0,
-            );
-            this.shortPosition.entryPrice = sum / greenTriggers.length;
+            const qtyPosition =
+              this.shortPosition.size / this.shortPosition.entryPrice;
+            const qtyTrigger = this.shortTriggersSize / price;
+            this.shortPosition.size += this.shortTriggersSize;
+            this.shortPosition.entryPrice =
+              this.shortPosition.size / (qtyPosition + qtyTrigger);
           }
         }
         this.setShortParams(this.shortPosition.entryPrice);
@@ -1220,7 +1182,7 @@ export class Simulator {
     if (ranges.breakValues) paramRanges.breakeven = ranges.breakValues;
     if (ranges.trailingValues) paramRanges.trailing = ranges.trailingValues;
     if (ranges.candlesCount) paramRanges.candlesCount = ranges.candlesCount;
-    if (ranges.touchCount) paramRanges.touchCount = ranges.touchCount;
+    if (ranges.touchesCount) paramRanges.touchesCount = ranges.touchesCount;
 
     // Если ни один параметр не выбран, оптимизация бессмысленна
     if (Object.keys(paramRanges).length === 0) {
@@ -1229,8 +1191,8 @@ export class Simulator {
     }
     const isValid = (combo) => {
       if (combo.tp <= combo.part) return false;
-      if (combo.candlesCount < combo.touchCount) return false;
-      if (combo.touchCount < 2) return false;
+      if (combo.candlesCount < combo.touchesCount) return false;
+      if (combo.touchesCount < 2) return false;
       if (combo.candlesCount < 2) return false;
       if (combo.trailing === 0) return false;
       if (combo.breakeven === 0 && combo.trailing >= 0) return false;
@@ -1381,22 +1343,19 @@ export class Simulator {
         //position opened
         if (this.longPosition.size === 0) {
           this.longSilentTriggers[name].color = "green";
-          this.longPosition.size = size / triggersCount;
+          this.longPosition.size = this.longTriggersSize;
           this.longPosition.entryPrice = price;
           this.longPosition.createdTime = candle.time * 1000;
         } else {
-          if (this.longPosition.size < size) {
+          const remaining = size - this.longPosition.size;
+          if (remaining) {
             this.longSilentTriggers[name].color = "green";
-            this.longPosition.size =
-              this.longPosition.size + size / triggersCount;
-            const greenTriggers = Object.values(this.longSilentTriggers).filter(
-              (t) => t.color === "green",
-            );
-            const sum = greenTriggers.reduce(
-              (acc, t) => acc + (t.price || 0),
-              0,
-            );
-            this.longPosition.entryPrice = sum / greenTriggers.length;
+            const qtyPosition =
+              this.longPosition.size / this.longPosition.entryPrice;
+            const qtyTrigger = this.longTriggersSize / price;
+            this.longPosition.size += this.longTriggersSize;
+            this.longPosition.entryPrice =
+              this.longPosition.size / (qtyPosition + qtyTrigger);
           }
         }
         this.setLongParamsSilent(this.longPosition.entryPrice, testConfig);
@@ -1523,22 +1482,19 @@ export class Simulator {
         //position opened
         if (this.shortPosition.size === 0) {
           this.shortSilentTriggers[name].color = "green";
-          this.shortPosition.size = size / triggersCount;
+          this.shortPosition.size = this.shortTriggersSize;
           this.shortPosition.entryPrice = price;
           this.shortPosition.createdTime = candle.time * 1000;
         } else {
-          if (this.shortPosition.size < size) {
+          const remaining = size - this.shortPosition.size;
+          if (remaining) {
             this.shortSilentTriggers[name].color = "green";
-            this.shortPosition.size =
-              this.shortPosition.size + size / triggersCount;
-            const greenTriggers = Object.values(
-              this.shortSilentTriggers,
-            ).filter((t) => t.color === "green");
-            const sum = greenTriggers.reduce(
-              (acc, t) => acc + (t.price || 0),
-              0,
-            );
-            this.shortPosition.entryPrice = sum / greenTriggers.length;
+            const qtyPosition =
+              this.shortPosition.size / this.shortPosition.entryPrice;
+            const qtyTrigger = this.shortTriggersSize / price;
+            this.shortPosition.size += this.shortTriggersSize;
+            this.shortPosition.entryPrice =
+              this.shortPosition.size / (qtyPosition + qtyTrigger);
           }
         }
         this.setShortParamsSilent(this.shortPosition.entryPrice, testConfig);
@@ -1687,14 +1643,8 @@ export class Simulator {
       loss: 0,
       prof: 0,
     };
-    const {
-      candlesCount,
-      touchCount,
-      autoLong,
-      autoShort,
-      candlesPart,
-      tolerance,
-    } = testConfig;
+    const { candlesCount, touchesCount, autoLong, autoShort, candlePart } =
+      testConfig;
     for (
       let candleIndex = 0;
       candleIndex < this.app.get("chart").candles.length;
@@ -1705,15 +1655,12 @@ export class Simulator {
       const candlesSlice = candles.slice(-candlesCount);
       const { support, resistance } = this.app
         .get("indicators")
-        .findLevels(
-          candlesSlice,
-          touchCount,
-          candlesPart,
-          tolerance,
-        );
+        .findLevels(candlesSlice, touchesCount, candlePart);
       //control balance
       if (this.getDefaultConfig().balance < 0) {
-        alert(`Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`);
+        alert(
+          `Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
+        );
         break;
       }
       //delete triggers
@@ -1771,7 +1718,7 @@ export class Simulator {
         candlesCount: saved.candlesCount || "3,4,5,6,8",
 
         optTouches: saved.optTouches || false,
-        touchCount: saved.touchCount || "3,4,5",
+        touchesCount: saved.touchesCount || "3,4,5",
       }),
       size: "lg",
       actions: {
@@ -1821,7 +1768,7 @@ export class Simulator {
               candlesCount: data.get("candlesCount"),
 
               optTouches: !!data.get("optTouches"),
-              touchCount: data.get("touchCount"),
+              touchesCount: data.get("touchesCount"),
             };
             this._saveOptimizerSettings(toSave);
             const ranges = {};
@@ -1864,7 +1811,7 @@ export class Simulator {
                 .map((v) => parseInt(v));
             }
             if (data.get("optTouches")) {
-              ranges.touchCount = toSave.touchCount
+              ranges.touchesCount = toSave.touchesCount
                 .split(",")
                 .map((v) => parseInt(v));
             }

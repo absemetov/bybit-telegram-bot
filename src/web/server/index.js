@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { bybitUsers } from "./bybitV5.js";
 import Ticker from "./Ticker.js";
-//import { tasks } from "./schedule.js";
 import { startScanner, stopScanner, getScannerStatus } from "./schedule.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -68,17 +67,14 @@ app.get("/api/health", (req, res) =>
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: "Email и пароль обязательны" });
+    return res.status(400).json({ error: "Email and Pass not set" });
   }
   try {
-    // signInWithPassword через Firebase REST
     const data = await firebaseRequest("accounts:signInWithPassword", {
       email,
       password,
       returnSecureToken: true,
     });
-    // data содержит: idToken, localId, email, expiresIn
-    // Генерируем свой JWT для клиента
     const payload = {
       userId: data.localId,
       email: data.email,
@@ -102,7 +98,7 @@ app.post("/api/:symbol/info", auth, async (req, res) => {
     return res.status(422).json({ message: error.message });
   }
 });
-//NEw set triggers 17/04/2026 vite
+//New set triggers 17/04/2026 vite
 app.post("/api/tickers", auth, async (req, res) => {
   const { direction, lastVisibleId, tab, limit = 10 } = req.query;
   const data = await Ticker.paginate(
@@ -119,70 +115,82 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
     const {
-      tp,
-      sl,
       size,
       attemptsCount,
       timeframe,
       trend,
-      candlesCount,
-      touchCount,
-      tolerance,
-      candlesPart,
-      breakeven,
-      trailing,
-      part,
       priceScale,
+      candlesCount,
+      touchesCount,
+      candlePart,
       triggersCount,
+      triggersStep,
+      longTp,
+      longPart,
+      longSl,
+      longBreakeven,
+      longTrailing,
+      shortTp,
+      shortPart,
+      shortSl,
+      shortBreakeven,
+      shortTrailing,
     } = req.body;
     await Ticker.update(symbol, {
       [req.bybitUser]: {
         attemptsCount,
         timeframe,
         trend,
-        tp,
-        sl,
         size,
         candlesCount,
-        touchCount,
-        tolerance,
-        candlesPart,
-        breakeven,
-        trailing,
-        part,
+        touchesCount,
+        candlePart,
         triggersCount,
+        triggersStep,
+        longTp,
+        longPart,
+        longSl,
+        longBreakeven,
+        longTrailing,
+        shortTp,
+        shortPart,
+        shortSl,
+        shortBreakeven,
+        shortTrailing,
       },
       [`${req.bybitUser}TriggersBuy`]: {},
       [`${req.bybitUser}TriggersSell`]: {},
     });
-    //set Part50
+    //clear orders
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Buy");
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Sell");
-    await bybitUsers[req.bybitUser].setPart50All(symbol, part, priceScale);
-    return res.json({ ok: "Goodluck!" });
-  } catch (error) {
-    return res.status(422).json({ message: error.message });
-  }
-});
-//edit algo sl tp part
-app.post("/api/algo-trading/:symbol/edit/:field", auth, async (req, res) => {
-  try {
-    const { symbol, field } = req.params;
-    const { priceScale } = req.body;
-    await Ticker.update(symbol, {
-      [`${req.bybitUser}.${field}`]: +req.body[field],
-    });
-    if (field === "part") {
-      //set Part50
-      const side = req.bybitUser === "main" ? "Buy" : "Sell";
-      await bybitUsers[req.bybitUser].setPart50All(
-        symbol,
-        req.body[field],
-        priceScale,
-        side,
-      );
+    //set default SL for break
+    const positions = await bybitUsers[req.bybitUser].getTickerPositions(symbol);
+    const longPosition = positions.find((p) => p.side === "Buy");
+    const shortPosition = positions.find((p) => p.side === "Sell");
+    if (longPosition) {
+      const { stopLoss, avgPrice } = longPosition;
+      const newStopLoss = avgPrice * (1 + longSl / 100);
+      if (
+        !stopLoss ||
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
+          stopLoss < avgPrice)
+      ) {
+        await bybitUsers[req.bybitUser].editStopLoss(symbol, "Buy", newStopLoss.toFixed(priceScale));
+      }
     }
-    return res.json({ ok: "ok" });
+    if (shortPosition) {
+      const { stopLoss, avgPrice } = shortPosition;
+      const newStopLoss = avgPrice * (1 - shortSl / 100);
+      if (
+        !stopLoss ||
+        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
+          stopLoss > avgPrice)
+      ) {
+        await bybitUsers[req.bybitUser].editStopLoss(symbol, "Sell", newStopLoss.toFixed(priceScale));
+      }
+    }
+    return res.json({ ok: "Goodluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
@@ -305,5 +313,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Racket v3.0.7 listening on port ${process.env.PORT}`);
+  console.log(`Racket v3.1.0 listening on port ${process.env.PORT}`);
 });

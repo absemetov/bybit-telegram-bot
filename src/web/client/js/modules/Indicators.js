@@ -9,12 +9,13 @@ export class Indicators {
   attachToChart() {
     this.chartModule = this.app.get("chart");
   }
-  findLevels(candles, touchCount = 4, tolerance = 3, step = 0.15) {
+  findLevels(candles, touchCount = 4, tolerance = 3) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
     const levelsLow = [];
     const levelsHigh = [];
     let level = min;
+    const step = 0.1;
     do {
       const lowBound = level;
       level = level * (1 + step / 100);

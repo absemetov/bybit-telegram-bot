@@ -20,60 +20,29 @@
           </select>
       </div>
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="size">💰Position size ($)</label>
-          <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
-      </div>
-  </div>
-  <div class="row">
-    <h6>Position settings</h6>
-  </div>
-  <div class="row">
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-success" for="tp">💵TP(%)</label>
-          <input type="number" class="form-control" name="tp" id="tp" value="{{tp}}" step="0.01" min="0.1" required>
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-danger" for="part">✂️TP50(%)</label>
-          <input type="number" class="form-control" id="part" name="part" value="{{part}}" step="0.01" min="0" required>
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-danger" for="sl">💸Stop Loss(%)</label>
-          <input type="number" class="form-control is-invalid" name="sl" id="sl" value="{{sl}}" step="0.01" min="-1.5" max="-0.1" required>
-      </div>
-  </div>
-  <div class="row">
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-danger" for="breakeven">🤟ActiveBreak(%)</label>
-          <input type="number" class="form-control" id="breakeven" name="breakeven" value="{{breakeven}}" step="0.1" min="0" required>
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-danger" for="trailing">⚙️TrailingStop(%)</label>
-          <input type="number" class="form-control" id="trailing" name="trailing" value="{{trailing}}" step="0.1" min="0" required>
-      </div>
-  </div>
-  <div class="row">
-    <h6>Levels settings</h6>
-  </div>
-  <div class="row">
-      <div class="col-md-3 mb-3">
-          <label class="form-label text-success" for="attemptsCount">⏰TF</label>
+          <label class="form-label text-success" for="timeframe">⏰Enter TF</label>
           <select class="form-select" name="timeframe" id="timeframe">
             {{#each timeframeList}}
               <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
             {{/each}}
           </select>
       </div>
-      <div class="col-md-3 mb-3">
+  </div>
+  <div class="row">
+    <h6>Levels settings</h6>
+  </div>
+  <div class="row">
+      <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="candlesCount">🕯Candles</label>
           <input type="number" class="form-control" name="candlesCount" id="candlesCount" value="{{candlesCount}}" min="1">
       </div>
-      <div class="col-md-3 mb-3">
-          <label class="form-label text-primary" for="touchCount">📍Touch</label>
-          <input type="number" class="form-control" name="touchCount" id="touchCount" value="{{touchCount}}" min="1">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="touchesCount">📍Touches</label>
+          <input type="number" class="form-control" name="touchesCount" id="touchesCount" value="{{touchesCount}}" min="1">
       </div>
-      <div class="col-md-3 mb-3">
-          <label class="form-label text-primary" for="candlesPart">🎚Part</label>
-          <input type="number" class="form-control" name="candlesPart" id="candlesPart" value="{{candlesPart}}" step="0.1" min="1">
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="candlePart">🎚CandlePart</label>
+          <input type="number" class="form-control" name="candlePart" id="candlePart" value="{{candlePart}}" step="0.1" min="1">
       </div>
   </div>
   <div class="row">
@@ -81,13 +50,79 @@
   </div>
   <div class="row">
       <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="size">💰Position size ($)</label>
+          <input type="number" class="form-control" id="size" name="size" value="{{size}}" max="{{maxSize}}" min="0" required>
+      </div>
+      <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="triggersCount">🪮Triggers count</label>
           <input type="number" class="form-control" name="triggersCount" id="triggersCount" value="{{triggersCount}}" step="1" max="10" min="3">
       </div>
       <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="tolerance">📏Step (%)</label>
-          <input type="number" class="form-control" name="tolerance" id="tolerance" value="{{tolerance}}" step="0.01" max="0.4" min="0.01">
+          <label class="form-label text-primary" for="triggersStep">📏Step (%)</label>
+          <input type="number" class="form-control" name="triggersStep" id="triggersStep" value="{{triggersStep}}" step="0.01" max="0.4" min="0.01">
       </div>
+  </div>
+  <ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="long-tab" data-bs-toggle="tab" data-bs-target="#long-tab-pane" type="button" role="tab" aria-controls="long-tab-pane" aria-selected="true">Long</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="short-tab" data-bs-toggle="tab" data-bs-target="#short-tab-pane" type="button" role="tab" aria-controls="short-tab-pane" aria-selected="false">Short</button>
+    </li>
+  </ul>
+  <div class="tab-content mt-2" id="myTabContent">
+    <div class="tab-pane fade show active" id="long-tab-pane" role="tabpanel" aria-labelledby="long-tab" tabindex="0">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label text-success" for="longTp">💵LongTP(%)</label>
+          <input type="number" class="form-control" name="longTp" id="longTp" value="{{longTp}}" step="0.01" min="0.1" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="longPart">✂️LongTP50(%)</label>
+            <input type="number" class="form-control" id="longPart" name="longPart" value="{{longPart}}" step="0.01" min="0" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="longSl">💸LongSL(%)</label>
+            <input type="number" class="form-control is-invalid" name="longSl" id="sl" value="{{longSl}}" step="0.01" min="-1.5" max="-0.1" required>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="longBreakeven">🤟LongBreak(%)</label>
+            <input type="number" class="form-control" id="longBreakeven" name="longBreakeven" value="{{longBreakeven}}" step="0.1" min="0" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="longTrailing">⚙️LongTrailing(%)</label>
+            <input type="number" class="form-control" id="longTrailing" name="longTrailing" value="{{longTrailing}}" step="0.1" min="0" required>
+        </div>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="short-tab-pane" role="tabpanel" aria-labelledby="short-tab" tabindex="0">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label text-success" for="shortTp">💵ShortTP(%)</label>
+          <input type="number" class="form-control" name="shortTp" id="shortTp" value="{{shortTp}}" step="0.01" min="0.1" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="shortPart">✂️ShortTP50(%)</label>
+            <input type="number" class="form-control" id="shortPart" name="shortPart" value="{{shortPart}}" step="0.01" min="0" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="shortSl">💸ShortSL(%)</label>
+            <input type="number" class="form-control is-invalid" name="shortSl" id="shortSl" value="{{shortSl}}" step="0.01" min="-1.5" max="-0.1" required>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="shortBreakeven">🤟ShortBreak(%)</label>
+            <input type="number" class="form-control" id="shortBreakeven" name="shortBreakeven" value="{{shortBreakeven}}" step="0.1" min="0" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label text-danger" for="shortTrailing">⚙️ShortTrailing(%)</label>
+            <input type="number" class="form-control" id="shortTrailing" name="shortTrailing" value="{{shortTrailing}}" step="0.1" min="0" required>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="row">
     <h6>🪙Funding rate: {{fundingRate}}%, Time left: {{countDownTime}}</h6>

@@ -35,7 +35,7 @@
   "speed": "Speed",
   "tp": "Take Profit",
   "sl": "Stop Loss",
-  "part": "Part50%",
+  "part": "Part50",
   "open_order": "Open order",
   "close_order": "Close order",
   "create_order": "Create order",
@@ -47,7 +47,7 @@
   "fees": "Trading fees 0.2%",
   "levels_settings": "Levels settings",
   "levels_candles": "Candles count",
-  "levels_touches": "Touch count",
+  "levels_touches": "Touches count",
 
 
   "positions": "Positions",

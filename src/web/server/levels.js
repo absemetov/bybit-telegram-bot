@@ -1,8 +1,6 @@
 import Ticker from "./Ticker.js";
 import bot from "./telegram.js";
 const MAX_POSITION_USDT = 12000;
-const TAKE_PROFIT = 3;
-const STOP_LOSS = -1;
 //check TP SL break set default values
 async function checkPositions(
   ticker,
@@ -13,9 +11,18 @@ async function checkPositions(
   orders,
 ) {
   const { symbol, priceScale, algoSettings = {} } = ticker;
-  const { sl, tp, breakeven, trailing } = algoSettings || {};
-  const tickerStopLoss = sl || STOP_LOSS;
-  const tickerTakeProfit = tp || TAKE_PROFIT;
+  const {
+    longSl,
+    longPart,
+    longTp,
+    longBreakeven,
+    longTrailing,
+    shortSl,
+    shortPart,
+    shortTp,
+    shortBreakeven,
+    shortTrailing,
+  } = algoSettings || {};
   //edit TP, SL set breakeven
   for (const position of positions) {
     const { side, avgPrice, markPrice, stopLoss, takeProfit, positionValue } =
@@ -44,7 +51,7 @@ async function checkPositions(
     //short side
     if (side === "Sell") {
       //set default sl
-      const newStopLoss = avgPrice * (1 - tickerStopLoss / 100);
+      const newStopLoss = avgPrice * (1 - shortSl / 100);
       if (
         !stopLoss ||
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
@@ -53,13 +60,13 @@ async function checkPositions(
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
       }
       //breakeven trailing stop
-      if (breakeven !== 0 && pnlPersent < -breakeven) {
-        const newStopLoss = markPrice * (1 + trailing / 100);
+      if (shortBreakeven > 0 && pnlPersent < -shortBreakeven) {
+        const newStopLoss = markPrice * (1 + shortTrailing / 100);
         if (
           ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2 &&
           newStopLoss <= avgPrice
         ) {
-          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
@@ -68,14 +75,15 @@ async function checkPositions(
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Breakeven ${breakeven}%, TrailingStop ${trailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$, pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL value: ${stopLoss}$ == ${newStopLoss.toFixed(priceScale)}$\n` +
+              `Breakeven ${shortBreakeven}%, TrailingStop ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
+              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL: ${slPersent.toFixed(2)}%\n` +
               `#${symbol.slice(0, -4)}_${user}`,
           });
         }
       }
       //set TP
-      const newTakeProfit = avgPrice * (1 - tickerTakeProfit / 100);
+      const newTakeProfit = avgPrice * (1 - shortTp / 100);
       if (
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
@@ -86,10 +94,20 @@ async function checkPositions(
           newTakeProfit.toFixed(priceScale),
         );
       }
+      //check part50
+      await bybit.setPart50(
+        symbol,
+        shortPart,
+        priceScale,
+        side,
+        orders,
+        positions,
+      );
     }
+    //long position
     if (side === "Buy") {
       //set default SL
-      const newStopLoss = avgPrice * (1 + tickerStopLoss / 100);
+      const newStopLoss = avgPrice * (1 + longSl / 100);
       if (
         !stopLoss ||
         (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
@@ -98,8 +116,8 @@ async function checkPositions(
         await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
       }
       //breakeven
-      if (breakeven !== 0 && pnlPersent > breakeven) {
-        const newStopLoss = markPrice * (1 - trailing / 100);
+      if (longBreakeven > 0 && pnlPersent > longBreakeven) {
+        const newStopLoss = markPrice * (1 - longTrailing / 100);
         if (
           ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2 &&
           newStopLoss >= avgPrice
@@ -109,17 +127,19 @@ async function checkPositions(
             side,
             newStopLoss.toFixed(priceScale),
           );
+          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bot.sendMessage({
             text:
               `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Breakeven ${breakeven}%, TrailingStop ${trailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$ pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL value: ${stopLoss}$ == ${newStopLoss.toFixed(priceScale)}$\n` +
+              `Breakeven ${longBreakeven}%, TrailingStop ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
+              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL: ${slPersent.toFixed(2)}%\n` +
               `#${symbol.slice(0, -4)}_${user}`,
           });
         }
       }
       //set TP
-      const newTakeProfit = avgPrice * (1 + tickerTakeProfit / 100);
+      const newTakeProfit = avgPrice * (1 + longTp / 100);
       if (
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
@@ -130,6 +150,15 @@ async function checkPositions(
           newTakeProfit.toFixed(priceScale),
         );
       }
+      //check part50
+      await bybit.setPart50(
+        symbol,
+        longPart,
+        priceScale,
+        side,
+        orders,
+        positions,
+      );
     }
   }
 }
@@ -221,7 +250,22 @@ export const algoTrading = async (
 ) => {
   const { symbol, priceScale, algoSettings = {} } = ticker;
   try {
-    const { size, tp, sl, part, attemptsCount } = algoSettings || {};
+    const {
+      size,
+      attemptsCount,
+      timeframe,
+      candlesCount,
+      touchesCount,
+      candlePart,
+      triggersCount,
+      triggersStep,
+      longTp,
+      longPart,
+      longSl,
+      shortTp,
+      shortPart,
+      shortSl,
+    } = algoSettings || {};
     const orders = await bybit.getTickerOrders(symbol);
     const positions = await bybit.getTickerPositions(symbol);
     //create LONG orders
@@ -229,14 +273,14 @@ export const algoTrading = async (
       const triggerId = triggerBuy[0];
       const triggerPrice = triggerBuy[1].price;
       const triggerSize = triggerBuy[1].size;
-      if (triggerSize && triggerPrice)
+      if (triggerSize > 10 && triggerPrice)
         await bybit.createStopLimitOrder(
           symbol,
           "Buy",
           triggerPrice,
           triggerSize,
-          triggerPrice * (1 + tp / 100),
-          triggerPrice * (1 - Math.abs(sl) / 100),
+          triggerPrice * (1 + longTp / 100),
+          triggerPrice * (1 - Math.abs(longSl) / 100),
         );
       //disable trigger
       await Ticker.update(symbol, {
@@ -246,6 +290,9 @@ export const algoTrading = async (
         text:
           `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
           `triggersBuy.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
+          `Position size: ${size}$, Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+          `Triggers [${triggersCount}/${triggersStep}]\n` +
+          `TP/PART/SL [${longTp}/${longPart}/${longSl}]\n` +
           `#${symbol.slice(0, -4)}_${user}`,
       });
     }
@@ -254,14 +301,14 @@ export const algoTrading = async (
       const triggerId = triggerSell[0];
       const triggerPrice = triggerSell[1].price;
       const triggerSize = triggerSell[1].size;
-      if (triggerSize && triggerPrice)
+      if (triggerSize > 10 && triggerPrice)
         await bybit.createStopLimitOrder(
           symbol,
           "Sell",
           triggerPrice,
           triggerSize,
-          triggerPrice * (1 - tp / 100),
-          triggerPrice * (1 + Math.abs(sl) / 100),
+          triggerPrice * (1 - shortTp / 100),
+          triggerPrice * (1 + Math.abs(shortSl) / 100),
         );
       //disable trigger
       await Ticker.update(symbol, {
@@ -271,6 +318,9 @@ export const algoTrading = async (
         text:
           `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
           `triggersSell.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
+          `Position size: ${size}$, Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+          `Triggers [${triggersCount}/${triggersStep}]\n` +
+          `TP/PART/SL [${shortTp}/${shortPart}/${shortSl}]\n` +
           `#${symbol.slice(0, -4)}_${user}`,
       });
     }
@@ -295,7 +345,7 @@ export const algoTrading = async (
         //part50
         await bybit.setPart50(
           symbol,
-          part,
+          side === "Buy" ? longPart : shortPart,
           priceScale,
           side,
           orders,
@@ -328,17 +378,22 @@ export const algoTrading = async (
           if (diff > 0) {
             await bybit.setPart50(
               symbol,
-              part,
+              side === "Buy" ? longPart : shortPart,
               priceScale,
               side,
               orders,
               positions,
             );
+          } else {
+            //disable part50
+            await Ticker.update(symbol, {
+              [`${user}.${side === "Buy" ? "long" : "short"}Part`]: 0,
+            });
           }
           await bot.sendMessage({
             text:
               `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Position ${posIcon} ${diff > 0 ? "increased +" : "decreased "}${diff.toFixed(2)}$\n` +
+              `Position ${posIcon} ${diff > 0 ? "increased +" : "decreased, Part50 disabled "}${diff.toFixed(2)}$\n` +
               `avgPrice ${currentPosition.avgPrice.toFixed(priceScale)}$\n` +
               `posValue: ${posValue.toFixed(1)} (${size})$.\n` +
               `#${symbol.slice(0, -4)}_${user}`,

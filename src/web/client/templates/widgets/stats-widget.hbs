@@ -24,7 +24,7 @@
         </thead>
         <tbody>
           {{#each positions}}
-            <tr class="cursor-pointer{{#if (gt unrealisedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-action="showTicker">
+            <tr class="cursor-pointer{{#if (gt unrealisedPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-action="showTicker" data-side="{{side}}">
               <td>{{#if (eq side 'Buy')}}Long{{else}}Short{{/if}}/{{symbol}}</td>
               <td>
                 {{formatPrice positionValue}}$

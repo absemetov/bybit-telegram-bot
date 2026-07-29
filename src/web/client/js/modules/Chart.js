@@ -26,8 +26,8 @@ export class Chart {
       "1m": "M",
     };
     this.isDroped = true;
+    this.flagLevels = true;
     this.flagTriggers = true;
-    this.flagLevels = false;
     this.flagPositions = true;
     this.candles = [];
     this.templates = {
@@ -37,9 +37,12 @@ export class Chart {
   }
   init() {
     this.app.on("dashboardReady", () => this.mountWidget());
-    this.app.on("symbolChanged", (symbol) =>
-      this.load(symbol, this.app.state.get("timeframe")),
-    );
+    this.app.on("symbolChanged", (symbol) => {
+      //fist hide lines
+      this.flagPositions = false;
+      this.visiblePositions();
+      this.load(symbol, this.app.state.get("timeframe"));
+    });
     this.app.on("kline:update", (data) => {
       this.updateRealtimeCandle(data);
     });
@@ -55,6 +58,7 @@ export class Chart {
       timeframe,
     });
     this.mount();
+    this.visibleLevels();
   }
   async mount() {
     this.chartContainer = document.getElementById("chart");
@@ -145,9 +149,9 @@ export class Chart {
     this.buyPositionLines = {
       sl: this.candlestickSeries.createPriceLine({
         price: 0,
-        color: "red",
+        color: "green",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 0,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -155,7 +159,7 @@ export class Chart {
         price: 0,
         color: "green",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -163,7 +167,7 @@ export class Chart {
         price: 0,
         color: "green",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 2,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -171,7 +175,7 @@ export class Chart {
         price: 0,
         color: "green",
         lineWidth: 2,
-        lineStyle: 0,
+        lineStyle: 3,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -181,31 +185,31 @@ export class Chart {
         price: 0,
         color: "red",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 0,
         lineVisible: false,
         axisLabelVisible: false,
       }),
       enter: this.candlestickSeries.createPriceLine({
         price: 0,
-        color: "green",
+        color: "red",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 1,
         lineVisible: false,
         axisLabelVisible: false,
       }),
       tp: this.candlestickSeries.createPriceLine({
         price: 0,
-        color: "green",
+        color: "red",
         lineWidth: 2,
-        lineStyle: 3,
+        lineStyle: 2,
         lineVisible: false,
         axisLabelVisible: false,
       }),
       part: this.candlestickSeries.createPriceLine({
         price: 0,
-        color: "green",
+        color: "red",
         lineWidth: 2,
-        lineStyle: 0,
+        lineStyle: 3,
         lineVisible: false,
         axisLabelVisible: false,
       }),
@@ -302,29 +306,22 @@ export class Chart {
       this.handleCrosshairMove(param);
     });
     this.chart.subscribeDblClick(() => {
-      const { candlesCount, touchCount, candlesPart, tolerance } =
+      const { candlesCount, touchesCount, candlePart } =
         this.app.state.get("algoSettings");
       if (this.app.state.get("chartMode") == "simulator") {
         const candles = this.app
           .get("chart")
           .candles.slice(0, this.app.get("simulator").candleIndex);
-        this.updateIndicators(
-          candles,
-          candlesCount,
-          touchCount,
-          candlesPart,
-          tolerance,
-        );
+        this.updateIndicators(candles, candlesCount, touchesCount, candlePart);
       } else {
         this.updateIndicators(
           this.candles,
           candlesCount,
-          touchCount,
-          candlesPart,
-          tolerance,
+          touchesCount,
+          candlePart,
         );
       }
-      this.visibleLevels(!this.flagLevels);
+      this.visibleLevels();
     });
     //mouse events
     this.initEventListeners();
@@ -372,16 +369,9 @@ export class Chart {
       await this.loadTickerData(symbol);
     }
     //calc Indicators
-    const { candlesCount, touchCount, candlesPart, tolerance } =
+    const { candlesCount, touchesCount, candlePart } =
       this.app.state.get("algoSettings");
-    this.updateIndicators(
-      this.candles,
-      candlesCount,
-      touchCount,
-      candlesPart,
-      tolerance,
-    );
-    this.visibleLevels(false);
+    this.updateIndicators(this.candles, candlesCount, touchesCount, candlePart);
     console.log(`[chart:render ${symbol}]`);
     this.app.emit("chart:loadedSymbol", symbol);
   }
@@ -403,8 +393,6 @@ export class Chart {
   }
   async loadTickerData(symbol) {
     this.updateAlgoPanel(null);
-    this.visiblePositions(false);
-    this.visibleTriggers(false);
     this.app.get("simulator").closeAllPositions();
     this.app.get("simulator").updateSimilatorPanel();
     this.markerSeries.setMarkers([]);
@@ -416,42 +404,52 @@ export class Chart {
     const tickerInfo = await this.app.get("api").post(`/api/${symbol}/info`);
     if (!tickerInfo) return;
     const {
-      sl = -1,
-      tp = 5,
       size = 1000,
       attemptsCount = -1,
-      timeframe = "4h",
       trend = "up",
-      breakeven = 0,
-      trailing = 0,
-      part = 0,
-      candlesCount = 5,
-      touchCount = 3,
-      tolerance = 0.15,
-      candlesPart = 4,
-      triggersCount = 5,
+      triggersCount = 4,
+      triggersStep = 0.1,
+      timeframe = "4h",
+      candlesCount = 4,
+      touchesCount = 3,
+      candlePart = 4,
+      longSl = -1,
+      longPart = 2,
+      longTp = 5,
+      longBreakeven = 0,
+      longTrailing = 0,
+      shortSl = -1,
+      shortPart = 2,
+      shortTp = 5,
+      shortBreakeven = 0,
+      shortTrailing = 0,
     } = tickerInfo?.algoSettings || {};
     this.app.state.set("algoSettings", {
-      sl,
-      tp,
       size,
       attemptsCount,
-      timeframe,
       trend,
-      breakeven,
-      trailing,
-      part,
-      candlesCount,
-      touchCount,
-      tolerance,
-      candlesPart,
       triggersCount,
+      triggersStep,
       balance: tickerInfo?.balance || 0,
+      timeframe,
+      candlesCount,
+      touchesCount,
+      candlePart,
+      longSl,
+      longPart,
+      longTp,
+      longBreakeven,
+      longTrailing,
+      shortSl,
+      shortPart,
+      shortTp,
+      shortBreakeven,
+      shortTrailing,
     });
     this.updateAlgoPanel(this.app.state.get("algoSettings"));
     //show triggers
-    this.showTriggers(tickerInfo);
-    this.showPositions(tickerInfo.positions, tickerInfo.partOrders);
+    this.createTriggers(tickerInfo);
+    this.createPositions(tickerInfo.positions, tickerInfo.partOrders);
   }
   updateAlgoPanel(algoSettings) {
     if (!this.container) return;
@@ -508,13 +506,10 @@ export class Chart {
         this.showAlgotradingSettingsModal();
       }
       if (action === "triggersToggle") {
-        this.visibleTriggers(!this.flagTriggers);
+        this.visibleTriggers();
       }
       if (action === "levelsToggle") {
-        this.visibleLevels(!this.flagLevels);
-      }
-      if (action === "positionsToggle") {
-        this.visiblePositions(!this.flagPositions);
+        this.visibleLevels();
       }
       //simulator
       if (action === "startSimulator") {
@@ -579,18 +574,16 @@ export class Chart {
       });
     });
   }
-  visibleTriggers(visible) {
-    this.flagTriggers = visible;
+  visibleTriggers() {
     Object.values(this.triggersLines).forEach((item) => {
       item.applyOptions({
-        lineVisible: visible,
-        axisLabelVisible: visible,
+        lineVisible: this.flagTriggers,
+        axisLabelVisible: this.flagTriggers,
       });
     });
+    this.flagTriggers = !this.flagTriggers;
   }
-  showTriggers(triggers) {
-    this.visiblePositions(false);
-    this.flagTriggers = true;
+  createTriggers(triggers) {
     //first delete old price lines
     Object.values(this.triggersLines).forEach((item) => {
       this.candlestickSeries.removePriceLine(item);
@@ -600,12 +593,12 @@ export class Chart {
       this.triggersLines[`${name}Buy`] = this.candlestickSeries.createPriceLine(
         {
           price: triger.price,
-          color: triger.active ? "green" : "black",
+          color: "green",
           title: triger.size.toFixed(1) || 0,
           lineWidth: 2,
           lineStyle: triger.active ? 1 : 0,
-          lineVisible: true,
-          axisLabelVisible: true,
+          lineVisible: !this.flagTriggers,
+          axisLabelVisible: !this.flagTriggers,
         },
       );
     }
@@ -613,79 +606,68 @@ export class Chart {
       this.triggersLines[`${name}Sell`] =
         this.candlestickSeries.createPriceLine({
           price: triger.price,
-          color: triger.active ? "red" : "black",
+          color: "red",
           title: triger.size.toFixed(1) || 0,
           lineWidth: 2,
           lineStyle: triger.active ? 1 : 0,
-          lineVisible: true,
-          axisLabelVisible: true,
+          lineVisible: !this.flagTriggers,
+          axisLabelVisible: !this.flagTriggers,
         });
     }
   }
   //new visible
-  visiblePositions(visible) {
-    this.flagPositions = visible;
-    Object.values(this.buyPositionLines).forEach((item) => {
-      item.applyOptions({
-        lineVisible: visible,
-        axisLabelVisible: visible,
+  visiblePositions(side = "all") {
+    if (side === "Buy" || side === "all")
+      Object.values(this.buyPositionLines).forEach((item) => {
+        item.applyOptions({
+          lineVisible: this.flagPositions,
+          axisLabelVisible: this.flagPositions,
+        });
       });
-    });
-    Object.values(this.sellPositionLines).forEach((item) => {
-      item.applyOptions({
-        lineVisible: visible,
-        axisLabelVisible: visible,
+    if (side === "Sell" || side === "all")
+      Object.values(this.sellPositionLines).forEach((item) => {
+        item.applyOptions({
+          lineVisible: this.flagPositions,
+          axisLabelVisible: this.flagPositions,
+        });
       });
-    });
+    this.flagPositions = !this.flagPositions;
   }
-  showPositions(positions, partOrders) {
+  createPositions(positions, partOrders) {
     for (const position of positions) {
-      this.flagPositions = true;
       const { avgPrice, unrealisedPnl, stopLoss, takeProfit, side } = position;
       if (side === "Buy") {
         this.positionLong = position;
         this.buyPositionLines["enter"].applyOptions({
           price: avgPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
           title: `Long: ${unrealisedPnl.toFixed(1)}$`,
         });
         const slPercent = ((stopLoss - avgPrice) / avgPrice) * 100;
         this.buyPositionLines["sl"].applyOptions({
           price: stopLoss,
           title: `buySL:${slPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
         });
         const tpPercent = ((takeProfit - avgPrice) / avgPrice) * 100;
         this.buyPositionLines["tp"].applyOptions({
           price: position.takeProfit,
           title: `buyTP:${tpPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
         });
       }
       if (side === "Sell") {
         this.positionShort = position;
         this.sellPositionLines["enter"].applyOptions({
           price: avgPrice,
-          lineVisible: true,
-          axisLabelVisible: true,
           title: `Short: ${unrealisedPnl.toFixed(1)}$`,
         });
         const slPercent = ((stopLoss - avgPrice) / avgPrice) * 100;
         this.sellPositionLines["sl"].applyOptions({
           price: stopLoss,
           title: `sellSL:${slPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
         });
         const tpPercent = ((takeProfit - avgPrice) / avgPrice) * 100;
         this.sellPositionLines["tp"].applyOptions({
           price: position.takeProfit,
           title: `sellTP:${tpPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
         });
       }
     }
@@ -696,9 +678,7 @@ export class Chart {
         const tpPercent = ((price - avgPrice) / avgPrice) * 100;
         this.buyPositionLines["part"].applyOptions({
           price,
-          title: `sellPart:${tpPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
+          title: `buyPart:${tpPercent.toFixed(2)}%`,
         });
       }
       if (side === "Buy") {
@@ -707,23 +687,16 @@ export class Chart {
         this.sellPositionLines["part"].applyOptions({
           price,
           title: `sellPart:${tpPercent.toFixed(2)}%`,
-          lineVisible: true,
-          axisLabelVisible: true,
         });
       }
     }
   }
-  updateIndicators(candles, candlesCount, touchCount, candlesPart, tolerance) {
+  updateIndicators(candles, candlesCount, touchesCount, candlePart) {
     if (candles.length === 0) return;
     const candlesSlice = candles.slice(-candlesCount);
     const { support, resistance, min, max } = this.app
       .get("indicators")
-      .findLevels(
-        candlesSlice,
-        touchCount,
-        candlesPart,
-        tolerance,
-      );
+      .findLevels(candlesSlice, touchesCount, candlePart);
     const sPrice = support || min;
     const rPrice = resistance || max;
     this.levelsLines["support"].applyOptions({
@@ -737,14 +710,14 @@ export class Chart {
       title: `▼ ${(((rPrice - sPrice) / sPrice) * 100).toFixed(2)}%`,
     });
   }
-  visibleLevels(visible) {
-    this.flagLevels = visible;
+  visibleLevels() {
     for (const line of Object.values(this.levelsLines)) {
       line.applyOptions({
-        lineVisible: visible,
-        axisLabelVisible: visible,
+        lineVisible: this.flagLevels,
+        axisLabelVisible: this.flagLevels,
       });
     }
+    this.flagLevels = !this.flagLevels;
   }
   //cross events
   handleCrosshairMove(param) {
@@ -755,14 +728,15 @@ export class Chart {
     if (param.time && candle) {
       const datapoints = param.seriesData.get(this.volumeSeries);
       if (datapoints) {
-        const { candlesCount, touchCount, candlesPart } = this.app.state.get("algoSettings");
+        const { candlesCount, touchesCount, candlePart } =
+          this.app.state.get("algoSettings");
         document.querySelector(`[data-bind="candleInfo"]`).textContent =
           `${this.volumeSeries.priceFormatter().format(datapoints.value)}
         (${
           candle.close > candle.open
             ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}`
             : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`
-        }%) [${candlesCount}, ${touchCount}, ${candlesPart}]`;
+        }%) [${candlesCount}, ${touchesCount}, ${candlePart}]`;
       }
     }
     //drag and drop priceLines
@@ -1116,6 +1090,7 @@ export class Chart {
       { value: "6h", name: "6h" },
       { value: "12h", name: "12h" },
       { value: "1d", name: "1d" },
+      { value: "1w", name: "1w" },
     ].map((el) => {
       if (el.value === algoSettings.timeframe) {
         el.selected = true;
@@ -1159,30 +1134,33 @@ export class Chart {
             if (isValid) {
               const data = new FormData(form);
               const newSettings = {
-                tp: parseFloat(data.get("tp")),
-                sl: parseFloat(data.get("sl")),
                 size: parseFloat(data.get("size")),
                 attemptsCount: parseFloat(data.get("attemptsCount")),
-                timeframe: data.get("timeframe"),
                 trend: data.get("trend"),
-                breakeven: parseFloat(data.get("breakeven")),
-                trailing: parseFloat(data.get("trailing")),
-                part: parseFloat(data.get("part")),
-                candlesCount: parseFloat(data.get("candlesCount")),
-                touchCount: parseFloat(data.get("touchCount")),
-                tolerance: parseFloat(data.get("tolerance")),
-                candlesPart: parseFloat(data.get("candlesPart")),
                 triggersCount: parseFloat(data.get("triggersCount")),
-                //autoLevels: !!data.get("autoLevels"),
+                triggersStep: parseFloat(data.get("triggersStep")),
                 balance,
                 priceScale,
+                timeframe: data.get("timeframe"),
+                candlesCount: parseFloat(data.get("candlesCount")),
+                touchesCount: parseFloat(data.get("touchesCount")),
+                candlePart: parseFloat(data.get("candlePart")),
+                longTp: parseFloat(data.get("longTp")),
+                longPart: parseFloat(data.get("longPart")),
+                longSl: parseFloat(data.get("longSl")),
+                longBreakeven: parseFloat(data.get("longBreakeven")),
+                longTrailing: parseFloat(data.get("longTrailing")),
+                shortTp: parseFloat(data.get("shortTp")),
+                shortPart: parseFloat(data.get("shortPart")),
+                shortSl: parseFloat(data.get("shortSl")),
+                shortBreakeven: parseFloat(data.get("shortBreakeven")),
+                shortTrailing: parseFloat(data.get("shortTrailing")),
               };
               this.updateIndicators(
                 this.candles,
                 newSettings.candlesCount,
-                newSettings.touchCount,
-                newSettings.candlesPart,
-                newSettings.tolerance,
+                newSettings.touchesCount,
+                newSettings.candlePart,
               );
               try {
                 await this.app
@@ -1210,7 +1188,7 @@ export class Chart {
     if (!form) return;
 
     const posInput = form.querySelector('[name="size"]');
-    const slInput = form.querySelector('[name="sl"]');
+    const slInput = form.querySelector('[name="longSl"]');
     const attemptsDisplay = document.getElementById("calculatedAttempts");
     const attemptsSelect = form.querySelector('[name="attemptsCount"]');
 

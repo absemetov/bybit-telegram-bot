@@ -92,8 +92,15 @@ export class StatsWidget {
         const action = row.dataset.action;
         const symbol = row.dataset.symbol;
         if (action === "showTicker") {
-          this.app.get("router").navigateToSymbol(symbol);
-          return;
+          if (this.app.state.get("chartMode") == "live") {
+            this.app.get("router").navigateToSymbol(symbol);
+            const side = row.dataset.side;
+            this.app.get("chart").flagLevels = false;
+            this.app.get("chart").flagTriggers = false;
+            this.app.get("chart").visibleTriggers();
+            this.app.get("chart").visibleLevels();
+            this.app.get("chart").visiblePositions(side);
+          }
         }
         if (action === "showMarkers") {
           if (this.app.state.get("chartMode") == "live") {
@@ -180,9 +187,12 @@ export class StatsWidget {
     } else {
       positions = this.data.positions;
     }
-    this.app.get("chart").visibleTriggers(false);
-    this.app.get("chart").visiblePositions(false);
-    this.app.get("chart").visibleLevels(false);
+    this.app.get("chart").flagLevels = false;
+    this.app.get("chart").flagTriggers = false;
+    this.app.get("chart").flagPositions = false;
+    this.app.get("chart").visibleTriggers();
+    this.app.get("chart").visiblePositions();
+    this.app.get("chart").visibleLevels();
     const markLevels = [];
     this.app.get("simulator").closeAllPositions();
     this.app.get("chart").markerSeries.setMarkers([]);
@@ -232,9 +242,12 @@ export class StatsWidget {
       );
     this.app.get("chart").markerSeries.setMarkers([]);
     this.app.get("simulator").closeAllPositions();
-    this.app.get("chart").visibleTriggers(false);
-    this.app.get("chart").visiblePositions(false);
-    this.app.get("chart").visibleLevels(false);
+    this.app.get("chart").flagLevels = false;
+    this.app.get("chart").flagTriggers = false;
+    this.app.get("chart").flagPositions = false;
+    this.app.get("chart").visibleTriggers();
+    this.app.get("chart").visiblePositions();
+    this.app.get("chart").visibleLevels();
     const markLevels = [];
     if (targetCandle) {
       const timeScale = this.app.get("chart").chart.timeScale();

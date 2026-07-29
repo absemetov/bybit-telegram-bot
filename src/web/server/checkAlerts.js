@@ -31,12 +31,12 @@ export const checkTriggers = async () => {
             const {
               attemptsCount = 0,
               timeframe = "4h",
-              tolerance = 0.15,
-              candlesCount = 5,
-              touchCount = 3,
-              candlesPart = 0.5,
+              candlesCount = 4,
+              touchesCount = 3,
+              candlePart = 4,
               size = 1000,
-              triggersCount = 3,
+              triggersCount = 4,
+              triggersStep = 0.1,
               trend = "up",
             } = algoSettings;
             const bybit = bybitUsers[user];
@@ -56,14 +56,14 @@ export const checkTriggers = async () => {
             //activate triggers
             const triggersRunBuy = triggersArrayBuy.find((trigger) => {
               return (
-                trigger[1].size > 0 &&
+                trigger[1].size > 10 &&
                 trigger[1].active &&
                 (trigger[1].price - close) / close >= toleranceTrigger / 100
               );
             });
             const triggersRunSell = triggersArraySell.find((trigger) => {
               return (
-                trigger[1].size > 0 &&
+                trigger[1].size > 10 &&
                 trigger[1].active &&
                 (trigger[1].price - close) / close <= -toleranceTrigger / 100
               );
@@ -83,15 +83,14 @@ export const checkTriggers = async () => {
             //set new triggers
             const { support, resistance } = Indicators.calculateLevels(
               candles,
-              touchCount,
-              candlesPart,
-              tolerance,
+              touchesCount,
+              candlePart,
             );
             const triggerSupport =
               triggersArrayBuy.length === 0 ||
               triggersArrayBuy.find((trigger) => {
                 return (
-                  trigger[0] === "3" &&
+                  trigger[0] === "2" &&
                   Math.abs(trigger[1].price - support) / support >
                     toleranceTrigger / 100
                 );
@@ -100,12 +99,12 @@ export const checkTriggers = async () => {
               triggersArraySell.length === 0 ||
               triggersArraySell.find((trigger) => {
                 return (
-                  trigger[0] === "3" &&
+                  trigger[0] === "2" &&
                   Math.abs(trigger[1].price - resistance) / resistance >
                     toleranceTrigger / 100
                 );
               });
-            //delete triggers
+            //delete triggers, if no levels
             if (triggersArrayBuy.length > 0 && support === 0) {
               await bybitUsers[user].cancelAllOrders(symbol, "Buy");
               arrayNotify.push({
@@ -130,7 +129,7 @@ export const checkTriggers = async () => {
                 symbol,
                 support,
                 user,
-                tolerance,
+                triggersStep,
                 size,
                 triggersCount,
                 "Buy",
@@ -146,7 +145,7 @@ export const checkTriggers = async () => {
                 symbol,
                 resistance,
                 user,
-                tolerance,
+                triggersStep,
                 size,
                 triggersCount,
                 "Sell",
