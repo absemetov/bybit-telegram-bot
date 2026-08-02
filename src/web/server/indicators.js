@@ -1,6 +1,6 @@
 class Indicators {
   //levels
-  static calculateLevels(candles, touchCount = 4, tolerance = 3) {
+  static calculateLevels(candles, touchCount = 4, tolerance = 20) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
     const levelsLow = [];
@@ -13,7 +13,7 @@ class Indicators {
       const highBound = level;
       const supportCandles = candles.filter((c) => {
         const zoneLow = c.low;
-        const zoneHigh = c.low + (c.high - c.low) / tolerance;
+        const zoneHigh = c.low + (c.high - c.low) * (tolerance / 100);
         return Math.max(zoneLow, lowBound) < Math.min(zoneHigh, highBound);
       });
 
@@ -22,7 +22,7 @@ class Indicators {
       }
 
       const resistCandles = candles.filter((c) => {
-        const zoneLow = c.high - (c.high - c.low) / tolerance;
+        const zoneLow = c.high - (c.high - c.low) * (tolerance / 100);
         const zoneHigh = c.high;
         return Math.max(zoneLow, lowBound) < Math.min(zoneHigh, highBound);
       });

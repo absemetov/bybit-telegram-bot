@@ -313,5 +313,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Racket v3.1.0 listening on port ${process.env.PORT}`);
+  console.log(`Racket v3.1.1 listening on port ${process.env.PORT}`);
 });

@@ -412,7 +412,7 @@ export class Chart {
       timeframe = "4h",
       candlesCount = 4,
       touchesCount = 3,
-      candlePart = 4,
+      candlePart = 40,
       longSl = -1,
       longPart = 2,
       longTp = 5,

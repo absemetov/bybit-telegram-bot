@@ -27,7 +27,7 @@ export class Simulator {
       sl: -1,
       candlesCount: 4,
       touchesCount: 3,
-      candlePart: 4,
+      candlePart: 40,
       triggersStep: 0.1,
       triggersCount: 4,
       autoLong: false,
@@ -133,10 +133,10 @@ export class Simulator {
         sl: saved.sl ?? this.defaultSettings.sl,
         candlesCount: saved.candlesCount ?? this.defaultSettings.candlesCount,
         touchesCount: saved.touchesCount ?? this.defaultSettings.touchesCount,
+        candlePart: saved.candlePart ?? this.defaultSettings.candlePart,
         triggersStep: saved.triggersStep ?? this.defaultSettings.triggersStep,
         triggersCount:
           saved.triggersCount ?? this.defaultSettings.triggersCount,
-        candlePart: saved.candlePart ?? this.defaultSettings.candlePart,
         autoLong: saved.autoLong ?? this.defaultSettings.autoLong,
         autoShort: saved.autoShort ?? this.defaultSettings.autoShort,
         autoTp: saved.autoTp ?? this.defaultSettings.autoTp,
@@ -1183,6 +1183,7 @@ export class Simulator {
     if (ranges.trailingValues) paramRanges.trailing = ranges.trailingValues;
     if (ranges.candlesCount) paramRanges.candlesCount = ranges.candlesCount;
     if (ranges.touchesCount) paramRanges.touchesCount = ranges.touchesCount;
+    if (ranges.candlePart) paramRanges.candlePart = ranges.candlePart;
 
     // Если ни один параметр не выбран, оптимизация бессмысленна
     if (Object.keys(paramRanges).length === 0) {
@@ -1695,12 +1696,10 @@ export class Simulator {
         tp_to: saved.tp_to || 5,
         tp_step: saved.tp_step || 0.5,
 
-        optSL: saved.optSL !== false,
         sl_from: saved.sl_from || -1.5,
         sl_to: saved.sl_to || -0.5,
         sl_step: saved.sl_step || 0.5,
 
-        optPart: saved.optPart !== false,
         part_from: saved.part_from || 0,
         part_to: saved.part_to || 2,
         part_step: saved.part_step || 0.5,
@@ -1715,10 +1714,10 @@ export class Simulator {
         trailing_step: saved.trailing_step || 0.5,
 
         optCandles: saved.optCandles || false,
-        candlesCount: saved.candlesCount || "3,4,5,6,8",
+        candlesCount: saved.candlesCount || "3,4,5,6,7,8,9",
 
-        optTouches: saved.optTouches || false,
         touchesCount: saved.touchesCount || "3,4,5",
+        candlePart: saved.candlePart || "25,30,35,40",
       }),
       size: "lg",
       actions: {
@@ -1745,12 +1744,10 @@ export class Simulator {
               tp_to: data.get("tp_to"),
               tp_step: data.get("tp_step"),
 
-              optSL: !!data.get("optSL"),
               sl_from: data.get("sl_from"),
               sl_to: data.get("sl_to"),
               sl_step: data.get("sl_step"),
 
-              optPart: !!data.get("optPart"),
               part_from: data.get("part_from"),
               part_to: data.get("part_to"),
               part_step: data.get("part_step"),
@@ -1767,8 +1764,8 @@ export class Simulator {
               optCandles: !!data.get("optCandles"),
               candlesCount: data.get("candlesCount"),
 
-              optTouches: !!data.get("optTouches"),
               touchesCount: data.get("touchesCount"),
+              candlePart: data.get("candlePart"),
             };
             this._saveOptimizerSettings(toSave);
             const ranges = {};
@@ -1778,15 +1775,11 @@ export class Simulator {
                 toSave.tp_to,
                 toSave.tp_step,
               );
-            }
-            if (toSave.optSL) {
               ranges.slValues = this._parseRange(
                 toSave.sl_from,
                 toSave.sl_to,
                 toSave.sl_step,
               );
-            }
-            if (toSave.optPart) {
               ranges.partValues = this._parseRange(
                 toSave.part_from,
                 toSave.part_to,
@@ -1809,9 +1802,10 @@ export class Simulator {
               ranges.candlesCount = toSave.candlesCount
                 .split(",")
                 .map((v) => parseInt(v));
-            }
-            if (data.get("optTouches")) {
               ranges.touchesCount = toSave.touchesCount
+                .split(",")
+                .map((v) => parseInt(v));
+              ranges.candlePart = toSave.candlePart
                 .split(",")
                 .map((v) => parseInt(v));
             }

@@ -102,6 +102,8 @@ async function checkPositions(
         side,
         orders,
         positions,
+        ticker,
+        user,
       );
     }
     //long position
@@ -158,6 +160,8 @@ async function checkPositions(
         side,
         orders,
         positions,
+        ticker,
+        user,
       );
     }
   }
@@ -341,6 +345,7 @@ export const algoTrading = async (
         await Ticker.update(symbol, {
           [`${user}.attemptsCount`]: attemptsCount - 1,
           [`${user}Position${side}Value`]: posValue,
+          [`${user}Part${side}Active`]: false,
         });
         //part50
         await bybit.setPart50(
@@ -350,6 +355,8 @@ export const algoTrading = async (
           side,
           orders,
           positions,
+          ticker,
+          user,
         );
         await bot.sendMessage({
           text:
@@ -364,12 +371,6 @@ export const algoTrading = async (
       if (ticker[`position${side}Value`] && currentPosition) {
         const posValue = currentPosition.avgPrice * currentPosition.size;
         const diff = posValue - ticker[`position${side}Value`];
-        //close extra orders
-        if (posValue > size) {
-          for (const order of orders.stop) {
-            await bybit.cancelOrder(symbol, order.orderId);
-          }
-        }
         if (Math.abs(diff) > 50) {
           await Ticker.update(symbol, {
             [`${user}Position${side}Value`]: posValue,
@@ -383,17 +384,14 @@ export const algoTrading = async (
               side,
               orders,
               positions,
+              ticker,
+              user,
             );
-          } else {
-            //disable part50
-            await Ticker.update(symbol, {
-              [`${user}.${side === "Buy" ? "long" : "short"}Part`]: 0,
-            });
           }
           await bot.sendMessage({
             text:
               `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Position ${posIcon} ${diff > 0 ? "increased +" : "decreased, Part50 disabled "}${diff.toFixed(2)}$\n` +
+              `Position ${posIcon} ${diff > 0 ? "increased +" : "decreased "}${diff.toFixed(2)}$\n` +
               `avgPrice ${currentPosition.avgPrice.toFixed(priceScale)}$\n` +
               `posValue: ${posValue.toFixed(1)} (${size})$.\n` +
               `#${symbol.slice(0, -4)}_${user}`,
@@ -406,6 +404,7 @@ export const algoTrading = async (
         await Ticker.update(symbol, {
           [`${user}Position${side}Value`]: 0,
           [`${user}Triggers${side}`]: {},
+          [`${user}Part${side}Active`]: false,
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
         await sendTelegramReport(

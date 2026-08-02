@@ -1,4 +1,5 @@
 import { RestClientV5 } from "bybit-api";
+import Ticker from "./Ticker.js";
 import dotenv from "dotenv";
 dotenv.config();
 class UserAPI {
@@ -186,25 +187,30 @@ class UserAPI {
         positionIdx: order.positionIdx,
       }));
   }
-  async setPart50All(symbol, part, priceScale) {
-    const orders = await this.getTickerOrders(symbol);
-    const positions = await this.getTickerPositions(symbol);
-    await this.setPart50(symbol, part, priceScale, "Buy", orders, positions);
-    await this.setPart50(symbol, part, priceScale, "Sell", orders, positions);
-  }
-  async setPart50(symbol, part, priceScale, side, orders, positions) {
+  //new partioal orders
+  async setPart50(
+    symbol,
+    part,
+    priceScale,
+    side,
+    orders,
+    positions,
+    ticker,
+    user,
+  ) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
+    const partActive = ticker[`${user}Part${side}Active`];
     //short
     if (shortPosition && side === "Sell") {
       const { avgPrice } = shortPosition;
       const partOrders = orders.part.filter((o) => o.side === "Buy");
       if (partOrders.length > 0) {
+        //edit part50
         if (part > 0) {
           const newPart50 = avgPrice * (1 - part / 100);
           if (
-            (Math.abs(newPart50 - partOrders[0].price) /
-              partOrders[0].price) *
+            (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
               100 >=
             0.06
           ) {
@@ -223,15 +229,21 @@ class UserAPI {
           for (const order of partOrders) {
             await this.cancelOrder(symbol, order.orderId);
           }
+          await Ticker.update(symbol, {
+            [`${user}Part${side}Active`]: false,
+          });
         }
       } else {
         //create new
-        if (part > 0) {
+        if (part > 0 && !partActive) {
           const newPart50 = avgPrice * (1 - part / 100);
           await this.setPartialTakeProfit(
             shortPosition,
             newPart50.toFixed(priceScale),
           );
+          await Ticker.update(symbol, {
+            [`${user}Part${side}Active`]: true,
+          });
         }
       }
     }
@@ -243,11 +255,11 @@ class UserAPI {
         if (part > 0) {
           const newPart50 = avgPrice * (1 + part / 100);
           if (
-            (Math.abs(newPart50 - partOrders[0].price) /
-              partOrders[0].price) *
+            (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
               100 >=
             0.06
           ) {
+            //edit part50
             //delete parts
             for (const order of partOrders) {
               await this.cancelOrder(symbol, order.orderId);
@@ -259,19 +271,25 @@ class UserAPI {
             );
           }
         } else {
-          //delete parts
+          //delete part50
           for (const order of partOrders) {
             await this.cancelOrder(symbol, order.orderId);
           }
+          await Ticker.update(symbol, {
+            [`${user}Part${side}Active`]: false,
+          });
         }
       } else {
         //create new
-        if (part > 0) {
+        if (part > 0 && !partActive) {
           const newPart50 = avgPrice * (1 + part / 100);
           await this.setPartialTakeProfit(
             longPosition,
             newPart50.toFixed(priceScale),
           );
+          await Ticker.update(symbol, {
+            [`${user}Part${side}Active`]: true,
+          });
         }
       }
     }

@@ -187,7 +187,7 @@ export const checkTriggers = async () => {
               }
             }
             //rate limits set pause 1sec!!!
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            //await new Promise((resolve) => setTimeout(resolve, 1000));
           } catch (error) {
             console.error(`Error AlgoTrading ${ticker.symbol}:`, error.message);
             await bot.sendMessage({

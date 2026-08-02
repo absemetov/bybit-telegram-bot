@@ -30,10 +30,8 @@ class Ticker {
   }
   //create Triggers
   static async setTriggers(symbol, price, user, triggersStep, size, triggersCount = 3, side) {
-    //clear All stop orders
-    //const side = user === "main" ? "Buy" : "Sell";
-    //const price = user === "main" ? support : resistance;
     const toleranceSide = side === "Buy" ? triggersStep : -triggersStep;
+    //clear All stop orders
     await bybitUsers[user].cancelAllOrders(symbol, side);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const position = positions.find((p) => p.side === side);
@@ -160,6 +158,10 @@ class Ticker {
           positionSellValue: doc.data()[`${user}PositionSellValue`],
           algoSettings: doc.data()[user],
           priceScale: doc.data().priceScale,
+          mainPartBuyActive: doc.data()["mainPartBuyActive"],
+          mainPartSellActive: doc.data()["mainPartSellActive"],
+          subPartBuyActive: doc.data()["subPartBuyActive"],
+          subPartSellActive: doc.data()["subPartSellActive"],
         };
       });
       const firstVisible = snapshot.docs[0];

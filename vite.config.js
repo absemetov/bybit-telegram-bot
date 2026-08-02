@@ -34,6 +34,7 @@ export default defineConfig({
 
   build: {
     outDir: resolve(__dirname, "dist"),
+    chunkSizeWarningLimit: 800,
     emptyOutDir: true,
     rollupOptions: {
       input: { main: resolve(__dirname, "src/web/client/index.html") },
