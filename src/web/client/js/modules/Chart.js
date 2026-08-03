@@ -363,7 +363,12 @@ export class Chart {
     this.candles = await this.getCandles(symbol, timeframe);
     //set data
     this.setChartData(this.candles);
-
+    //clear data
+    this.app.get("simulator").closeAllPositions();
+    this.app.get("simulator").updateSimilatorPanel();
+    this.markerSeries.setMarkers([]);
+    this.positionLong = null;
+    this.positionShort = null;
     //get ticker data
     if (this.app.state.get("isAuth")) {
       await this.loadTickerData(symbol);
@@ -393,11 +398,6 @@ export class Chart {
   }
   async loadTickerData(symbol) {
     this.updateAlgoPanel(null);
-    this.app.get("simulator").closeAllPositions();
-    this.app.get("simulator").updateSimilatorPanel();
-    this.markerSeries.setMarkers([]);
-    this.positionLong = null;
-    this.positionShort = null;
     //load ticker data algo-trading
     const tickerData = await this.getTickerInfo(symbol);
     this.app.state.set("tickerData", tickerData);

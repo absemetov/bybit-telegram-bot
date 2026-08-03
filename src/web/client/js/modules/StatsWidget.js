@@ -62,7 +62,8 @@ export class StatsWidget {
     const positions = [...trades].reverse();
     const { profitableTrades, lossTrades } = stats;
     const winRate = ((profitableTrades / positions.length) * 100).toFixed(2);
-    stats.totalPrcnt = stats.profPrcnt + stats.lossPrcnt;
+    const { deposit } = this.app.get("simulator").getDefaultConfig();
+    stats.totalPrcnt = (stats.pnl / deposit) * 100;
     this.container.innerHTML = Templates["widgets/stats-widget"]({
       shortPosition,
       longPosition,

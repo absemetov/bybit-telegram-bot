@@ -51,7 +51,7 @@
         <tbody>
             <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showMarkers">
               <td>
-                Pnl: {{#if (gt totalData.pnl 0)}}+{{/if}}{{formatPrice totalData.pnl}}$ ({{#if (gt totalData.totalPrcnt 0)}}+{{/if}}{{formatPrice totalData.totalPrcnt}}%)
+                Pnl: {{#if (gt totalData.pnl 0)}}+{{/if}}{{formatPrice totalData.pnl}}$
               </td>
               <td>
                 profitableTrades: +{{profitableTrades}} (+{{formatPrice totalData.profPrcnt}}%)</td>

@@ -386,6 +386,7 @@ export const algoTrading = async (
               positions,
               ticker,
               user,
+              size,
             );
           }
           await bot.sendMessage({

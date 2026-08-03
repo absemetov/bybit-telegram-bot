@@ -150,7 +150,6 @@ class UserAPI {
         }
         return acc;
       }, total);
-      totalData.totalPrcnt = totalData.profPrcnt - totalData.lossPrcnt;
       return {
         positions,
         totalData,
@@ -197,6 +196,7 @@ class UserAPI {
     positions,
     ticker,
     user,
+    size,
   ) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
@@ -245,6 +245,14 @@ class UserAPI {
             [`${user}Part${side}Active`]: true,
           });
         }
+        //if postition increased
+        if (part > 0 && partActive) {
+          if (shortPosition.positionValue > size * 0.9) {
+            await Ticker.update(symbol, {
+              [`${user}Part${side}Active`]: false,
+            });
+          }
+        }
       }
     }
     //long position
@@ -290,6 +298,14 @@ class UserAPI {
           await Ticker.update(symbol, {
             [`${user}Part${side}Active`]: true,
           });
+        }
+        //if postition increased
+        if (part > 0 && partActive) {
+          if (longPosition.positionValue > size * 0.9) {
+            await Ticker.update(symbol, {
+              [`${user}Part${side}Active`]: false,
+            });
+          }
         }
       }
     }
