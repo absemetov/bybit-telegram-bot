@@ -1112,7 +1112,7 @@ export class Chart {
       return el;
     });
     modal.show({
-      title: `Racket – ${symbol} ($${balance.toFixed(1)})`,
+      title: `AlgoTrading – ${symbol} (${this.app.state.get("bybitUser")}: ${balance.toFixed(1)}$)`,
       body: this.templates.algotradingSettingsTemplate({
         attemptsList,
         timeframeList,

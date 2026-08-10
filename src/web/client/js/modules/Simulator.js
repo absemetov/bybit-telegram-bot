@@ -117,7 +117,7 @@ export class Simulator {
       console.warn("[UI] Could not save optimizer settings", e);
     }
   }
-  // Обновлённый getDefaultConfig – сначала пытается загрузить сохранённые
+  // new config
   getDefaultConfig() {
     const saved = this.loadSettings();
     if (saved) {
@@ -259,8 +259,53 @@ export class Simulator {
               this.app.get("chart").setChartData(this.app.get("chart").candles);
               this.updateSimilatorPanel();
               this.app.get("chart").markerSeries.setMarkers([]);
-              this.runSilentSimulation();
+              const result = this.runSilentSimulation();
+              const { profitableTrades, lossTrades } = result.stats;
+              const winRate = ((profitableTrades / result.trades.length) * 100).toFixed(2);
+              const { deposit } = this.app.get("simulator").getDefaultConfig();
+              const totalPrcnt = (result.stats.pnl / deposit) * 100;
+              this.app.get("modal").show({
+                title: "Silent simulating results",
+                body: `<table class="table table-hover table-bordered border-primary">
+                  <tbody>
+                      <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                        <td>
+                          P&amp;L: ${result.stats.pnl.toFixed(1)}$ (${totalPrcnt.toFixed(2)}%)
+                        </td>
+                        <td class="text-success">
+                          Profitable trades: +${profitableTrades} (+${result.stats.profPrcnt.toFixed(1)}%) ${result.stats.prof.toFixed(1)}$
+                        </td>
+                      </tr>
+                      <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                        <td>
+                          Win Rate: ${winRate}%
+                        </td>
+                        <td class="text-danger">
+                          Loss trades: -${lossTrades} (${result.stats.lossPrcnt.toFixed(1)}%) ${result.stats.loss.toFixed(1)}$
+                        </td>
+                      </tr>
+                  </tbody>
+                </table>`,
+                size: "md",
+                actions: {
+                  buttons: [
+                    { text: "Отмена", class: "btn-secondary", dismiss: true },
+                    {
+                      text: "Sim settings",
+                      class: "btn-primary",
+                      action: "showSimulatorSettings",
+                    },
+                  ],
+                  onAction: async (action) => {
+                    if (action === "showSimulatorSettings") {
+                      this.showSimulatorSettingsModal();
+                    }
+                  },
+                },
+              });
               this.app.get("stats").renderSimulatorTab();
+              this.app.get("stats").flagMarkers = true;
+              this.app.get("stats").showHistoryMarkers();
             }
             if (action === "optimize") {
               this.showOptimizerModal();
@@ -271,7 +316,6 @@ export class Simulator {
         },
       },
     });
-    // Навешиваем динамический пересчёт
     const form = document.querySelector("#simulatorForm");
     if (!form) return;
     const balanceInput = form.querySelector('[name="deposit"]');
@@ -393,7 +437,7 @@ export class Simulator {
       loss: 0,
       prof: 0,
     };
-    this.saveField("result", null);
+    //this.saveField("result", null);
     this.updateLevels(this.app.get("chart").candles);
   }
   //render panel
@@ -473,18 +517,59 @@ export class Simulator {
   tick() {
     if (this.getDefaultConfig().balance < 0) {
       alert(
-        `Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
+        `${this.app.get("i18n").t("sim_liquidation")} ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
       );
       this.stop();
       return;
     }
     if (this.candleIndex >= this.app.get("chart").candles.length) {
       this.stop();
-      this.saveField(
-        "result",
-        `${this.app.get("i18n").t("sim_result")} P&L: ${this.stats.pnl.toFixed(2)} USDT`,
-      );
       this.showSimulatorSettingsModal();
+      const { profitableTrades, lossTrades, pnl, profPrcnt, prof, lossPrcnt, loss } = this.stats;
+      const winRate = ((profitableTrades / this.trades.length) * 100).toFixed(2);
+      const { deposit } = this.app.get("simulator").getDefaultConfig();
+      const totalPrcnt = (pnl / deposit) * 100;
+      this.app.get("modal").show({
+        title: "Simulating results",
+        body: `<table class="table table-hover table-bordered border-primary">
+          <tbody>
+              <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                <td>
+                  P&amp;L: ${pnl.toFixed(1)}$ (${totalPrcnt.toFixed(2)}%)
+                </td>
+                <td class="text-success">
+                  Profitable trades: +${profitableTrades} (+${profPrcnt.toFixed(1)}%) ${prof.toFixed(1)}$
+                </td>
+              </tr>
+              <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                <td>
+                  Win Rate: ${winRate}%
+                </td>
+                <td class="text-danger">
+                  Loss trades: -${lossTrades} (${lossPrcnt.toFixed(1)}%) ${loss.toFixed(1)}$
+                </td>
+              </tr>
+          </tbody>
+        </table>`,
+        size: "md",
+        actions: {
+          buttons: [
+            { text: "Отмена", class: "btn-secondary", dismiss: true },
+            {
+              text: "Sim settings",
+              class: "btn-primary",
+              action: "showSimulatorSettings",
+            },
+          ],
+          onAction: async (action) => {
+            if (action === "showSimulatorSettings") {
+              this.showSimulatorSettingsModal();
+            }
+          },
+        },
+      });
+      this.app.get("stats").flagMarkers = true;
+      this.app.get("stats").showHistoryMarkers();
       return;
     }
     const candle = this.app.get("chart").candles[this.candleIndex];
@@ -1168,13 +1253,11 @@ export class Simulator {
       alert("[Simulator] Optimization already in progress");
       return null;
     }
-    const { autoLong, autoShort } = this.getDefaultConfig();
-    if (!autoLong && !autoShort) {
-      alert("[Simulator] Please set autoLong or autoShort");
-      return null;
-    }
-    // Фильтруем нелогичные комбинации: TP должно быть > SL, Part должен быть < TP (если >0),
-    // breakeven должен быть > trailing, если оба > 0
+    // const { autoLong, autoShort } = this.getDefaultConfig();
+    // if (!autoLong && !autoShort) {
+    //   alert("[Simulator] Please set autoLong or autoShort");
+    //   return null;
+    // }
     const paramRanges = {};
     if (ranges.tpValues) paramRanges.tp = ranges.tpValues;
     if (ranges.slValues) paramRanges.sl = ranges.slValues;
@@ -1185,7 +1268,6 @@ export class Simulator {
     if (ranges.touchesCount) paramRanges.touchesCount = ranges.touchesCount;
     if (ranges.candlePart) paramRanges.candlePart = ranges.candlePart;
 
-    // Если ни один параметр не выбран, оптимизация бессмысленна
     if (Object.keys(paramRanges).length === 0) {
       alert("Выберите хотя бы один параметр для оптимизации.");
       return null;
@@ -1224,18 +1306,22 @@ export class Simulator {
           break;
         }
         const result = this.runSilentSimulation(combo);
+        if (result.error) {
+          this.stopOptimization();
+          break;
+        }
         completed++;
         const profitsPercent = result.trades.map((trade) => {
           return (trade.closedPnl / trade.size) * 100 || 0;
         });
         // --- P&L ---
-        if (result.pnl > bestPnl) {
-          bestPnl = result.pnl;
+        if (result.stats.pnl > bestPnl) {
+          bestPnl = result.stats.pnl;
           const sharpe = this._calcSharpe(profitsPercent);
           const sortino = this._calcSortino(profitsPercent);
           bestPnlCombo = {
             ...combo,
-            pnl: result.pnl,
+            pnl: result.stats.pnl,
             sharpe,
             sortino,
             tradesCount: result.trades.length,
@@ -1249,7 +1335,7 @@ export class Simulator {
           const sortino = this._calcSortino(profitsPercent);
           bestSharpeCombo = {
             ...combo,
-            pnl: result.pnl,
+            pnl: result.stats.pnl,
             sharpe,
             sortino,
             tradesCount: result.trades.length,
@@ -1261,7 +1347,7 @@ export class Simulator {
           bestSortino = sortino;
           bestSortinoCombo = {
             ...combo,
-            pnl: result.pnl,
+            pnl: result.stats.pnl,
             sharpe,
             sortino,
             tradesCount: result.trades.length,
@@ -1646,6 +1732,10 @@ export class Simulator {
     };
     const { candlesCount, touchesCount, autoLong, autoShort, candlePart } =
       testConfig;
+    if (!autoLong && !autoShort) {
+      alert("[Simulator] Please set autoLong or autoShort");
+      return { error: true };
+    }
     for (
       let candleIndex = 0;
       candleIndex < this.app.get("chart").candles.length;
@@ -1681,7 +1771,7 @@ export class Simulator {
       }
       this._checkPositionsSilent(candle, support, resistance, testConfig);
     }
-    return { pnl: this.stats.pnl, trades: this.trades };
+    return { stats: this.stats, trades: this.trades };
   }
 
   // Открыть модалку настроек оптимизатора
@@ -1689,7 +1779,7 @@ export class Simulator {
     const modal = this.app.get("modal");
     const saved = this._loadOptimizerSettings();
     modal.show({
-      title: "Настройки оптимизатора",
+      title: this.app.get("i18n").t("opti_form_title"),
       body: this.templates.optimizerSettings({
         optTP: saved.optTP !== false, // по умолчанию true
         tp_from: saved.tp_from || 1,
@@ -1728,7 +1818,7 @@ export class Simulator {
             class: "btn-primary",
             action: "showSimulatorSettings",
           },
-          { text: "Запустить", class: "btn-primary", action: "start" },
+          { text: this.app.get("i18n").t("start"), class: "btn-primary", action: "start" },
         ],
         onAction: async (action) => {
           if (action === "showSimulatorSettings") {

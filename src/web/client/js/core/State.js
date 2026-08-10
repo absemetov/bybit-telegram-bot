@@ -4,7 +4,7 @@ export class State {
       isAuth: false,
       user: null,
       token: null,
-      symbol: "ETHUSDT",
+      symbol: "BTCUSDT",
       timeframe: "4h",
       chartMode: "live",
       settings: { sound: true, locale: "en" },

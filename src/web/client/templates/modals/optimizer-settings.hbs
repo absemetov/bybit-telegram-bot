@@ -1,36 +1,27 @@
 <form id="optimizerForm">
-  <h6 class="mb-3">Выберите параметры для оптимизации</h6>
+  <h6 class="mb-3">{{t "opti_params"}}</h6>
   <div class="mb-3">
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="optTP" name="optTP" {{#if optTP}}checked{{/if}}>
-      <label class="form-check-label" for="optTP">💵TP/SL/Part (%)</label>
+      <label class="form-check-label" for="optTP">💵TP2/TP1/SL (%)</label>
     </div>
     <div class="row g-2 mt-1">
       <div class="col">
-        <label class="form-check-label" for="tp_from">💵TP_From(%)</label>
+        <label class="form-check-label" for="tp_from">💵TP2_From(%)</label>
         <input type="number" class="form-control form-control-sm" name="tp_from" id="tp_from" value="{{tp_from}}" step="0.1"></div>
       <div class="col">
-        <label class="form-check-label" for="tp_to">💵TP_To(%)</label>
+        <label class="form-check-label" for="tp_to">💵TP2_To(%)</label>
         <input type="number" class="form-control form-control-sm" name="tp_to" id="tp_to" value="{{tp_to}}" step="0.1">
       </div>
       <div class="col">
-        <label class="form-check-label" for="tp_step">💵TP_Step(%)</label>
+        <label class="form-check-label" for="tp_step">💵TP2_Step(%)</label>
         <input type="number" class="form-control form-control-sm" name="tp_step" id="tp_step" value="{{tp_step}}" step="0.1">
       </div>
     </div>
   </div>
   
   <div class="mb-3">
-    <label class="form-check-label" for="sl_from">💸SL (%)</label>
-    <div class="row g-2 mt-1">
-      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_from" id="sl_from" value="{{sl_from}}" step="0.1"></div>
-      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_to" value="{{sl_to}}" step="0.1"></div>
-      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_step" value="{{sl_step}}" step="0.1"></div>
-    </div>
-  </div>
-
-  <div class="mb-3">
-    <label class="form-check-label" for="part_from">✂️Partial50 TP (%)</label>
+    <label class="form-check-label" for="part_from">✂️{{t "part"}} (%)</label>
     <div class="row g-2 mt-1">
       <div class="col"><input type="number" class="form-control form-control-sm" name="part_from" id="part_from" value="{{part_from}}" step="0.1"></div>
       <div class="col"><input type="number" class="form-control form-control-sm" name="part_to" value="{{part_to}}" step="0.1"></div>
@@ -39,9 +30,18 @@
   </div>
 
   <div class="mb-3">
+    <label class="form-check-label" for="sl_from">💸{{t "sl"}} (%)</label>
+    <div class="row g-2 mt-1">
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_from" id="sl_from" value="{{sl_from}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_to" value="{{sl_to}}" step="0.1"></div>
+      <div class="col"><input type="number" class="form-control form-control-sm" name="sl_step" value="{{sl_step}}" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="mb-3">
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="optBreakeven" name="optBreakeven" {{#if optBreakeven}}checked{{/if}}>
-      <label class="form-check-label" for="optBreakeven">🤟Breakeven (%)</label>
+      <label class="form-check-label" for="optBreakeven">🤟{{t "breakeven"}} (%)</label>
     </div>
     <div class="row g-2 mt-1">
       <div class="col"><input type="number" class="form-control form-control-sm" name="break_from" value="{{break_from}}" step="0.1"></div>
@@ -51,7 +51,7 @@
   </div>
 
   <div class="mb-3">
-    <label class="form-check-label" for="optTrailing">⚙️Trailing (%)</label>
+    <label class="form-check-label" for="optTrailing">⚙️{{t "trailing"}} (%)</label>
     <div class="row g-2 mt-1">
       <div class="col"><input type="number" id="optTrailing" class="form-control form-control-sm" name="trailing_from" value="{{trailing_from}}" step="0.1"></div>
       <div class="col"><input type="number" class="form-control form-control-sm" name="trailing_to" value="{{trailing_to}}" step="0.1"></div>
@@ -62,19 +62,19 @@
   <div class="mb-3">
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="optCandles" name="optCandles" {{#if optCandles}}checked{{/if}}>
-      <label class="form-check-label" for="optCandles">🟰Levels</label>
+      <label class="form-check-label" for="optCandles">🟰{{t "levels_settings"}}</label>
     </div>
     <div class="row g-2 mt-1">
       <div class="col">
-        <label class="form-check-label" for="candlesCount">🕯Cвечи</label>
+        <label class="form-check-label" for="candlesCount">🕯{{t "levels_candles"}}</label>
         <input type="text" class="form-control form-control-sm mt-1" name="candlesCount" id="candlesCount" value="{{candlesCount}}">
       </div>
       <div class="col">
-        <label class="form-check-label" for="touchesCount">🧲Количество касаний</label>
+        <label class="form-check-label" for="touchesCount">📍{{t "levels_touches"}}</label>
         <input type="text" class="form-control form-control-sm mt-1" name="touchesCount" id="touchesCount" value="{{touchesCount}}">
       </div>
       <div class="col">
-        <label class="form-check-label" for="candlePart">🎚CandlePart</label>
+        <label class="form-check-label" for="candlePart">🎚{{t "levels_part"}}</label>
         <input type="text" class="form-control form-control-sm mt-1" name="candlePart" id="candlePart" value="{{candlePart}}">
       </div>
     </div>

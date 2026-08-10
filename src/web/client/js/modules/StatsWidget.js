@@ -26,7 +26,7 @@ export class StatsWidget {
     this.app.on("symbolChanged", (symbol) => {
       if (this.app.state.get("isAuth")) {
         this.activeTab = "positions";
-        this.hideMarkers = true;
+        this.flagMarkers = true;
         this.loadTab(this.activeTab, symbol);
       } else {
         this.renderSimulatorTab();
@@ -188,17 +188,13 @@ export class StatsWidget {
     } else {
       positions = this.data.positions;
     }
-    this.app.get("chart").flagLevels = false;
     this.app.get("chart").flagTriggers = false;
     this.app.get("chart").flagPositions = false;
     this.app.get("chart").visibleTriggers();
     this.app.get("chart").visiblePositions();
-    this.app.get("chart").visibleLevels();
     const markLevels = [];
     this.app.get("simulator").closeAllPositions();
     this.app.get("chart").markerSeries.setMarkers([]);
-    this.hideMarkers = !this.hideMarkers;
-    if (this.hideMarkers) return;
     for (const position of positions) {
       const { updatedTime, closedPnl, side } = position;
       const updatedTimeSec = Math.floor(updatedTime / 1000);
@@ -217,7 +213,9 @@ export class StatsWidget {
         });
       }
     }
-    this.app.get("chart").markerSeries.setMarkers(markLevels);
+    if (this.flagMarkers)
+      this.app.get("chart").markerSeries.setMarkers(markLevels);
+    this.flagMarkers = !this.flagMarkers;
   }
   showHistoryPriceLines(
     updatedTime,

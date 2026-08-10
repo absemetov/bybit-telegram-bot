@@ -51,20 +51,19 @@ async function checkPositions(
     //short side
     if (side === "Sell") {
       //set default sl
-      const newStopLoss = avgPrice * (1 - shortSl / 100);
-      if (
-        !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
-          stopLoss > avgPrice)
-      ) {
-        await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
-      }
+      // const newStopLoss = avgPrice * (1 - shortSl / 100);
+      // if (
+      //   !stopLoss ||
+      //   (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
+      //     stopLoss > avgPrice)
+      // ) {
+      //   await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+      // }
       //breakeven trailing stop
       if (shortBreakeven > 0 && pnlPersent < -shortBreakeven) {
         const newStopLoss = markPrice * (1 + shortTrailing / 100);
         if (
-          ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2 &&
-          newStopLoss <= avgPrice
+          ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2
         ) {
           const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
@@ -83,17 +82,17 @@ async function checkPositions(
         }
       }
       //set TP
-      const newTakeProfit = avgPrice * (1 - shortTp / 100);
-      if (
-        !takeProfit ||
-        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
-      ) {
-        await bybit.editTakeProfit(
-          symbol,
-          side,
-          newTakeProfit.toFixed(priceScale),
-        );
-      }
+      // const newTakeProfit = avgPrice * (1 - shortTp / 100);
+      // if (
+      //   !takeProfit ||
+      //   (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
+      // ) {
+      //   await bybit.editTakeProfit(
+      //     symbol,
+      //     side,
+      //     newTakeProfit.toFixed(priceScale),
+      //   );
+      // }
       //check part50
       await bybit.setPart50(
         symbol,
@@ -109,20 +108,19 @@ async function checkPositions(
     //long position
     if (side === "Buy") {
       //set default SL
-      const newStopLoss = avgPrice * (1 + longSl / 100);
-      if (
-        !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
-          stopLoss < avgPrice)
-      ) {
-        await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
-      }
+      // const newStopLoss = avgPrice * (1 + longSl / 100);
+      // if (
+      //   !stopLoss ||
+      //   (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
+      //     stopLoss < avgPrice)
+      // ) {
+      //   await bybit.editStopLoss(symbol, side, newStopLoss.toFixed(priceScale));
+      // }
       //breakeven
       if (longBreakeven > 0 && pnlPersent > longBreakeven) {
         const newStopLoss = markPrice * (1 - longTrailing / 100);
         if (
-          ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2 &&
-          newStopLoss >= avgPrice
+          ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2
         ) {
           await bybit.editStopLoss(
             symbol,
@@ -141,17 +139,17 @@ async function checkPositions(
         }
       }
       //set TP
-      const newTakeProfit = avgPrice * (1 + longTp / 100);
-      if (
-        !takeProfit ||
-        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
-      ) {
-        await bybit.editTakeProfit(
-          symbol,
-          side,
-          newTakeProfit.toFixed(priceScale),
-        );
-      }
+      // const newTakeProfit = avgPrice * (1 + longTp / 100);
+      // if (
+      //   !takeProfit ||
+      //   (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
+      // ) {
+      //   await bybit.editTakeProfit(
+      //     symbol,
+      //     side,
+      //     newTakeProfit.toFixed(priceScale),
+      //   );
+      // }
       //check part50
       await bybit.setPart50(
         symbol,
@@ -347,6 +345,8 @@ export const algoTrading = async (
           [`${user}Position${side}Value`]: posValue,
           [`${user}Part${side}Active`]: false,
         });
+        //default SL/TP
+        await bybit.setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale);
         //part50
         await bybit.setPart50(
           symbol,
@@ -388,6 +388,8 @@ export const algoTrading = async (
               user,
               size,
             );
+            //default SL/TP
+            await bybit.setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale);
           }
           await bot.sendMessage({
             text:

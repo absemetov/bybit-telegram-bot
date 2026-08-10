@@ -347,6 +347,46 @@ class UserAPI {
       throw new Error(`Error editTakeProfit: ${response.retMsg}`);
     }
   }
+  async setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale) {
+    //set default SL for break
+    const positions = await this.getTickerPositions(symbol);
+    const longPosition = positions.find((p) => p.side === "Buy");
+    const shortPosition = positions.find((p) => p.side === "Sell");
+    if (longPosition) {
+      const { stopLoss, avgPrice, takeProfit } = longPosition;
+      const newStopLoss = avgPrice * (1 + longSl / 100);
+      if (
+        !stopLoss ||
+        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06
+      ) {
+        await this.editStopLoss(symbol, "Buy", newStopLoss.toFixed(priceScale));
+      }
+      const newTakeProfit = avgPrice * (1 + longTp / 100);
+      if (
+        !takeProfit ||
+        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
+      ) {
+        await this.editTakeProfit(symbol, "Buy", newTakeProfit.toFixed(priceScale));
+      }
+    }
+    if (shortPosition) {
+      const { stopLoss, avgPrice, takeProfit } = shortPosition;
+      const newStopLoss = avgPrice * (1 - shortSl / 100);
+      if (
+        !stopLoss ||
+        Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06
+      ) {
+        await this.editStopLoss(symbol, "Sell", newStopLoss.toFixed(priceScale));
+      }
+      const newTakeProfit = avgPrice * (1 - shortTp / 100);
+      if (
+        !takeProfit ||
+        (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
+      ) {
+        await this.editTakeProfit(symbol, "Sell", newTakeProfit.toFixed(priceScale));
+      }
+    }
+  }
   //close position
   async closePosition(symbol, side, qty) {
     const response = await this.bybitClient.submitOrder({

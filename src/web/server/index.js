@@ -164,32 +164,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
     //clear orders
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Buy");
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Sell");
-    //set default SL for break
-    const positions = await bybitUsers[req.bybitUser].getTickerPositions(symbol);
-    const longPosition = positions.find((p) => p.side === "Buy");
-    const shortPosition = positions.find((p) => p.side === "Sell");
-    if (longPosition) {
-      const { stopLoss, avgPrice } = longPosition;
-      const newStopLoss = avgPrice * (1 + longSl / 100);
-      if (
-        !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
-          stopLoss < avgPrice)
-      ) {
-        await bybitUsers[req.bybitUser].editStopLoss(symbol, "Buy", newStopLoss.toFixed(priceScale));
-      }
-    }
-    if (shortPosition) {
-      const { stopLoss, avgPrice } = shortPosition;
-      const newStopLoss = avgPrice * (1 - shortSl / 100);
-      if (
-        !stopLoss ||
-        (Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06 &&
-          stopLoss > avgPrice)
-      ) {
-        await bybitUsers[req.bybitUser].editStopLoss(symbol, "Sell", newStopLoss.toFixed(priceScale));
-      }
-    }
+    await bybitUsers[req.bybitUser].setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale);
     return res.json({ ok: "Goodluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
