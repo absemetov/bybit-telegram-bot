@@ -9,7 +9,7 @@ export class Router {
   handleRoute() {
     const hash = window.location.hash.slice(2) || "";
     const parts = hash.split("/");
-    const symbol = parts[0] || this.app.state.get("symbol");
+    const symbol = parts[0] || "BTCUSDT";
     this.app.state.set("symbol", symbol);
     console.log(`[Router: emit symbolChanged ${symbol}`);
     this.app.emit("symbolChanged", symbol);

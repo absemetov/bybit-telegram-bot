@@ -91,6 +91,9 @@ export class Modal {
     this._onAction = actions?.onAction || null;
     this._onRowClick = onRowClick || null;
   }
+  updateTitle(content) {
+    this.el.querySelector(".modal-title").textContent = content;
+  }
   updateBody(content) {
     this.el.querySelector(".modal-body").innerHTML = content;
   }

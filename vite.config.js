@@ -6,12 +6,12 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src/web/client"),
-      "@js": resolve(__dirname, "src/web/client/js"),
-      "@core": resolve(__dirname, "src/web/client/js/core"),
-      "@modules": resolve(__dirname, "src/web/client/js/modules"),
-      "@templates": resolve(__dirname, "src/web/client/templates"),
-      "@styles": resolve(__dirname, "src/web/client/styles"),
+      "@": resolve(import.meta.dirname, "src/web/client"),
+      "@js": resolve(import.meta.dirname, "src/web/client/js"),
+      "@core": resolve(import.meta.dirname, "src/web/client/js/core"),
+      "@modules": resolve(import.meta.dirname, "src/web/client/js/modules"),
+      "@templates": resolve(import.meta.dirname, "src/web/client/templates"),
+      "@styles": resolve(import.meta.dirname, "src/web/client/styles"),
     },
   },
 
@@ -33,11 +33,11 @@ export default defineConfig({
   },
 
   build: {
-    outDir: resolve(__dirname, "dist"),
+    outDir: resolve(import.meta.dirname, "dist"),
     chunkSizeWarningLimit: 800,
     emptyOutDir: true,
     rollupOptions: {
-      input: { main: resolve(__dirname, "src/web/client/index.html") },
+      input: { main: resolve(import.meta.dirname, "src/web/client/index.html") },
       output: {
         entryFileNames: "js/[name].[hash].js",
         chunkFileNames: "js/[name].[hash].js",

@@ -12,8 +12,27 @@
             <th>totalPrcnt, %</th>
             <th>totalPnl, $</th>
           </tr>
+          <tr class="table-bordered cursor-pointer{{#if (gt totalR.totalPnl 0)}} table-success{{else}} table-danger{{/if}}">
+            <td>Total</td>
+            {{#unless allCoins}}<td>{{symbol}}</td>{{/unless}}
+            <td class="{{#if (gt totalR.totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+              {{totalR.totalTrades}}
+            </td>
+            <td class="text-danger">
+              -{{formatPrice totalR.lossPrcnt}}
+            </td>
+            <td class="text-success">
+              {{formatPrice totalR.profPrcnt}}
+            </td>
+            <td class="{{#if (gt totalR.totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+              {{formatPrice totalR.totalPrcnt}}
+            </td>
+            <td class="{{#if (gt totalR.totalPnl 0)}}text-success{{else}}text-danger{{/if}}">
+              {{formatPrice totalR.totalPnl}}
+            </td>
+          </tr>
         </thead>
-        <tbody>
+        <tbody class="table-group-divider">
           {{#each winRate}}
             <tr class="win-item cursor-pointer{{#if (gt totalPnl 0)}} table-success{{else}} table-danger{{/if}}" data-symbol="{{symbol}}" data-closed-pnl="{{formatPrice closedPnl}}" data-updated-time="{{updatedTime}}" data-entry-price="{{avgEntryPrice}}" data-exit-price="{{avgExitPrice}}" data-side="{{#if (eq side 'Buy')}}Sell{{else}}Buy{{/if}}">
               <td>{{dateKey}}</td>

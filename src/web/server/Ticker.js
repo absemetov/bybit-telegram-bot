@@ -32,6 +32,7 @@ class Ticker {
   static async setTriggers(symbol, price, user, triggersStep, size, triggersCount = 3, side) {
     const toleranceSide = side === "Buy" ? triggersStep : -triggersStep;
     //clear All stop orders
+    console.log(side, price);
     await bybitUsers[user].cancelAllOrders(symbol, side);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const position = positions.find((p) => p.side === side);

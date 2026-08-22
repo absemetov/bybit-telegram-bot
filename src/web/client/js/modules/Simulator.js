@@ -22,14 +22,14 @@ export class Simulator {
       balance: 5000,
       size: 5000,
       speed: 1000,
+      tp: 3,
       part: 2,
-      tp: 5,
       sl: -1,
-      candlesCount: 4,
+      candlesCount: 7,
       touchesCount: 3,
-      candlePart: 40,
+      candlePart: 25,
+      triggersCount: 3,
       triggersStep: 0.1,
-      triggersCount: 4,
       autoLong: false,
       autoShort: false,
       autoTp: false,
@@ -469,7 +469,7 @@ export class Simulator {
           <div class="btn-group btn-group-sm d-flex flex-wrap">
             <button class="btn btn-sm" data-action="deleteCandleSimulator" title="${this.app.get("i18n").t("prev")}">⏪</button>
             <button class="btn btn-sm" data-action="tickSimulator" title="${this.app.get("i18n").t("next")}">⏩</button>`
-              : `<button class="btn btn-sm" data-action="openSimulatorSettings">▶️ ${this.app.get("i18n").t("start")}</button>
+              : `<button class="btn btn-sm" data-action="openSimulatorSettings">▶️ ${this.app.get("i18n").t("simulator")}</button>
             </div>`
           }
         </div>`;
@@ -639,7 +639,7 @@ export class Simulator {
         lineWidth: 2,
         lineStyle: 1,
         lineVisible: true,
-        axisLabelVisible: true,
+        axisLabelVisible: false,
       });
     this.longTriggers["enter2"] = this.app
       .get("chart")
@@ -649,7 +649,7 @@ export class Simulator {
         lineWidth: 2,
         lineStyle: 1,
         lineVisible: true,
-        axisLabelVisible: true,
+        axisLabelVisible: false,
       });
     let index = 1;
     for (let i = 3; i <= triggersCount; i++) {
@@ -661,7 +661,7 @@ export class Simulator {
           lineWidth: 2,
           lineStyle: 1,
           lineVisible: true,
-          axisLabelVisible: true,
+          axisLabelVisible: false,
         });
     }
   }
@@ -753,7 +753,7 @@ export class Simulator {
         lineWidth: 2,
         lineStyle: 1,
         lineVisible: true,
-        axisLabelVisible: true,
+        axisLabelVisible: false,
       });
     this.shortTriggers["enter2"] = this.app
       .get("chart")
@@ -763,7 +763,7 @@ export class Simulator {
         lineWidth: 2,
         lineStyle: 1,
         lineVisible: true,
-        axisLabelVisible: true,
+        axisLabelVisible: false,
       });
     let index = 1;
     for (let i = 3; i <= triggersCount; i++) {
@@ -775,7 +775,7 @@ export class Simulator {
           lineWidth: 2,
           lineStyle: 1,
           lineVisible: true,
-          axisLabelVisible: true,
+          axisLabelVisible: false,
         });
     }
   }
@@ -958,9 +958,9 @@ export class Simulator {
             line.applyOptions({
               price: newStopLoss,
             });
-            this.app.get("chart").longLines["tp"].applyOptions({
-              price: markPrice * (1 + (breakeven * 3) / 100),
-            });
+            // this.app.get("chart").longLines["tp"].applyOptions({
+            //   price: markPrice * (1 + (breakeven * 3) / 100),
+            // });
           }
         }
       }
@@ -1127,9 +1127,9 @@ export class Simulator {
             line.applyOptions({
               price: newStopLoss,
             });
-            this.app.get("chart").shortLines["tp"].applyOptions({
-              price: markPrice * (1 - (breakeven * 3) / 100),
-            });
+            // this.app.get("chart").shortLines["tp"].applyOptions({
+            //   price: markPrice * (1 - (breakeven * 3) / 100),
+            // });
           }
         }
       }
@@ -1476,8 +1476,8 @@ export class Simulator {
           const newStopLoss = markPrice * (1 - trailing / 100);
           if (((newStopLoss - price) / price) * 100 > 0.1) {
             this.longPosition[name].price = newStopLoss;
-            this.longPosition["tp"].price =
-              markPrice * (1 + (breakeven * 3) / 100);
+            // this.longPosition["tp"].price =
+            //   markPrice * (1 + (breakeven * 3) / 100);
           }
         }
       }
@@ -1615,8 +1615,8 @@ export class Simulator {
           const newStopLoss = markPrice * (1 + trailing / 100);
           if (((newStopLoss - price) / price) * 100 < -0.1) {
             this.shortPosition[name].price = newStopLoss;
-            this.shortPosition["tp"].price =
-              markPrice * (1 - (breakeven * 3) / 100);
+            // this.shortPosition["tp"].price =
+            //   markPrice * (1 - (breakeven * 3) / 100);
           }
         }
       }

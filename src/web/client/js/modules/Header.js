@@ -45,7 +45,7 @@ export class Header {
       balance: state.algoSettings.balance,
       bybitUser: state.bybitUser || "main",
       locale: state.settings.locale,
-      symbol: ` / ${this.app.state.get("symbol")}`,
+      symbol: this.app.state.get("symbol"),
     });
   }
 
@@ -299,11 +299,6 @@ export class Header {
               cursor: data.nextPageCursor,
             }),
           );
-          //TODO delete orders from chart!!!
-          // this.app.get("chart").positionLines["stop"].applyOptions({
-          //   lineVisible: false,
-          //   axisLabelVisible: false,
-          // });
         } catch (error) {
           alert(`Error: ${error.message}`);
         }
@@ -375,23 +370,75 @@ export class Header {
       title: `Win rate ${allCoins ? "ALL" : symbol} - User ${bybitUser}`,
       body: `<div class="text-center py-5"><div class="spinner-border"></div></div>`,
       size: "lg",
-      buttons: [{ text: "Закрыть", class: "btn-secondary", dismiss: true }],
+      actions: {
+        buttons: [
+          {
+            text: "7d",
+            class: "btn-primary",
+            action: "tab",
+            page: 7,
+          },
+          {
+            text: "14d",
+            class: "btn-primary",
+            action: "tab",
+            page: 14,
+          },
+          {
+            text: "21d",
+            class: "btn-primary",
+            action: "tab",
+            page: 21,
+          },
+          {
+            text: "28d",
+            class: "btn-primary",
+            action: "tab",
+            page: 28,
+          },
+          { text: "Закрыть", class: "btn-secondary", dismiss: true },
+        ],
+        onAction: (action, dataset) => {
+          if (action === "tab") load(dataset);
+        },
+      },
     });
-
-    try {
-      const data = await this.app
-        .get("api")
-        .post(`/api/win-rate/${allCoins ? "" : symbol}`);
-      modal.updateBody(
-        this.templates.winrateTable({
-          winRate: data,
-          allCoins,
-        }),
-      );
-    } catch (err) {
-      modal.updateBody(
-        `<div class="alert alert-danger m-2">Ошибка загрузки ${err}</div>`,
-      );
-    }
+    const load = async (dataset = {}) => {
+      const { page = 3 } = dataset;
+      try {
+        modal.updateBody(`<div class="text-center py-5"><div class="spinner-border"></div></div>`);
+        const data = await this.app
+          .get("api")
+          .post(`/api/win-rate/${allCoins ? "" : symbol}`, { page });
+        const total = {
+          totalTrades: 0,
+          totalPnl: 0,
+          lossPrcnt: 0,
+          profPrcnt: 0,
+          totalPrcnt: 0,
+        };
+        const totalR = data.reduce((acc, trade) => {
+          acc.totalTrades = acc.totalTrades + trade.totalTrades;
+          acc.totalPnl = acc.totalPnl + trade.totalPnl;
+          acc.lossPrcnt = acc.lossPrcnt + trade.lossPrcnt;
+          acc.profPrcnt = acc.profPrcnt + trade.profPrcnt;
+          acc.totalPrcnt = acc.totalPrcnt + trade.totalPrcnt;
+          return acc;
+        }, total);
+        modal.updateTitle(`Win rate ${allCoins ? "ALL" : symbol} - User ${bybitUser} Days: ${page}`);
+        modal.updateBody(
+          this.templates.winrateTable({
+            winRate: data,
+            allCoins,
+            totalR,
+          }),
+        );
+      } catch (err) {
+        modal.updateBody(
+          `<div class="alert alert-danger m-2">Ошибка загрузки ${err}</div>`,
+        );
+      }
+    };
+    modal.el.addEventListener("shown.bs.modal", () => load(), { once: true });
   }
 }

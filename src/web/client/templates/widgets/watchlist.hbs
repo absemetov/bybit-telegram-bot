@@ -12,15 +12,8 @@
 {{/if}}
 <div class="card-body p-0 overflow-auto">
   {{#if tickers.length}}
-    <div class="table-responsive"><table class="table table-sm table-hover mb-0">
-      <thead>
-        <tr>
-          <th>{{t "symbol"}}</th>
-          <th class="text-start">{{t "price"}}</th>
-          <th class="text-start">{{t "change_24h"}}</th>
-          {{#if isAuth}}<th class="text-center">{{t "actions"}}</th>{{/if}}
-        </tr>
-      </thead>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
       <tbody>
         {{#each tickers}}
         <tr data-symbol="{{symbol}}">

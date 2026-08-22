@@ -125,6 +125,16 @@
     </div>
   </div>
   <div class="row">
+    <div class="col-md-4 mb-3">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" value="on" name="autoTp" id="autoTp" switch{{#if autoTp}} checked{{/if}}>
+        <label class="form-check-label" for="autoTp">
+          Auto TP
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="row">
     <h6>🪙Funding rate: {{fundingRate}}%, Time left: {{countDownTime}}</h6>
   </div>
 </form>

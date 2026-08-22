@@ -6,13 +6,17 @@
     <span class="h5 bg-info">{{t "fees"}}</span>
   </div>
   <div class="row">
-      <div class="col-md-6 mb-3">
+      <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="startDate">📅{{t "start_date"}}</label>
           <input type="date" class="form-control" name="startDate" id="startDate" value="{{startDate}}" required>
       </div>
-      <div class="col-md-6 mb-3">
+      <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="endDate">📅{{t "end_date"}}</label>
           <input type="date" class="form-control" name="endDate" id="endDate" value="{{endDate}}" required>
+      </div>
+      <div class="col-md-4 mb-3">
+          <label class="form-label text-primary" for="speed">⏱{{t "speed"}} (ms)</label>
+          <input type="number" class="form-control" id="speed" name="speed" value="{{speed}}" min="1" required>
       </div>
   </div>
   <div class="row">
@@ -23,10 +27,6 @@
       <div class="col-md-4 mb-3">
           <label class="form-label text-primary" for="size">🪙{{t "pos_size"}} ($)</label>
           <input type="number" class="form-control" id="size" name="size" value="{{size}}" min="100" required>
-      </div>
-      <div class="col-md-4 mb-3">
-          <label class="form-label text-primary" for="speed">⏱{{t "speed"}} (ms)</label>
-          <input type="number" class="form-control" id="speed" name="speed" value="{{speed}}" min="1" required>
       </div>
   </div>
   <div class="row">

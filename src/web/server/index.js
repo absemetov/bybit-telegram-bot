@@ -125,6 +125,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       candlePart,
       triggersCount,
       triggersStep,
+      autoTp,
       longTp,
       longPart,
       longSl,
@@ -136,6 +137,12 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
       shortBreakeven,
       shortTrailing,
     } = req.body;
+    //anti-degen check
+    const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(1);
+    const DAILY_LOSS_LIMIT = parseFloat(process.env.DAILY_LOSS_LIMIT) || 50;
+    if (winRate[0].totalPnl < -DAILY_LOSS_LIMIT && attemptsCount > 0 && attemptsCount !== 6) {
+      throw new Error(`🛑 Anti-Degen daily loss more ${DAILY_LOSS_LIMIT}$: DailyWinRate is ${winRate[0].totalPnl.toFixed(1)}$. Algotrading stoped!`);
+    }
     await Ticker.update(symbol, {
       [req.bybitUser]: {
         attemptsCount,
@@ -147,6 +154,7 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
         candlePart,
         triggersCount,
         triggersStep,
+        autoTp,
         longTp,
         longPart,
         longSl,
@@ -244,7 +252,8 @@ app.post("/api/positions-history/:symbol?", auth, async (req, res) => {
 app.post("/api/win-rate/:symbol?", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
-    const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(7, symbol);
+    const { page = 1 } = req.body;
+    const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(page, symbol);
     return res.json(winRate);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -288,5 +297,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Racket v3.1.1 listening on port ${process.env.PORT}`);
+  console.log(`Racket v3.1.2 listening on port ${process.env.PORT}`);
 });

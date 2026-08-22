@@ -10,7 +10,7 @@ class UserAPI {
   async getDailyWinRate(days = 7, symbol = null) {
     const dailyStats = [];
     const currentDate = new Date();
-    for (let i = days - 1; i >= 0; i--) {
+    for (let i = 0; days - 1 >= i; i++) {
       const targetDate = new Date(currentDate);
       targetDate.setDate(targetDate.getDate() - i);
       const startOfDayMSK = new Date(targetDate);
@@ -93,9 +93,12 @@ class UserAPI {
             dateKey,
             strictWinRate: "0.00%",
             totalTrades: 0,
+            totalPnl: 0,
             profitable: 0,
             loss: 0,
-            totalPnl: 0,
+            lossPrcnt: 0,
+            profPrcnt: 0,
+            totalPrcnt: 0,
             symbol: symbol || "ALL",
           });
         }
@@ -196,7 +199,6 @@ class UserAPI {
     positions,
     ticker,
     user,
-    size,
   ) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
@@ -206,13 +208,27 @@ class UserAPI {
       const { avgPrice } = shortPosition;
       const partOrders = orders.part.filter((o) => o.side === "Buy");
       if (partOrders.length > 0) {
+        //delete more 1 order
+        const newPart50 = avgPrice * (1 - part / 100);
+        if (partOrders.length > 1) {
+          //delete parts
+          for (const order of partOrders) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          await this.setPartialTakeProfit(
+            shortPosition,
+            newPart50.toFixed(priceScale),
+          );
+          return;
+        }
         //edit part50
         if (part > 0) {
-          const newPart50 = avgPrice * (1 - part / 100);
           if (
             (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
               100 >=
-            0.06
+              0.06 ||
+            partOrders[0].price * partOrders[0].qty <
+              (shortPosition.positionValue / 2) * 0.9
           ) {
             //delete parts
             for (const order of partOrders) {
@@ -245,14 +261,6 @@ class UserAPI {
             [`${user}Part${side}Active`]: true,
           });
         }
-        //if postition increased
-        if (part > 0 && partActive) {
-          if (shortPosition.positionValue > size * 0.9) {
-            await Ticker.update(symbol, {
-              [`${user}Part${side}Active`]: false,
-            });
-          }
-        }
       }
     }
     //long position
@@ -260,12 +268,27 @@ class UserAPI {
       const { avgPrice } = longPosition;
       const partOrders = orders.part.filter((o) => o.side === "Sell");
       if (partOrders.length > 0) {
+        //delete more 1 order
+        const newPart50 = avgPrice * (1 + part / 100);
+        if (partOrders.length > 1) {
+          //delete parts
+          for (const order of partOrders) {
+            await this.cancelOrder(symbol, order.orderId);
+          }
+          //create new
+          await this.setPartialTakeProfit(
+            longPosition,
+            newPart50.toFixed(priceScale),
+          );
+          return;
+        }
         if (part > 0) {
-          const newPart50 = avgPrice * (1 + part / 100);
           if (
             (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
               100 >=
-            0.06
+              0.06 ||
+            partOrders[0].price * partOrders[0].qty <
+              (longPosition.positionValue / 2) * 0.9
           ) {
             //edit part50
             //delete parts
@@ -298,14 +321,6 @@ class UserAPI {
           await Ticker.update(symbol, {
             [`${user}Part${side}Active`]: true,
           });
-        }
-        //if postition increased
-        if (part > 0 && partActive) {
-          if (longPosition.positionValue > size * 0.9) {
-            await Ticker.update(symbol, {
-              [`${user}Part${side}Active`]: false,
-            });
-          }
         }
       }
     }
@@ -366,7 +381,11 @@ class UserAPI {
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 > 0.06
       ) {
-        await this.editTakeProfit(symbol, "Buy", newTakeProfit.toFixed(priceScale));
+        await this.editTakeProfit(
+          symbol,
+          "Buy",
+          newTakeProfit.toFixed(priceScale),
+        );
       }
     }
     if (shortPosition) {
@@ -376,14 +395,22 @@ class UserAPI {
         !stopLoss ||
         Math.abs(((newStopLoss - stopLoss) / stopLoss) * 100) >= 0.06
       ) {
-        await this.editStopLoss(symbol, "Sell", newStopLoss.toFixed(priceScale));
+        await this.editStopLoss(
+          symbol,
+          "Sell",
+          newStopLoss.toFixed(priceScale),
+        );
       }
       const newTakeProfit = avgPrice * (1 - shortTp / 100);
       if (
         !takeProfit ||
         (Math.abs(newTakeProfit - takeProfit) / takeProfit) * 100 >= 0.06
       ) {
-        await this.editTakeProfit(symbol, "Sell", newTakeProfit.toFixed(priceScale));
+        await this.editTakeProfit(
+          symbol,
+          "Sell",
+          newTakeProfit.toFixed(priceScale),
+        );
       }
     }
   }
@@ -434,7 +461,13 @@ class UserAPI {
       orderId,
     });
     if (response.retCode !== 0) {
-      throw new Error(`Error cancelOrder: ${response.retMsg}`);
+      if (response.retCode === 110001) {
+        console.warn(`Ордер ${orderId} уже отменён или исполнен`);
+        return;
+      }
+      throw new Error(
+        `Error #${response.retCode} in cancelOrder: ${response.retMsg}`,
+      );
     }
   }
   //get order

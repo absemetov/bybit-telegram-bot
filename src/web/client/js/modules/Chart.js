@@ -82,7 +82,12 @@ export class Chart {
       localization: {
         timeFormatter: (timestamp) => {
           const date = new Date(timestamp * 1000);
-          return `${date.toLocaleDateString("ru-RU")}, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+          return `${date.toLocaleDateString("ru-RU", {
+            weekday: "short",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
         },
       },
       crosshair: {
@@ -306,14 +311,18 @@ export class Chart {
       this.handleCrosshairMove(param);
     });
     this.chart.subscribeDblClick(() => {
-      const { candlesCount, touchesCount, candlePart } =
-        this.app.state.get("algoSettings");
+      this.visibleLevels();
       if (this.app.state.get("chartMode") == "simulator") {
+        const { candlesCount, touchesCount, candlePart } = this.app
+          .get("simulator")
+          .getDefaultConfig();
         const candles = this.app
           .get("chart")
           .candles.slice(0, this.app.get("simulator").candleIndex);
         this.updateIndicators(candles, candlesCount, touchesCount, candlePart);
       } else {
+        const { candlesCount, touchesCount, candlePart } =
+          this.app.state.get("algoSettings");
         this.updateIndicators(
           this.candles,
           candlesCount,
@@ -321,7 +330,6 @@ export class Chart {
           candlePart,
         );
       }
-      this.visibleLevels();
     });
     //mouse events
     this.initEventListeners();
@@ -407,20 +415,21 @@ export class Chart {
       size = 1000,
       attemptsCount = -1,
       trend = "up",
-      triggersCount = 4,
+      triggersCount = 3,
       triggersStep = 0.1,
       timeframe = "4h",
-      candlesCount = 4,
+      candlesCount = 7,
       touchesCount = 3,
-      candlePart = 40,
+      candlePart = 25,
       longSl = -1,
       longPart = 2,
-      longTp = 5,
+      longTp = 3,
+      autoTp = true,
       longBreakeven = 0,
       longTrailing = 0,
       shortSl = -1,
       shortPart = 2,
-      shortTp = 5,
+      shortTp = 3,
       shortBreakeven = 0,
       shortTrailing = 0,
     } = tickerInfo?.algoSettings || {};
@@ -438,6 +447,7 @@ export class Chart {
       longSl,
       longPart,
       longTp,
+      autoTp,
       longBreakeven,
       longTrailing,
       shortSl,
@@ -709,6 +719,15 @@ export class Chart {
       color: resistance ? "red" : "black",
       title: `▼ ${(((rPrice - sPrice) / sPrice) * 100).toFixed(2)}%`,
     });
+    if (this.levelsLines["resistance"].options().lineVisible)
+      this.app.get("chart").markerSeries.setMarkers([
+        {
+          time: candlesSlice[0].time,
+          position: "belowBar",
+          color: "black",
+          shape: "arrowUp",
+        },
+      ]);
   }
   visibleLevels() {
     for (const line of Object.values(this.levelsLines)) {
@@ -717,6 +736,7 @@ export class Chart {
         axisLabelVisible: this.flagLevels,
       });
     }
+    if (!this.flagLevels) this.app.get("chart").markerSeries.setMarkers([]);
     this.flagLevels = !this.flagLevels;
   }
   //cross events
@@ -729,7 +749,9 @@ export class Chart {
       const datapoints = param.seriesData.get(this.volumeSeries);
       if (datapoints) {
         const { candlesCount, touchesCount, candlePart } =
-          this.app.state.get("algoSettings");
+          this.app.state.get("chartMode") == "simulator"
+            ? this.app.get("simulator").getDefaultConfig()
+            : this.app.state.get("algoSettings");
         document.querySelector(`[data-bind="candleInfo"]`).textContent =
           `${this.volumeSeries.priceFormatter().format(datapoints.value)}
         (${
@@ -1027,15 +1049,12 @@ export class Chart {
     } else {
       this.candles[this.candles.length - 1] = newCandle;
     }
-    //Simulator TODO
-    //if (this.app.get("simulator").state === "idle") {
     this.candlestickSeries.update(newCandle);
     this.volumeSeries.update({
       time: newCandle.time,
       value: newCandle.volume,
       color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
     });
-    //}
     //positions
     if (this.positionLong) {
       const { avgPrice, size } = this.positionLong;
@@ -1085,6 +1104,9 @@ export class Chart {
       return el;
     });
     const timeframeList = [
+      { value: "15min", name: "15min" },
+      { value: "30min", name: "30min" },
+      { value: "1h", name: "1h" },
       { value: "2h", name: "2h" },
       { value: "4h", name: "4h" },
       { value: "6h", name: "6h" },
@@ -1129,6 +1151,12 @@ export class Chart {
         ],
         onAction: async (action) => {
           if (action === "submit") {
+            if (this.app.state.get("attempts") < 50) {
+              alert(
+                `🛡️ Anti-Degen Alert! You Degenerate gambler attempts = ${this.app.state.get("attempts")}!`,
+              );
+              return;
+            }
             const form = document.querySelector("#algotradingForm");
             const isValid = form.checkValidity();
             if (isValid) {
@@ -1145,6 +1173,7 @@ export class Chart {
                 candlesCount: parseFloat(data.get("candlesCount")),
                 touchesCount: parseFloat(data.get("touchesCount")),
                 candlePart: parseFloat(data.get("candlePart")),
+                autoTp: !!data.get("autoTp"),
                 longTp: parseFloat(data.get("longTp")),
                 longPart: parseFloat(data.get("longPart")),
                 longSl: parseFloat(data.get("longSl")),
@@ -1156,12 +1185,6 @@ export class Chart {
                 shortBreakeven: parseFloat(data.get("shortBreakeven")),
                 shortTrailing: parseFloat(data.get("shortTrailing")),
               };
-              this.updateIndicators(
-                this.candles,
-                newSettings.candlesCount,
-                newSettings.touchesCount,
-                newSettings.candlePart,
-              );
               try {
                 await this.app
                   .get("api")
@@ -1169,9 +1192,12 @@ export class Chart {
                 modal.hide();
                 this.app.state.set("algoSettings", newSettings);
                 this.app.get("chart").updateAlgoPanel(newSettings);
-                //calc new triggers
-                //await this.setTriggers();
-                //this.app.emit("algo:settingsUpdated", { symbol, ...newSettings });
+                this.updateIndicators(
+                  this.candles,
+                  newSettings.candlesCount,
+                  newSettings.touchesCount,
+                  newSettings.candlePart,
+                );
               } catch (err) {
                 alert(err.message || "Ошибка сохранения настроек");
               }
@@ -1199,8 +1225,6 @@ export class Chart {
       let isValid = true;
       if (isNaN(pos) || pos <= 0) isValid = false;
       if (isNaN(sl) || sl < -1.5 || sl > 0) isValid = false;
-      //modal.updateButton("save", !isValid);
-
       if (isValid) {
         const risk = pos * ((Math.abs(sl) + 0.2) / 100);
         const attempts = Math.max(1, Math.floor(balance / risk));
@@ -1208,6 +1232,8 @@ export class Chart {
         attemptsDisplay.textContent = `Attempts: ${attempts},
           Loss1: $${risk.toFixed(2)},
           Loss${attemptsCount}: $${used.toFixed(2)}`;
+        this.app.state.set("attempts", attempts);
+        modal.updateButton("submit", attempts < 50);
       } else {
         attemptsDisplay.textContent = "—";
       }

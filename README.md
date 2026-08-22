@@ -1,7 +1,8 @@
-# 🚀 Bybit Trading Terminal
+# 🛡️ Anti-Degen Terminal
 
-A powerful trading simulator. Includes a web-based charting interface, algorithmic trading engine, Telegram notifications,
-and advanced strategy optimization with Sharpe/Sortino metrics.
+Anti-Degen Terminal is a trading platform that protects you from degen trading. It includes a simulator, optimizer, and strict risk management so you never blow up your account on emotions. The bot sets levels, counts attempts, manages positions, and shuts down automatically if your daily loss exceeds the limit.
+## Why Anti-Degen?
+Most traders lose money because of emotions. Anti‑Degen Terminal automates everything: from level detection to order placement. You set the parameters, the bot executes.
 
 ---
 
@@ -66,6 +67,7 @@ nano .env
 ### Required variables:
 ```bash
 PORT=3003
+DAILY_LOSS_LIMIT=50
 #telegram bot
 TELEGRAM_BOT_TOKEN=
 #bybit api main account

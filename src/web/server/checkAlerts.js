@@ -68,7 +68,30 @@ export const checkTriggers = async () => {
                 (trigger[1].price - close) / close <= -toleranceTrigger / 100
               );
             });
-            //attempts from [0-5] algotrading
+            //Anti-degen detector
+            if (attemptsCount > 0 && attemptsCount <= 5) {
+              const winRate = await bybitUsers[user].getDailyWinRate(1);
+              const DAILY_LOSS_LIMIT =
+                parseFloat(process.env.DAILY_LOSS_LIMIT) || 50;
+              if (winRate[0].totalPnl < -DAILY_LOSS_LIMIT) {
+                await Ticker.update(symbol, {
+                  [`${user}.attemptsCount`]: 0,
+                });
+                await bot.sendMessage({
+                  text:
+                    `☢️[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                    `🛑 Anti-Degen daily loss more ${DAILY_LOSS_LIMIT}$: DailyWinRate is ${winRate[0].totalPnl.toFixed(1)}$. Algotrading stoped!\n` +
+                    `#${symbol.slice(0, -4)}_alert`,
+                });
+              }
+            }
+            //get s/r levels
+            const { support, resistance } = Indicators.calculateLevels(
+              candles,
+              touchesCount,
+              candlePart,
+            );
+            //Algotrading attempts from [0-5]
             if (attemptsCount <= 5) {
               await algoTrading(
                 ticker,
@@ -78,14 +101,11 @@ export const checkTriggers = async () => {
                 trend,
                 triggersRunBuy,
                 triggersRunSell,
+                support,
+                resistance,
               );
             }
             //set new triggers
-            const { support, resistance } = Indicators.calculateLevels(
-              candles,
-              touchesCount,
-              candlePart,
-            );
             const triggerSupport =
               triggersArrayBuy.length === 0 ||
               triggersArrayBuy.find((trigger) => {
@@ -157,12 +177,26 @@ export const checkTriggers = async () => {
               const silent10min =
                 !lastNotified ||
                 timestampSeconds - lastNotified._seconds >= 600;
-              if (triggersRunBuy && silent10min) {
+              const triggersAlertBuy = triggersArrayBuy.find((trigger) => {
+                return (
+                  trigger[1].size > 10 &&
+                  trigger[1].active &&
+                  Math.abs((trigger[1].price - close) / close) <= 0.5 / 100
+                );
+              });
+              const triggersAlertSell = triggersArraySell.find((trigger) => {
+                return (
+                  trigger[1].size > 10 &&
+                  trigger[1].active &&
+                  Math.abs((trigger[1].price - close) / close) <= 0.5 / 100
+                );
+              });
+              if (triggersAlertBuy && silent10min) {
                 await bot.sendMessage({
                   text:
                     `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `Trigger Buy #${triggersRunBuy[0]} cross price ${triggersRunBuy[1].price.toFixed(priceScale)}$, toleranceTriggerUp: ${toleranceTrigger}%\n` +
-                    `#${symbol.slice(0, -4)}_trigger`,
+                    `Trigger Buy #${triggersAlertBuy[0]} cross price ${triggersAlertBuy[1].price.toFixed(priceScale)}$\n` +
+                    `#${symbol.slice(0, -4)}_alert`,
                 });
                 arrayNotify.push({
                   symbol,
@@ -171,12 +205,12 @@ export const checkTriggers = async () => {
                   },
                 });
               }
-              if (triggersRunSell && silent10min) {
+              if (triggersAlertSell && silent10min) {
                 await bot.sendMessage({
                   text:
                     `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `Trigger Sell Buy #${triggersRunSell[0]} cross price ${triggersRunSell[1].price.toFixed(priceScale)}$, toleranceTriggerUp: ${toleranceTrigger}%\n` +
-                    `#${symbol.slice(0, -4)}_trigger`,
+                    `Trigger Sell #${triggersAlertSell[0]} cross price ${triggersAlertSell[1].price.toFixed(priceScale)}$\n` +
+                    `#${symbol.slice(0, -4)}_alert`,
                 });
                 arrayNotify.push({
                   symbol,

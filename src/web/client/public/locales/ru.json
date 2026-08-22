@@ -1,11 +1,9 @@
 {
-  "app_name": "Racket",
+  "app_name": "🛡️ADT",
   "login": "Войти",
   "logout": "Выйти",
   "symbol": "Символ",
   "price": "Цена",
-  "change_24h": "24ч",
-  "actions": "Действия",
   "next": "След",
   "prev": "Пред",
   "simulator": "Симулятор",
