@@ -1,6 +1,6 @@
 import Ticker from "./Ticker.js";
 import bot from "./telegram.js";
-const MAX_POSITION_USDT = 12000;
+const MAX_POSITION_USDT = parseFloat(process.env.MAX_POSITION_USDT);
 //check TP SL break set default values
 async function checkPositions(
   ticker,
@@ -17,10 +17,8 @@ async function checkPositions(
     autoTp,
     longTp,
     shortTp,
-    longPart,
     longBreakeven,
     longTrailing,
-    shortPart,
     shortBreakeven,
     shortTrailing,
   } = algoSettings || {};
@@ -34,7 +32,7 @@ async function checkPositions(
       await bot.sendMessage({
         text:
           `☢️[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-          `FOMO!!! Close position!!! Emotions!!! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$` +
+          `FOMO!!! Close position!!! Emotions!!! Worning positions size increase ${MAX_POSITION_USDT.toFixed(2)}$  ${positionValue}$\n` +
           `#${symbol.slice(0, -4)} #FOMO`,
       });
     }
@@ -54,7 +52,7 @@ async function checkPositions(
       //autoTp
       if (autoTp) {
         let newTakeProfit = avgPrice * (1 - shortTp / 100);
-        if (support > 0) {
+        if (support > 0 && support < markPrice) {
           const sPercent = ((support - avgPrice) / avgPrice) * 100;
           if (sPercent < -0.4) {
             newTakeProfit = support;
@@ -91,24 +89,13 @@ async function checkPositions(
           });
         }
       }
-      //check part50
-      await bybit.setPart50(
-        symbol,
-        shortPart,
-        priceScale,
-        side,
-        orders,
-        positions,
-        ticker,
-        user,
-      );
     }
     //long position
     if (side === "Buy") {
       //autoTp
       if (autoTp) {
         let newTakeProfit = avgPrice * (1 + longTp / 100);
-        if (resistance > 0) {
+        if (resistance > 0 && resistance > markPrice) {
           const sPercent = ((resistance - avgPrice) / avgPrice) * 100;
           if (sPercent > 0.4) {
             newTakeProfit = resistance;
@@ -145,17 +132,6 @@ async function checkPositions(
           });
         }
       }
-      //check part50
-      await bybit.setPart50(
-        symbol,
-        longPart,
-        priceScale,
-        side,
-        orders,
-        positions,
-        ticker,
-        user,
-      );
     }
   }
 }
@@ -169,7 +145,7 @@ async function sendTelegramReport(
 ) {
   const closedPositions = await bybit.getClosedPositionsHistory(symbol);
   const lastClosedPosition = closedPositions.positions[0];
-  const { closedPnl, side } = lastClosedPosition;
+  const { closedPnl, side } = lastClosedPosition || {};
   function changePercent(a, b) {
     return ((Math.abs(a - b) / b) * 100).toFixed(2);
   }
@@ -351,12 +327,15 @@ export const algoTrading = async (
           [`${user}Position${side}Value`]: posValue,
           [`${user}Part${side}Active`]: false,
         });
-        //default SL/TP
-        await bybit.setDefaultTpSl(
+        //set SL/Part/TP
+        await bybit.setDefaultTpPartSl(
           symbol,
+          size,
           longTp,
+          longPart,
           longSl,
           shortTp,
+          shortPart,
           shortSl,
           priceScale,
         );
@@ -378,12 +357,15 @@ export const algoTrading = async (
             [`${user}Position${side}Value`]: posValue,
           });
           if (diff > 0) {
-            //set default SL/TP
-            await bybit.setDefaultTpSl(
+            //set SL/Part/TP
+            await bybit.setDefaultTpPartSl(
               symbol,
+              size,
               longTp,
+              longPart,
               longSl,
               shortTp,
+              shortPart,
               shortSl,
               priceScale,
             );

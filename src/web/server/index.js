@@ -93,7 +93,7 @@ app.post("/api/:symbol/info", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
     const info = await Ticker.getInfo(symbol, req.bybitUser);
-    return res.json({ ...info, getScannerStatus });
+    return res.json(info);
   } catch (error) {
     return res.status(422).json({ message: error.message });
   }
@@ -140,8 +140,14 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
     //anti-degen check
     const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(1);
     const DAILY_LOSS_LIMIT = parseFloat(process.env.DAILY_LOSS_LIMIT) || 50;
-    if (winRate[0].totalPnl < -DAILY_LOSS_LIMIT && attemptsCount > 0 && attemptsCount !== 6) {
-      throw new Error(`🛑 Anti-Degen daily loss more ${DAILY_LOSS_LIMIT}$: DailyWinRate is ${winRate[0].totalPnl.toFixed(1)}$. Algotrading stoped!`);
+    if (
+      winRate[0].totalPnl < -DAILY_LOSS_LIMIT &&
+      attemptsCount > 0 &&
+      attemptsCount !== 6
+    ) {
+      throw new Error(
+        `🛑 Anti-Degen daily loss more ${DAILY_LOSS_LIMIT}$: DailyWinRate is ${winRate[0].totalPnl.toFixed(1)}$. Algotrading stoped!`,
+      );
     }
     await Ticker.update(symbol, {
       [req.bybitUser]: {
@@ -172,7 +178,17 @@ app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
     //clear orders
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Buy");
     await bybitUsers[req.bybitUser].cancelAllOrders(symbol, "Sell");
-    await bybitUsers[req.bybitUser].setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale);
+    await bybitUsers[req.bybitUser].setDefaultTpPartSl(
+      symbol,
+      size,
+      longTp,
+      longPart,
+      longSl,
+      shortTp,
+      shortPart,
+      shortSl,
+      priceScale,
+    );
     return res.json({ ok: "Goodluck!" });
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -253,7 +269,10 @@ app.post("/api/win-rate/:symbol?", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
     const { page = 1 } = req.body;
-    const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(page, symbol);
+    const winRate = await bybitUsers[req.bybitUser].getDailyWinRate(
+      page,
+      symbol,
+    );
     return res.json(winRate);
   } catch (error) {
     return res.status(422).json({ message: error.message });
@@ -297,5 +316,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Racket v3.1.2 listening on port ${process.env.PORT}`);
+  console.log(`Anti-Degen bot v3.1.4 listening on port ${process.env.PORT}`);
 });

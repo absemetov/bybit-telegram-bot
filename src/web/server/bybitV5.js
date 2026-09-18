@@ -1,5 +1,4 @@
 import { RestClientV5 } from "bybit-api";
-import Ticker from "./Ticker.js";
 import dotenv from "dotenv";
 dotenv.config();
 class UserAPI {
@@ -192,136 +191,45 @@ class UserAPI {
   //new partioal orders
   async setPart50(
     symbol,
-    part,
+    size,
+    longPart,
+    shortPart,
     priceScale,
-    side,
     orders,
     positions,
-    ticker,
-    user,
   ) {
     const longPosition = positions.find((p) => p.side === "Buy");
     const shortPosition = positions.find((p) => p.side === "Sell");
-    const partActive = ticker[`${user}Part${side}Active`];
     //short
-    if (shortPosition && side === "Sell") {
+    if (shortPosition) {
       const { avgPrice } = shortPosition;
       const partOrders = orders.part.filter((o) => o.side === "Buy");
-      if (partOrders.length > 0) {
-        //delete more 1 order
-        const newPart50 = avgPrice * (1 - part / 100);
-        if (partOrders.length > 1) {
-          //delete parts
-          for (const order of partOrders) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          await this.setPartialTakeProfit(
-            shortPosition,
-            newPart50.toFixed(priceScale),
-          );
-          return;
-        }
-        //edit part50
-        if (part > 0) {
-          if (
-            (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
-              100 >=
-              0.06 ||
-            partOrders[0].price * partOrders[0].qty <
-              (shortPosition.positionValue / 2) * 0.9
-          ) {
-            //delete parts
-            for (const order of partOrders) {
-              await this.cancelOrder(symbol, order.orderId);
-            }
-            //edit
-            await this.setPartialTakeProfit(
-              shortPosition,
-              newPart50.toFixed(priceScale),
-            );
-          }
-        } else {
-          //delete parts
-          for (const order of partOrders) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          await Ticker.update(symbol, {
-            [`${user}Part${side}Active`]: false,
-          });
-        }
-      } else {
-        //create new
-        if (part > 0 && !partActive) {
-          const newPart50 = avgPrice * (1 - part / 100);
-          await this.setPartialTakeProfit(
-            shortPosition,
-            newPart50.toFixed(priceScale),
-          );
-          await Ticker.update(symbol, {
-            [`${user}Part${side}Active`]: true,
-          });
-        }
+      //clear parts
+      for (const order of partOrders) {
+        await this.cancelOrder(symbol, order.orderId);
+      }
+      if (shortPart > 0 && shortPosition.positionValue > size * 0.7) {
+        const newPart50 = avgPrice * (1 - shortPart / 100);
+        await this.setPartialTakeProfit(
+          shortPosition,
+          newPart50.toFixed(priceScale),
+        );
       }
     }
     //long position
-    if (longPosition && side === "Buy") {
+    if (longPosition) {
       const { avgPrice } = longPosition;
       const partOrders = orders.part.filter((o) => o.side === "Sell");
-      if (partOrders.length > 0) {
-        //delete more 1 order
-        const newPart50 = avgPrice * (1 + part / 100);
-        if (partOrders.length > 1) {
-          //delete parts
-          for (const order of partOrders) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          //create new
-          await this.setPartialTakeProfit(
-            longPosition,
-            newPart50.toFixed(priceScale),
-          );
-          return;
-        }
-        if (part > 0) {
-          if (
-            (Math.abs(newPart50 - partOrders[0].price) / partOrders[0].price) *
-              100 >=
-              0.06 ||
-            partOrders[0].price * partOrders[0].qty <
-              (longPosition.positionValue / 2) * 0.9
-          ) {
-            //edit part50
-            //delete parts
-            for (const order of partOrders) {
-              await this.cancelOrder(symbol, order.orderId);
-            }
-            //create new
-            await this.setPartialTakeProfit(
-              longPosition,
-              newPart50.toFixed(priceScale),
-            );
-          }
-        } else {
-          //delete part50
-          for (const order of partOrders) {
-            await this.cancelOrder(symbol, order.orderId);
-          }
-          await Ticker.update(symbol, {
-            [`${user}Part${side}Active`]: false,
-          });
-        }
-      } else {
-        //create new
-        if (part > 0 && !partActive) {
-          const newPart50 = avgPrice * (1 + part / 100);
-          await this.setPartialTakeProfit(
-            longPosition,
-            newPart50.toFixed(priceScale),
-          );
-          await Ticker.update(symbol, {
-            [`${user}Part${side}Active`]: true,
-          });
-        }
+      //clear parts
+      for (const order of partOrders) {
+        await this.cancelOrder(symbol, order.orderId);
+      }
+      if (longPart > 0 && longPosition.positionValue > size * 0.7) {
+        const newPart50 = avgPrice * (1 + longPart / 100);
+        await this.setPartialTakeProfit(
+          longPosition,
+          newPart50.toFixed(priceScale),
+        );
       }
     }
   }
@@ -362,7 +270,17 @@ class UserAPI {
       throw new Error(`Error editTakeProfit: ${response.retMsg}`);
     }
   }
-  async setDefaultTpSl(symbol, longTp, longSl, shortTp, shortSl, priceScale) {
+  async setDefaultTpPartSl(
+    symbol,
+    size,
+    longTp,
+    longPart,
+    longSl,
+    shortTp,
+    shortPart,
+    shortSl,
+    priceScale,
+  ) {
     //set default SL for break
     const positions = await this.getTickerPositions(symbol);
     const longPosition = positions.find((p) => p.side === "Buy");
@@ -413,6 +331,16 @@ class UserAPI {
         );
       }
     }
+    const orders = await this.getTickerOrders(symbol);
+    await this.setPart50(
+      symbol,
+      size,
+      longPart,
+      shortPart,
+      priceScale,
+      orders,
+      positions,
+    );
   }
   //close position
   async closePosition(symbol, side, qty) {

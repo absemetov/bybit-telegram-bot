@@ -38,9 +38,6 @@ export class Chart {
   init() {
     this.app.on("dashboardReady", () => this.mountWidget());
     this.app.on("symbolChanged", (symbol) => {
-      //fist hide lines
-      this.flagPositions = false;
-      this.visiblePositions();
       this.load(symbol, this.app.state.get("timeframe"));
     });
     this.app.on("kline:update", (data) => {
@@ -379,6 +376,9 @@ export class Chart {
     this.positionShort = null;
     //get ticker data
     if (this.app.state.get("isAuth")) {
+      //fist hide positions
+      this.flagPositions = false;
+      this.visiblePositions();
       await this.loadTickerData(symbol);
     }
     //calc Indicators
@@ -410,6 +410,7 @@ export class Chart {
     const tickerData = await this.getTickerInfo(symbol);
     this.app.state.set("tickerData", tickerData);
     const tickerInfo = await this.app.get("api").post(`/api/${symbol}/info`);
+    this.app.state.set("tickerInfo", tickerInfo);
     if (!tickerInfo) return;
     const {
       size = 1000,
@@ -460,6 +461,7 @@ export class Chart {
     //show triggers
     this.createTriggers(tickerInfo);
     this.createPositions(tickerInfo.positions, tickerInfo.partOrders);
+    this.app.get("watchlist").ensureTickerInWatchlist(symbol, tickerInfo);
   }
   updateAlgoPanel(algoSettings) {
     if (!this.container) return;
@@ -960,7 +962,7 @@ export class Chart {
       const part = this.buyPositionLines["part"].options().price;
       const sl = this.buyPositionLines["sl"].options().price;
       let newSl = ((sl - enter) / enter) * 100;
-      const slMax = -1.5;
+      const slMax = -3;
       const saveParams = {};
       const tpPercent = Math.abs((((tp - enter) / enter) * 100).toFixed(2));
       saveParams.tp = tpPercent;
@@ -1001,7 +1003,7 @@ export class Chart {
       const part = this.sellPositionLines["part"].options().price;
       const sl = this.sellPositionLines["sl"].options().price;
       let newSl = ((sl - enter) / enter) * 100;
-      const slMax = -1.5;
+      const slMax = -3;
       const saveParams = {};
       const tpPercent = Math.abs((((tp - enter) / enter) * 100).toFixed(2));
       saveParams.tp = tpPercent;
@@ -1151,7 +1153,7 @@ export class Chart {
         ],
         onAction: async (action) => {
           if (action === "submit") {
-            if (this.app.state.get("attempts") < 50) {
+            if (this.app.state.get("attempts") < 25) {
               alert(
                 `🛡️ Anti-Degen Alert! You Degenerate gambler attempts = ${this.app.state.get("attempts")}!`,
               );
@@ -1224,7 +1226,7 @@ export class Chart {
       const attemptsCount = parseFloat(attemptsSelect.value);
       let isValid = true;
       if (isNaN(pos) || pos <= 0) isValid = false;
-      if (isNaN(sl) || sl < -1.5 || sl > 0) isValid = false;
+      if (isNaN(sl) || sl < -3 || sl > 0) isValid = false;
       if (isValid) {
         const risk = pos * ((Math.abs(sl) + 0.2) / 100);
         const attempts = Math.max(1, Math.floor(balance / risk));
@@ -1233,7 +1235,7 @@ export class Chart {
           Loss1: $${risk.toFixed(2)},
           Loss${attemptsCount}: $${used.toFixed(2)}`;
         this.app.state.set("attempts", attempts);
-        modal.updateButton("submit", attempts < 50);
+        modal.updateButton("submit", attempts < 25);
       } else {
         attemptsDisplay.textContent = "—";
       }

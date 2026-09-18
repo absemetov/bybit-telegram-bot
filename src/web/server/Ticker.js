@@ -29,7 +29,15 @@ class Ticker {
     return null;
   }
   //create Triggers
-  static async setTriggers(symbol, price, user, triggersStep, size, triggersCount = 3, side) {
+  static async setTriggers(
+    symbol,
+    price,
+    user,
+    triggersStep,
+    size,
+    triggersCount = 3,
+    side,
+  ) {
     const toleranceSide = side === "Buy" ? triggersStep : -triggersStep;
     //clear All stop orders
     console.log(side, price);
@@ -60,7 +68,7 @@ class Ticker {
           price: price * (1 - (toleranceSide * index++) / 100),
           active: true,
           size: triggerSize > 0 ? triggerSize : 0,
-        }
+        };
       }
       await Ticker.update(symbol, triggers);
       return triggers[`${user}Triggers${side}`];
@@ -74,6 +82,9 @@ class Ticker {
       const positions = await bybitUsers[user].getTickerPositions(symbol);
       const balance = await bybitUsers[user].getBybitBalance();
       return {
+        symbol: tickerDoc.id,
+        star: tickerDoc.data().star,
+        priceScale: tickerDoc.data().priceScale,
         algoSettings: tickerDoc.data()[user],
         triggersBuy: tickerDoc.data()[`${user}TriggersBuy`],
         triggersSell: tickerDoc.data()[`${user}TriggersSell`],

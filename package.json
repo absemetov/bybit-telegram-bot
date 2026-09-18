@@ -1,6 +1,6 @@
 {
   "name": "bybit-telegram-bot",
-  "version": "3.1.2",
+  "version": "3.1.4",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -32,7 +32,7 @@
     "firebase-admin": "^13.0.0",
     "handlebars": "^4.7.9",
     "jsonwebtoken": "^9.0.2",
-    "lightweight-charts": "^5.1.0"
+    "lightweight-charts": "^5.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",

@@ -503,7 +503,6 @@ export class Simulator {
   close() {
     if (!confirm(this.app.get("i18n").t("sim_confirm_close"))) return;
     this.stop();
-    //this.historicalCandles = [];
     this.candleIndex = 0;
     this.trades = [];
     this.app.state.set("chartMode", "live");
@@ -517,7 +516,7 @@ export class Simulator {
   tick() {
     if (this.getDefaultConfig().balance < 0) {
       alert(
-        `${this.app.get("i18n").t("sim_liquidation")} ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
+        `${this.app.get("i18n").t("sim_liquidation")} ${this.getDefaultConfig().balance.toFixed(1)} < 0 ${JSON.stringify(this.getDefaultConfig())}`,
       );
       this.stop();
       return;
@@ -1750,7 +1749,7 @@ export class Simulator {
       //control balance
       if (this.getDefaultConfig().balance < 0) {
         alert(
-          `Liquidation balance is ${this.getDefaultConfig().balance.toFixed(1)} < 0`,
+          `${this.app.get("i18n").t("sim_liquidation")} ${this.getDefaultConfig().balance.toFixed(1)} < 0 ${JSON.stringify(testConfig)}`,
         );
         break;
       }

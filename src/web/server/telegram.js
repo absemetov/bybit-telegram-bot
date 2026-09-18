@@ -22,7 +22,7 @@ class TelegramBot {
    * @returns {Promise<object>} Ответ API
    */
   async sendMessage({
-    chatId = "94899148",
+    chatId = process.env.CHAT_ID,
     text,
     button,
     parseMode = "HTML",

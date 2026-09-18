@@ -71,6 +71,7 @@ export class Watchlist {
         `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.currentTab}&user=${this.app.state.get("bybitUser")}&limit=7`,
       );
     this.app.state.set("watchlist.tickers", data.tickers);
+    this.app.state.set("watchlist.data", data);
     this.render(data);
     this.app.emit(
       "watchlist:symbols",
@@ -217,5 +218,20 @@ export class Watchlist {
         row.classList.remove("table-primary");
       }
     });
+  }
+  ensureTickerInWatchlist(symbol, tickerInfo) {
+    const tickers = this.app.state.get("watchlist.tickers") || [];
+    const data = this.app.state.get("watchlist.data") || {};
+    const exists = tickers.some(t => t.symbol === symbol);
+
+    if (!exists) {
+      const updatedTickers = [tickerInfo, ...tickers];
+      this.app.state.set("watchlist.tickers", updatedTickers);
+      data.tickers = updatedTickers;
+      this.app.state.set("watchlist.data", data);
+      const symbols = updatedTickers.map(t => t.symbol);
+      this.app.emit("watchlist:symbols", symbols);
+      this.render(data);
+    }
   }
 }
