@@ -40,18 +40,17 @@ class Ticker {
   ) {
     const toleranceSide = side === "Buy" ? triggersStep : -triggersStep;
     //clear All stop orders
-    console.log(side, price);
     await bybitUsers[user].cancelAllOrders(symbol, side);
     const positions = await bybitUsers[user].getTickerPositions(symbol);
     const position = positions.find((p) => p.side === side);
     const triggerSize = position
       ? (size - position.avgPrice * position.size) / triggersCount
       : size / triggersCount;
-    if (price && triggerSize > 10) {
+    if (price) {
       const triggers = {
         [`${user}Triggers${side}`]: {
           1: {
-            price: price * (1 + toleranceSide / 100),
+            price: price * (1 - toleranceSide / 100),
             active: true,
             size: triggerSize > 0 ? triggerSize : 0,
           },
@@ -65,7 +64,7 @@ class Ticker {
       let index = 1;
       for (let i = 3; i <= triggersCount; i++) {
         triggers[`${user}Triggers${side}`][i] = {
-          price: price * (1 - (toleranceSide * index++) / 100),
+          price: price * (1 + (toleranceSide * index++) / 100),
           active: true,
           size: triggerSize > 0 ? triggerSize : 0,
         };
@@ -88,6 +87,8 @@ class Ticker {
         algoSettings: tickerDoc.data()[user],
         triggersBuy: tickerDoc.data()[`${user}TriggersBuy`],
         triggersSell: tickerDoc.data()[`${user}TriggersSell`],
+        resistancePrice: tickerDoc.data()[`${user}ResistancePrice`],
+        supportPrice: tickerDoc.data()[`${user}SupportPrice`],
         stopOrders: orders.stop,
         partOrders: orders.part,
         positions,
@@ -166,14 +167,14 @@ class Ticker {
           triggersBuy: doc.data()[`${user}TriggersBuy`],
           triggersSell: doc.data()[`${user}TriggersSell`],
           lastNotified: doc.data()[`${user}LastNotified`],
+          lastNotifiedPriceBuy: doc.data()[`${user}LastNotifiedPriceBuy`],
+          lastNotifiedPriceSell: doc.data()[`${user}LastNotifiedPriceSell`],
           positionBuyValue: doc.data()[`${user}PositionBuyValue`],
           positionSellValue: doc.data()[`${user}PositionSellValue`],
           algoSettings: doc.data()[user],
           priceScale: doc.data().priceScale,
-          mainPartBuyActive: doc.data()["mainPartBuyActive"],
-          mainPartSellActive: doc.data()["mainPartSellActive"],
-          subPartBuyActive: doc.data()["subPartBuyActive"],
-          subPartSellActive: doc.data()["subPartSellActive"],
+          resistancePrice: doc.data()[`${user}ResistancePrice`],
+          supportPrice: doc.data()[`${user}SupportPrice`],
         };
       });
       const firstVisible = snapshot.docs[0];

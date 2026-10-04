@@ -26,6 +26,7 @@
       <button class="btn btn-sm" data-action="levelsToggle" title="{{t "levels"}}">🟰</button>
       {{#if isAuth}}
         <button class="btn btn-sm" data-action="triggersToggle">🪮</button>
+        <button class="btn btn-sm" data-action="triggersGenerate">🧮</button>
       {{/if}}
     </div>
     <div class="algo-panel d-none d-md-flex flex-wrap align-items-center gap-2 border mx-1"></div>
@@ -38,10 +39,12 @@
       <button class="btn btn-sm" data-action="levelsToggle" title="{{t "levels"}}">🟰</button>
       {{#if isAuth}}
         <button class="btn btn-sm" data-action="triggersToggle">🪮</button>
+        <button class="btn btn-sm" data-action="triggersGenerate">🧮</button>
       {{/if}}
     </div>
     <div class="simulator-panel d-flex flex-wrap align-items-center gap-2"></div>
     <div class="d-md-none algo-panel d-flex flex-wrap align-items-center gap-2"></div>
+    <span data-bind="candleDate" class="fw-bold mx-2"></span><br/>
     <span data-bind="candleInfo" class="fw-bold mx-2"></span>
   </div>
 </div>

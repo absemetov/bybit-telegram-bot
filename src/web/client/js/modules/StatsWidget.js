@@ -57,8 +57,15 @@ export class StatsWidget {
   }
   renderSimulatorTab() {
     this.activeTab = "simulator";
-    const { trades, shortPosition, longPosition, symbol, stats } =
-      this.app.get("simulator");
+    const {
+      trades,
+      shortPosition,
+      longPosition,
+      symbol,
+      stats,
+      maxDrawdown,
+      maxDrawdownAbs,
+    } = this.app.get("simulator");
     const positions = [...trades].reverse();
     const { profitableTrades, lossTrades } = stats;
     const winRate = ((profitableTrades / positions.length) * 100).toFixed(2);
@@ -75,6 +82,8 @@ export class StatsWidget {
       activeTab: this.activeTab,
       isAuth: this.app.state.get("isAuth"),
       symbol,
+      maxDrawdown,
+      maxDrawdownAbs,
     });
   }
   renderTab(tab) {

@@ -25,8 +25,11 @@ export const checkTriggers = async () => {
               priceScale,
               triggersBuy = {},
               triggersSell = {},
-              lastNotified,
+              lastNotifiedPriceBuy,
+              lastNotifiedPriceSell,
               algoSettings = {},
+              resistancePrice = 0,
+              supportPrice = 0,
             } = ticker;
             const {
               attemptsCount = 0,
@@ -86,11 +89,16 @@ export const checkTriggers = async () => {
               }
             }
             //get s/r levels
-            const { support, resistance } = Indicators.calculateLevels(
+            let { support, resistance } = Indicators.calculateLevels(
               candles,
               touchesCount,
               candlePart,
             );
+            // fixed levels 1d
+            if (timeframe === "1w") {
+              support = supportPrice;
+              resistance = resistancePrice;
+            }
             //Algotrading attempts from [0-5]
             if (attemptsCount <= 5) {
               await algoTrading(
@@ -173,10 +181,6 @@ export const checkTriggers = async () => {
             }
             //only alert [6]
             if (attemptsCount === 6) {
-              const timestampSeconds = Math.round(Date.now() / 1000);
-              const silent10min =
-                !lastNotified ||
-                timestampSeconds - lastNotified._seconds >= 600;
               const triggersAlertBuy = triggersArrayBuy.find((trigger) => {
                 return (
                   trigger[1].size > 10 &&
@@ -191,33 +195,53 @@ export const checkTriggers = async () => {
                   Math.abs((trigger[1].price - close) / close) <= 0.5 / 100
                 );
               });
-              if (triggersAlertBuy && silent10min) {
-                await bot.sendMessage({
-                  text:
-                    `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `Trigger Buy #${triggersAlertBuy[0]} cross price ${triggersAlertBuy[1].price.toFixed(priceScale)}$\n` +
-                    `#${symbol.slice(0, -4)}_alert`,
-                });
-                arrayNotify.push({
-                  symbol,
-                  data: {
-                    [`${user}LastNotified`]: new Date(),
-                  },
-                });
+              if (triggersAlertBuy) {
+                const newPriceAlert =
+                  !lastNotifiedPriceBuy ||
+                  Math.abs(triggersAlertBuy[1].price - lastNotifiedPriceBuy) /
+                    lastNotifiedPriceBuy >
+                    0.3 / 100;
+                if (newPriceAlert) {
+                  await bot.sendMessage({
+                    text:
+                      `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                      `Trigger Buy #${triggersAlertBuy[0]} cross price ${triggersAlertBuy[1].price.toFixed(priceScale)}$\n` +
+                      `Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+                      `Triggers [${triggersCount}/${triggersStep}]\n` +
+                      `#${symbol.slice(0, -4)} #alert`,
+                  });
+                  arrayNotify.push({
+                    symbol,
+                    data: {
+                      [`${user}LastNotifiedPriceBuy`]:
+                        triggersAlertBuy[1].price,
+                    },
+                  });
+                }
               }
-              if (triggersAlertSell && silent10min) {
-                await bot.sendMessage({
-                  text:
-                    `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-                    `Trigger Sell #${triggersAlertSell[0]} cross price ${triggersAlertSell[1].price.toFixed(priceScale)}$\n` +
-                    `#${symbol.slice(0, -4)}_alert`,
-                });
-                arrayNotify.push({
-                  symbol,
-                  data: {
-                    [`${user}LastNotified`]: new Date(),
-                  },
-                });
+              if (triggersAlertSell) {
+                const newPriceAlert =
+                  !lastNotifiedPriceSell ||
+                  Math.abs(triggersAlertSell[1].price - lastNotifiedPriceSell) /
+                    lastNotifiedPriceSell >
+                    0.3 / 100;
+                if (newPriceAlert) {
+                  await bot.sendMessage({
+                    text:
+                      `🔔[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+                      `Trigger Sell #${triggersAlertSell[0]} cross price ${triggersAlertSell[1].price.toFixed(priceScale)}$\n` +
+                      `Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+                      `Triggers [${triggersCount}/${triggersStep}]\n` +
+                      `#${symbol.slice(0, -4)} #alert`,
+                  });
+                  arrayNotify.push({
+                    symbol,
+                    data: {
+                      [`${user}LastNotifiedPriceSell`]:
+                        triggersAlertSell[1].price,
+                    },
+                  });
+                }
               }
             }
             //rate limits set pause 1sec!!!

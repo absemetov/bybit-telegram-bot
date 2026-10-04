@@ -111,6 +111,39 @@ app.post("/api/tickers", auth, async (req, res) => {
   return res.json(data);
 });
 //AlgoTrading
+//set fixed levels
+app.post("/api/set-fixed-levels/:symbol", auth, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { support, resistance, triggersCount, triggersStep, size, side } =
+      req.body;
+    await Ticker.update(symbol, {
+      [`${req.bybitUser}SupportPrice`]: support,
+      [`${req.bybitUser}ResistancePrice`]: resistance,
+    });
+    const triggersBuy = await Ticker.setTriggers(
+      symbol,
+      support,
+      req.bybitUser,
+      triggersStep,
+      size,
+      triggersCount,
+      "Buy",
+    );
+    const triggersSell = await Ticker.setTriggers(
+      symbol,
+      resistance,
+      req.bybitUser,
+      triggersStep,
+      size,
+      triggersCount,
+      "Sell",
+    );
+    return res.json({ triggersBuy, triggersSell });
+  } catch (error) {
+    return res.status(422).json({ message: error.message });
+  }
+});
 app.post("/api/algo-trading/:symbol", auth, async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -316,5 +349,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Anti-Degen bot v3.1.4 listening on port ${process.env.PORT}`);
+  console.log(`Anti-Degen bot v3.1.5 listening on port ${process.env.PORT}`);
 });

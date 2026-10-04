@@ -5,14 +5,14 @@ export class State {
       user: null,
       token: null,
       symbol: "BTCUSDT",
-      timeframe: "1w",
+      timeframe: "6h",
       chartMode: "live",
       settings: { sound: true, locale: "en" },
       algoSettings: {
         balance: 10000,
-        candlesCount: 7,
+        candlesCount: 12,
         touchesCount: 3,
-        candlePart: 25,
+        candlePart: 30,
       },
       watchlist: {
         tickers: [],

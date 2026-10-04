@@ -7,7 +7,7 @@ import {
   HistogramSeries,
   CrosshairMode,
 } from "lightweight-charts";
-
+import { formatDateWithWeekday } from "@js/utils/formatDate.js";
 export class Chart {
   constructor(app) {
     this.app = app;
@@ -55,7 +55,7 @@ export class Chart {
       timeframe,
     });
     this.mount();
-    this.visibleLevels();
+    this.visibleTriggers();
   }
   async mount() {
     this.chartContainer = document.getElementById("chart");
@@ -77,15 +77,7 @@ export class Chart {
         timeVisible: true,
       },
       localization: {
-        timeFormatter: (timestamp) => {
-          const date = new Date(timestamp * 1000);
-          return `${date.toLocaleDateString("ru-RU", {
-            weekday: "short",
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-        },
+        timeFormatter: (timestamp) => formatDateWithWeekday(timestamp),
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -146,7 +138,8 @@ export class Chart {
       }),
     };
     //price lines for triggers
-    this.triggersLines = {};
+    this.triggersBuyLines = {};
+    this.triggersSellLines = {};
     //price lines for position
     this.buyPositionLines = {
       sl: this.candlestickSeries.createPriceLine({
@@ -396,7 +389,7 @@ export class Chart {
       candles.map((c) => ({
         time: c.time,
         value: c.volume,
-        color: c.close > c.open ? "#26A69A" : "#EF5350",
+        //color: c.close > c.open ? "#26A69A" : "#EF5350",
       })),
     );
     this.candlestickSeries.priceScale().applyOptions({
@@ -416,21 +409,21 @@ export class Chart {
       size = 1000,
       attemptsCount = -1,
       trend = "up",
-      triggersCount = 3,
-      triggersStep = 0.1,
-      timeframe = "4h",
-      candlesCount = 7,
+      triggersCount = 5,
+      triggersStep = 0.2,
+      timeframe = "6h",
+      candlesCount = 12,
       touchesCount = 3,
-      candlePart = 25,
-      longSl = -1,
-      longPart = 2,
-      longTp = 3,
+      candlePart = 30,
+      longSl = -1.5,
+      longPart = 5,
+      longTp = 6,
       autoTp = true,
       longBreakeven = 0,
       longTrailing = 0,
-      shortSl = -1,
-      shortPart = 2,
-      shortTp = 3,
+      shortSl = -1.5,
+      shortPart = 5,
+      shortTp = 6,
       shortBreakeven = 0,
       shortTrailing = 0,
     } = tickerInfo?.algoSettings || {};
@@ -459,7 +452,8 @@ export class Chart {
     });
     this.updateAlgoPanel(this.app.state.get("algoSettings"));
     //show triggers
-    this.createTriggers(tickerInfo);
+    this.createBuyTriggers(tickerInfo.triggersBuy);
+    this.createSellTriggers(tickerInfo.triggersSell);
     this.createPositions(tickerInfo.positions, tickerInfo.partOrders);
     this.app.get("watchlist").ensureTickerInWatchlist(symbol, tickerInfo);
   }
@@ -519,6 +513,31 @@ export class Chart {
       }
       if (action === "triggersToggle") {
         this.visibleTriggers();
+      }
+      if (action === "triggersGenerate" ) {
+        //save api
+        const { timeframe, size, triggersCount, triggersStep } =
+          this.app.state.get("algoSettings");
+        try {
+          const { symbol } = this.app.state.get();
+          const resistance = this.levelsLines["resistance"].options().price;
+          const support = this.levelsLines["support"].options().price;
+          const data = await this.app
+            .get("api")
+            .post(`/api/set-fixed-levels/${symbol}`, {
+              resistance,
+              support,
+              triggersStep,
+              size,
+              triggersCount,
+            });
+          this.createBuyTriggers(data.triggersBuy);
+          this.createSellTriggers(data.triggersSell);
+          this.flagTriggers = true;
+          this.visibleTriggers();
+        } catch (err) {
+          alert(err.message || "Ошибка сохранения настроек");
+        }
       }
       if (action === "levelsToggle") {
         this.visibleLevels();
@@ -587,7 +606,7 @@ export class Chart {
     });
   }
   visibleTriggers() {
-    Object.values(this.triggersLines).forEach((item) => {
+    Object.values({ ...this.triggersBuyLines, ...this.triggersSellLines }).forEach((item) => {
       item.applyOptions({
         lineVisible: this.flagTriggers,
         axisLabelVisible: this.flagTriggers,
@@ -595,14 +614,14 @@ export class Chart {
     });
     this.flagTriggers = !this.flagTriggers;
   }
-  createTriggers(triggers) {
-    //first delete old price lines
-    Object.values(this.triggersLines).forEach((item) => {
+  createBuyTriggers(triggers) {
+    //first delete old trigger lines
+    Object.values(this.triggersBuyLines).forEach((item) => {
       this.candlestickSeries.removePriceLine(item);
     });
-    this.triggersLines = {};
-    for (const [name, triger] of Object.entries(triggers?.triggersBuy || {})) {
-      this.triggersLines[`${name}Buy`] = this.candlestickSeries.createPriceLine(
+    this.triggersBuyLines = {};
+    for (const [name, triger] of Object.entries(triggers || {})) {
+      this.triggersBuyLines[`${name}Buy`] = this.candlestickSeries.createPriceLine(
         {
           price: triger.price,
           color: "green",
@@ -614,8 +633,15 @@ export class Chart {
         },
       );
     }
-    for (const [name, triger] of Object.entries(triggers?.triggersSell || {})) {
-      this.triggersLines[`${name}Sell`] =
+  }
+  createSellTriggers(triggers) {
+    //first delete old trigger lines
+    Object.values(this.triggersSellLines).forEach((item) => {
+      this.candlestickSeries.removePriceLine(item);
+    });
+    this.triggersSellLines = {};
+    for (const [name, triger] of Object.entries(triggers || {})) {
+      this.triggersSellLines[`${name}Sell`] =
         this.candlestickSeries.createPriceLine({
           price: triger.price,
           color: "red",
@@ -750,17 +776,20 @@ export class Chart {
     if (param.time && candle) {
       const datapoints = param.seriesData.get(this.volumeSeries);
       if (datapoints) {
+        const locale =
+          this.app.state.get("settings.locale") === "en" ? "en-US" : "ru-RU";
+        const formattedDate = formatDateWithWeekday(param.time, locale);
         const { candlesCount, touchesCount, candlePart } =
           this.app.state.get("chartMode") == "simulator"
             ? this.app.get("simulator").getDefaultConfig()
             : this.app.state.get("algoSettings");
-        document.querySelector(`[data-bind="candleInfo"]`).textContent =
-          `${this.volumeSeries.priceFormatter().format(datapoints.value)}
-        (${
+        document.querySelector(`[data-bind="candleDate"]`).textContent =
+          `${formattedDate} = ${this.volumeSeries.priceFormatter().format(datapoints.value)}`;
+        document.querySelector(`[data-bind="candleInfo"]`).textContent = `${
           candle.close > candle.open
             ? `+${(((candle.high - candle.low) / candle.low) * 100).toFixed(2)}`
             : `${(((candle.low - candle.high) / candle.high) * 100).toFixed(2)}`
-        }%) [${candlesCount}, ${touchesCount}, ${candlePart}]`;
+        }% [${candlesCount}, ${touchesCount}, ${candlePart}]`;
       }
     }
     //drag and drop priceLines
@@ -883,9 +912,6 @@ export class Chart {
           minDistance = distance;
           //set name hover
           this.hoveredLine = name;
-          // line.applyOptions({
-          //   color: "orange",
-          // });
           this.container.style.cursor = "pointer";
           return true;
         }
@@ -933,10 +959,7 @@ export class Chart {
   }
   dragLine() {
     this.selectedLine = this.hoveredLine;
-    this.dragStart(this.dragLines);
-  }
-  dragStart(lines) {
-    for (const name of Object.keys(lines)) {
+    for (const name of Object.keys(this.dragLines)) {
       if (this.selectedLine === name) {
         this.isDroped = false;
       }
@@ -944,19 +967,36 @@ export class Chart {
   }
   async dropLine() {
     this.isDroped = true;
-    //save position settings deprecated
-    const lineName = this.selectedLine;
+    const namePriceLine = this.selectedLine;
     this.selectedLine = null;
-    //real position edit lines
-    // const linesTransform = {
-    //   buyTp: "tp",
-    //   buySl: "sl",
-    //   buyPart: "part",
-    //   sellTp: "tp",
-    //   sellSl: "sl",
-    //   sellPart: "part",
-    // };
-    if (["buyTp", "buySl", "buyPart"].includes(lineName)) {
+    //S/R lines TODO create btn triggersGenerate
+    // if (["resistance", "support"].includes(namePriceLine)) {
+    //   //save api
+    //   const { timeframe, size, triggersCount, triggersStep } =
+    //     this.app.state.get("algoSettings");
+    //   if (timeframe === "1w" && !this.flagTriggers) {
+    //     try {
+    //       const { symbol } = this.app.state.get();
+    //       const side = namePriceLine === "support" ? "Buy" : "Sell";
+    //       const resistance = this.levelsLines["resistance"].options().price;
+    //       const support = this.levelsLines["support"].options().price;
+    //       const data = await this.app
+    //         .get("api")
+    //         .post(`/api/set-fixed-levels/${symbol}`, {
+    //           resistance,
+    //           support,
+    //           triggersStep,
+    //           size,
+    //           triggersCount,
+    //           side,
+    //         });
+    //       namePriceLine === "support" ? this.createBuyTriggers(data.triggers) : this.createSellTriggers(data.triggers);
+    //     } catch (err) {
+    //       alert(err.message || "Ошибка сохранения настроек");
+    //     }
+    //   }
+    // }
+    if (["buyTp", "buySl", "buyPart"].includes(namePriceLine)) {
       const enter = this.buyPositionLines["enter"].options().price;
       const tp = this.buyPositionLines["tp"].options().price;
       const part = this.buyPositionLines["part"].options().price;
@@ -983,21 +1023,8 @@ export class Chart {
         //this.app.state.set("algoSettings.sl", slMax);
       }
       saveParams.sl = +newSl.toFixed(2);
-      //save api
-      // try {
-      //   const { symbol, priceScale } = this.app.state.get();
-      //   saveParams.priceScale = priceScale;
-      //   await this.app
-      //     .get("api")
-      //     .post(
-      //       `/api/algo-trading/${symbol}/edit/${linesTransform[lineName]}`,
-      //       saveParams,
-      //     );
-      // } catch (err) {
-      //   alert(err.message || "Ошибка сохранения настроек");
-      // }
     }
-    if (["sellTp", "sellSl", "sellPart"].includes(lineName)) {
+    if (["sellTp", "sellSl", "sellPart"].includes(namePriceLine)) {
       const enter = this.sellPositionLines["enter"].options().price;
       const tp = this.sellPositionLines["tp"].options().price;
       const part = this.sellPositionLines["part"].options().price;
@@ -1025,19 +1052,6 @@ export class Chart {
         //this.app.state.set("algoSettings.sl", slMax);
       }
       saveParams.sl = +newSl.toFixed(2);
-      //save api
-      // try {
-      //   const { symbol, priceScale } = this.app.state.get();
-      //   saveParams.priceScale = priceScale;
-      //   await this.app
-      //     .get("api")
-      //     .post(
-      //       `/api/algo-trading/${symbol}/edit/${linesTransform[lineName]}`,
-      //       saveParams,
-      //     );
-      // } catch (err) {
-      //   alert(err.message || "Ошибка сохранения настроек");
-      // }
     }
     this.defaultLines();
   }
@@ -1055,7 +1069,7 @@ export class Chart {
     this.volumeSeries.update({
       time: newCandle.time,
       value: newCandle.volume,
-      color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
+      //color: newCandle.close > newCandle.open ? "#26A69A" : "#EF5350",
     });
     //positions
     if (this.positionLong) {
@@ -1106,15 +1120,13 @@ export class Chart {
       return el;
     });
     const timeframeList = [
-      { value: "15min", name: "15min" },
-      { value: "30min", name: "30min" },
       { value: "1h", name: "1h" },
       { value: "2h", name: "2h" },
       { value: "4h", name: "4h" },
       { value: "6h", name: "6h" },
       { value: "12h", name: "12h" },
       { value: "1d", name: "1d" },
-      { value: "1w", name: "1w" },
+      { value: "1w", name: "1w Fixed" },
     ].map((el) => {
       if (el.value === algoSettings.timeframe) {
         el.selected = true;
@@ -1153,12 +1165,6 @@ export class Chart {
         ],
         onAction: async (action) => {
           if (action === "submit") {
-            if (this.app.state.get("attempts") < 25) {
-              alert(
-                `🛡️ Anti-Degen Alert! You Degenerate gambler attempts = ${this.app.state.get("attempts")}!`,
-              );
-              return;
-            }
             const form = document.querySelector("#algotradingForm");
             const isValid = form.checkValidity();
             if (isValid) {
@@ -1234,8 +1240,7 @@ export class Chart {
         attemptsDisplay.textContent = `Attempts: ${attempts},
           Loss1: $${risk.toFixed(2)},
           Loss${attemptsCount}: $${used.toFixed(2)}`;
-        this.app.state.set("attempts", attempts);
-        modal.updateButton("submit", attempts < 25);
+        modal.updateButton("submit", attempts < 25 && balance > 100);
       } else {
         attemptsDisplay.textContent = "—";
       }

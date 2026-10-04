@@ -114,7 +114,8 @@
             </tr>
             <tr class="cursor-pointer{{#if (gt totalData.pnl 0)}} table-success{{else}} table-danger{{/if}}" data-action="showSimulatorMarkers">
               <td>
-                {{t "winrate"}}: {{winRate}}%
+                {{t "winrate"}}: {{winRate}}%<br/>
+                {{t "drawdown"}}: {{formatPrice maxDrawdown}}% ({{formatPrice maxDrawdownAbs}}$)
               </td>
               <td>
                 {{t "loss_trades"}}: -{{lossTrades}} ({{formatPrice totalData.lossPrcnt}}%) {{formatPrice totalData.loss}}$</td>

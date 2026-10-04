@@ -69,7 +69,29 @@ async function checkPositions(
           );
         }
       }
-      //breakeven trailing stop
+      //breakeven trailing stop SL
+      if (shortBreakeven === 0 && shortTrailing > 0) {
+        const newStopLoss = avgPrice * (1 - shortTrailing / 100);
+        if (
+          ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2 &&
+          newStopLoss * 0.97 > markPrice
+        ) {
+          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          await bybit.editStopLoss(
+            symbol,
+            side,
+            newStopLoss.toFixed(priceScale),
+          );
+          await bot.sendMessage({
+            text:
+              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+              `Set Breakeven SL ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
+              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL: ${slPersent.toFixed(2)}%\n` +
+              `#${symbol.slice(0, -4)}_${user}`,
+          });
+        }
+      }
       if (shortBreakeven > 0 && pnlPersent < -shortBreakeven) {
         const newStopLoss = markPrice * (1 + shortTrailing / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2) {
@@ -112,7 +134,29 @@ async function checkPositions(
           );
         }
       }
-      //breakeven
+      //breakeven SL
+      if (longBreakeven === 0 && longTrailing > 0) {
+        const newStopLoss = avgPrice * (1 + longTrailing / 100);
+        if (
+          ((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2 &&
+          newStopLoss * 1.03 < markPrice
+        ) {
+          await bybit.editStopLoss(
+            symbol,
+            side,
+            newStopLoss.toFixed(priceScale),
+          );
+          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          await bot.sendMessage({
+            text:
+              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+              `Set Breakeven SL ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
+              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+              `SL: ${slPersent.toFixed(2)}%\n` +
+              `#${symbol.slice(0, -4)}_${user}`,
+          });
+        }
+      }
       if (longBreakeven > 0 && pnlPersent > longBreakeven) {
         const newStopLoss = markPrice * (1 - longTrailing / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 > 0.2) {

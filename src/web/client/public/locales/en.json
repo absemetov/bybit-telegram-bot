@@ -45,6 +45,7 @@
   "error_support": "Support line not visible, enable Levels",
   "error_resistance": "Resistance line not visible, enable Levels",
   "winrate": "Win Rate",
+  "drawdown": "Drawdown",
   "prof_trades": "Profitable trades",
   "loss_trades": "Loss trades",
   "fees": "Trading fees 0.2%",

@@ -18,7 +18,7 @@ class Indicators {
       });
 
       if (supportCandles.length >= touchCount) {
-        levelsLow.push(highBound * (1 + (step * 3) / 100));
+        levelsLow.push(highBound * (1 + step / 100));
       }
 
       const resistCandles = candles.filter((c) => {
@@ -28,7 +28,7 @@ class Indicators {
       });
 
       if (resistCandles.length >= touchCount) {
-        levelsHigh.push(lowBound * (1 - (step * 3) / 100));
+        levelsHigh.push(lowBound * (1 - step / 100));
       }
     } while (level <= max);
     const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;

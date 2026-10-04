@@ -68,7 +68,7 @@ export class Watchlist {
     const data = await this.app
       .get("api")
       .post(
-        `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.currentTab}&user=${this.app.state.get("bybitUser")}&limit=7`,
+        `/api/tickers?direction=${direction}&lastVisibleId=${lastVisibleId}&tab=${this.currentTab}&user=${this.app.state.get("bybitUser")}&limit=10`,
       );
     this.app.state.set("watchlist.tickers", data.tickers);
     this.app.state.set("watchlist.data", data);

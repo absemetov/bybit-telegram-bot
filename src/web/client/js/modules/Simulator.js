@@ -260,8 +260,12 @@ export class Simulator {
               this.updateSimilatorPanel();
               this.app.get("chart").markerSeries.setMarkers([]);
               const result = this.runSilentSimulation();
+              if (result.error) return null;
               const { profitableTrades, lossTrades } = result.stats;
-              const winRate = ((profitableTrades / result.trades.length) * 100).toFixed(2);
+              const winRate = (
+                (profitableTrades / result.trades.length) *
+                100
+              ).toFixed(2);
               const { deposit } = this.app.get("simulator").getDefaultConfig();
               const totalPrcnt = (result.stats.pnl / deposit) * 100;
               this.app.get("modal").show({
@@ -282,6 +286,14 @@ export class Simulator {
                         </td>
                         <td class="text-danger">
                           Loss trades: -${lossTrades} (${result.stats.lossPrcnt.toFixed(1)}%) ${result.stats.loss.toFixed(1)}$
+                        </td>
+                      </tr>
+                      <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                        <td>
+                          Drawdown: ${result.drawdown.toFixed(1)}%
+                        </td>
+                        <td class="text-danger">
+                          DrawdownAbs: ${result.drawdownAbs.toFixed(1)}$
                         </td>
                       </tr>
                   </tbody>
@@ -483,6 +495,10 @@ export class Simulator {
         () => this.tick(),
         this.getDefaultConfig().speed,
       );
+      // drawdown
+      this.peakBalance = this.getDefaultConfig().balance;
+      this.maxDrawdown = 0;
+      this.maxDrawdownAbs = 0;
       this.app.emit("simulator:started");
       this.app.get("sound").play("start");
     }
@@ -524,8 +540,18 @@ export class Simulator {
     if (this.candleIndex >= this.app.get("chart").candles.length) {
       this.stop();
       this.showSimulatorSettingsModal();
-      const { profitableTrades, lossTrades, pnl, profPrcnt, prof, lossPrcnt, loss } = this.stats;
-      const winRate = ((profitableTrades / this.trades.length) * 100).toFixed(2);
+      const {
+        profitableTrades,
+        lossTrades,
+        pnl,
+        profPrcnt,
+        prof,
+        lossPrcnt,
+        loss,
+      } = this.stats;
+      const winRate = ((profitableTrades / this.trades.length) * 100).toFixed(
+        2,
+      );
       const { deposit } = this.app.get("simulator").getDefaultConfig();
       const totalPrcnt = (pnl / deposit) * 100;
       this.app.get("modal").show({
@@ -591,6 +617,7 @@ export class Simulator {
     if (autoLong) this.setTriggers("Long", true);
     if (autoShort) this.setTriggers("Short", true);
     this._checkPositions(candle);
+    this.updateDrawdown();
   }
   //delete last candle
   removeLastCandle() {
@@ -957,9 +984,6 @@ export class Simulator {
             line.applyOptions({
               price: newStopLoss,
             });
-            // this.app.get("chart").longLines["tp"].applyOptions({
-            //   price: markPrice * (1 + (breakeven * 3) / 100),
-            // });
           }
         }
       }
@@ -998,6 +1022,7 @@ export class Simulator {
           this.longPosition = {
             size: 0,
           };
+          this.setTriggers("Long");
         }
         if (name === "part" && candleUp) {
           if (this.getDefaultConfig().sound) this.app.get("sound").play("tp");
@@ -1126,9 +1151,6 @@ export class Simulator {
             line.applyOptions({
               price: newStopLoss,
             });
-            // this.app.get("chart").shortLines["tp"].applyOptions({
-            //   price: markPrice * (1 - (breakeven * 3) / 100),
-            // });
           }
         }
       }
@@ -1167,6 +1189,7 @@ export class Simulator {
           this.shortPosition = {
             size: 0,
           };
+          this.setTriggers("Short");
         }
         if (name === "part" && !candleUp) {
           if (this.getDefaultConfig().sound) this.app.get("sound").play("tp");
@@ -1411,13 +1434,33 @@ export class Simulator {
 
     return avg / stdDev;
   }
+  updateDrawdown() {
+    // Обновляем пик, если текущий баланс выше
+    if (this.getDefaultConfig().balance > this.peakBalance) {
+      this.peakBalance = this.getDefaultConfig().balance;
+    }
+
+    // Текущая просадка
+    const ddPercent =
+      this.peakBalance > 0
+        ? ((this.peakBalance - this.getDefaultConfig().balance) /
+            this.peakBalance) *
+          100
+        : 0;
+    const ddAbs = this.peakBalance - this.getDefaultConfig().balance;
+
+    // Обновляем максимальную
+    if (ddPercent > this.maxDrawdown) {
+      this.maxDrawdown = ddPercent;
+      this.maxDrawdownAbs = ddAbs;
+    }
+  }
   //check Silent positions
   _checkPositionsSilent(candle, support, resistance, testConfig) {
     //gren or red candle
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing, size, triggersCount } =
-      testConfig;
+    const { autoTp, autoPart, breakeven, trailing, size } = testConfig;
     this.longPosition.markPrice = candle.low;
     this.shortPosition.markPrice = candle.high;
     //LONG
@@ -1475,8 +1518,6 @@ export class Simulator {
           const newStopLoss = markPrice * (1 - trailing / 100);
           if (((newStopLoss - price) / price) * 100 > 0.1) {
             this.longPosition[name].price = newStopLoss;
-            // this.longPosition["tp"].price =
-            //   markPrice * (1 + (breakeven * 3) / 100);
           }
         }
       }
@@ -1511,7 +1552,6 @@ export class Simulator {
           this.longPosition = {
             size: 0,
           };
-          //this.longSilentTriggers = {};
         }
         if (name === "part" && candleUp) {
           const part = ((price - entryPrice) / entryPrice) * 100;
@@ -1614,8 +1654,6 @@ export class Simulator {
           const newStopLoss = markPrice * (1 + trailing / 100);
           if (((newStopLoss - price) / price) * 100 < -0.1) {
             this.shortPosition[name].price = newStopLoss;
-            // this.shortPosition["tp"].price =
-            //   markPrice * (1 - (breakeven * 3) / 100);
           }
         }
       }
@@ -1650,7 +1688,6 @@ export class Simulator {
           this.shortPosition = {
             size: 0,
           };
-          //this.shortSilentTriggers = {};
         }
         if (name === "part" && !candleUp) {
           const part = ((price - entryPrice) / entryPrice) * 100 * -1;
@@ -1735,6 +1772,10 @@ export class Simulator {
       alert("[Simulator] Please set autoLong or autoShort");
       return { error: true };
     }
+    // drawdown
+    this.peakBalance = this.getDefaultConfig().balance;
+    this.maxDrawdown = 0;
+    this.maxDrawdownAbs = 0;
     for (
       let candleIndex = 0;
       candleIndex < this.app.get("chart").candles.length;
@@ -1769,8 +1810,14 @@ export class Simulator {
         this.setShortTriggerSilent(resistance, testConfig);
       }
       this._checkPositionsSilent(candle, support, resistance, testConfig);
+      this.updateDrawdown();
     }
-    return { stats: this.stats, trades: this.trades };
+    return {
+      stats: this.stats,
+      trades: this.trades,
+      drawdown: this.maxDrawdown,
+      drawdownAbs: this.maxDrawdownAbs,
+    };
   }
 
   // Открыть модалку настроек оптимизатора
@@ -1817,7 +1864,11 @@ export class Simulator {
             class: "btn-primary",
             action: "showSimulatorSettings",
           },
-          { text: this.app.get("i18n").t("start"), class: "btn-primary", action: "start" },
+          {
+            text: this.app.get("i18n").t("start"),
+            class: "btn-primary",
+            action: "start",
+          },
         ],
         onAction: async (action) => {
           if (action === "showSimulatorSettings") {
