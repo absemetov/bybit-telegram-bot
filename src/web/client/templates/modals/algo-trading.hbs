@@ -4,12 +4,8 @@
   </div>
   <div class="row">
       <div class="col-md-4 mb-3">
-          <label class="form-label text-success" for="attemptsCount">🎲Attempts</label>
-          <select class="form-select" name="attemptsCount" id="attemptsCount">
-            {{#each attemptsList}}
-              <option value="{{value}}"{{#if selected}} selected{{/if}}>{{name}}</option>
-            {{/each}}
-          </select>
+        <label class="form-label text-success" for="attemptsCount">🎲Attempts(-1/0)</label>
+        <input type="number" class="form-control" name="attemptsCount" id="attemptsCount" value="{{attemptsCount}}" min="-1">
       </div>
       <div class="col-md-4 mb-3">
           <label class="form-label text-success" for="side">📈Trend</label>
@@ -130,6 +126,14 @@
         <input class="form-check-input" type="checkbox" value="on" name="autoTp" id="autoTp" switch{{#if autoTp}} checked{{/if}}>
         <label class="form-check-label" for="autoTp">
           Auto TP
+        </label>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" value="on" name="autoPart" id="autoPart" switch{{#if autoPart}} checked{{/if}}>
+        <label class="form-check-label" for="autoPart">
+          Auto Part
         </label>
       </div>
     </div>

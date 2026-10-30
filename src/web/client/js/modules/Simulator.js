@@ -574,6 +574,14 @@ export class Simulator {
                   Loss trades: -${lossTrades} (${lossPrcnt.toFixed(1)}%) ${loss.toFixed(1)}$
                 </td>
               </tr>
+              <tr class="cursor-pointer table-success" data-action="showSimulatorMarkers">
+                <td>
+                  Drawdown: ${this.maxDrawdown.toFixed(1)}%
+                </td>
+                <td class="text-danger">
+                  DrawdownAbs: ${this.maxDrawdownAbs.toFixed(1)}$
+                </td>
+              </tr>
           </tbody>
         </table>`,
         size: "md",
@@ -657,32 +665,32 @@ export class Simulator {
       this.app.get("chart").candlestickSeries.removePriceLine(item);
     });
     this.longTriggers = {};
-    this.longTriggers["enter1"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: support * (1 + triggersStep / 100),
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: false,
-      });
-    this.longTriggers["enter2"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: support,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: false,
-      });
-    let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    // this.longTriggers["enter1"] = this.app
+    //   .get("chart")
+    //   .candlestickSeries.createPriceLine({
+    //     price: support * (1 - triggersStep / 100),
+    //     color: "black",
+    //     lineWidth: 2,
+    //     lineStyle: 1,
+    //     lineVisible: true,
+    //     axisLabelVisible: false,
+    //   });
+    // this.longTriggers["enter2"] = this.app
+    //   .get("chart")
+    //   .candlestickSeries.createPriceLine({
+    //     price: support,
+    //     color: "black",
+    //     lineWidth: 2,
+    //     lineStyle: 1,
+    //     lineVisible: true,
+    //     axisLabelVisible: false,
+    //   });
+    // let index = 1;
+    for (let i = 0; i < triggersCount; i++) {
       this.longTriggers[`enter${i}`] = this.app
         .get("chart")
         .candlestickSeries.createPriceLine({
-          price: support * (1 - (triggersStep * index++) / 100),
+          price: support * (1 + (triggersStep * i) / 100),
           color: "black",
           lineWidth: 2,
           lineStyle: 1,
@@ -730,19 +738,19 @@ export class Simulator {
     this.longTriggersSize = (size - this.longPosition.size) / triggersCount;
     //first delete old price lines
     this.longSilentTriggers = {};
-    this.longSilentTriggers["enter1"] = {
-      color: "black",
-      price: entryPrice * (1 + triggersStep / 100),
-    };
-    this.longSilentTriggers["enter2"] = {
-      color: "black",
-      price: entryPrice,
-    };
-    let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    // this.longSilentTriggers["enter1"] = {
+    //   color: "black",
+    //   price: entryPrice * (1 - triggersStep / 100),
+    // };
+    // this.longSilentTriggers["enter2"] = {
+    //   color: "black",
+    //   price: entryPrice,
+    // };
+    //let index = 1;
+    for (let i = 0; i < triggersCount; i++) {
       this.longSilentTriggers[`enter${i}`] = {
         color: "black",
-        price: entryPrice * (1 - (triggersStep * index++) / 100),
+        price: entryPrice * (1 + (triggersStep * i) / 100),
       };
     }
   }
@@ -771,32 +779,32 @@ export class Simulator {
       this.app.get("chart").candlestickSeries.removePriceLine(item);
     });
     this.shortTriggers = {};
-    this.shortTriggers["enter1"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: resistance * (1 - triggersStep / 100),
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: false,
-      });
-    this.shortTriggers["enter2"] = this.app
-      .get("chart")
-      .candlestickSeries.createPriceLine({
-        price: resistance,
-        color: "black",
-        lineWidth: 2,
-        lineStyle: 1,
-        lineVisible: true,
-        axisLabelVisible: false,
-      });
-    let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    // this.shortTriggers["enter1"] = this.app
+    //   .get("chart")
+    //   .candlestickSeries.createPriceLine({
+    //     price: resistance * (1 + triggersStep / 100),
+    //     color: "black",
+    //     lineWidth: 2,
+    //     lineStyle: 1,
+    //     lineVisible: true,
+    //     axisLabelVisible: false,
+    //   });
+    // this.shortTriggers["enter2"] = this.app
+    //   .get("chart")
+    //   .candlestickSeries.createPriceLine({
+    //     price: resistance,
+    //     color: "black",
+    //     lineWidth: 2,
+    //     lineStyle: 1,
+    //     lineVisible: true,
+    //     axisLabelVisible: false,
+    //   });
+    // let index = 1;
+    for (let i = 0; i < triggersCount; i++) {
       this.shortTriggers[`enter${i}`] = this.app
         .get("chart")
         .candlestickSeries.createPriceLine({
-          price: resistance * (1 + (triggersStep * index++) / 100),
+          price: resistance * (1 - (triggersStep * i) / 100),
           color: "black",
           lineWidth: 2,
           lineStyle: 1,
@@ -844,19 +852,19 @@ export class Simulator {
     this.shortTriggersSize = (size - this.shortPosition.size) / triggersCount;
     //first delete old price lines
     this.shortSilentTriggers = {};
-    this.shortSilentTriggers["enter1"] = {
-      color: "black",
-      price: entryPrice * (1 - triggersStep / 100),
-    };
-    this.shortSilentTriggers["enter2"] = {
-      color: "black",
-      price: entryPrice,
-    };
-    let index = 1;
-    for (let i = 3; i <= triggersCount; i++) {
+    // this.shortSilentTriggers["enter1"] = {
+    //   color: "black",
+    //   price: entryPrice * (1 + triggersStep / 100),
+    // };
+    // this.shortSilentTriggers["enter2"] = {
+    //   color: "black",
+    //   price: entryPrice,
+    // };
+    //let index = 1;
+    for (let i = 0; i < triggersCount; i++) {
       this.shortSilentTriggers[`enter${i}`] = {
         color: "black",
-        price: entryPrice * (1 + (triggersStep * index++) / 100),
+        price: entryPrice * (1 - (triggersStep * i) / 100),
       };
     }
   }
@@ -899,7 +907,8 @@ export class Simulator {
     //candle colors
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing } = this.getDefaultConfig();
+    const { autoTp, autoPart, breakeven, trailing, sl } =
+      this.getDefaultConfig();
     const support = this.app
       .get("chart")
       .levelsLines["support"].options().price;
@@ -966,7 +975,8 @@ export class Simulator {
       //autoTp Tp
       if (name === "tp" && this.longPosition.size > 0 && colorR && autoTp) {
         const { entryPrice } = this.longPosition;
-        if (resistance > entryPrice)
+        const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
+        if (sPercent > Math.abs(sl))
           line.applyOptions({
             price: resistance,
           });
@@ -1133,7 +1143,8 @@ export class Simulator {
       //autoTp
       if (name === "tp" && this.shortPosition.size > 0 && colorS && autoTp) {
         const { entryPrice } = this.shortPosition;
-        if (support < entryPrice)
+        const sPercent = ((support - entryPrice) / entryPrice) * 100;
+        if (sPercent < -Math.abs(sl))
           line.applyOptions({
             price: support,
           });
@@ -1460,7 +1471,7 @@ export class Simulator {
     //gren or red candle
     const candleUp = candle.close > candle.open;
     //levels
-    const { autoTp, autoPart, breakeven, trailing, size } = testConfig;
+    const { autoTp, autoPart, breakeven, trailing, size, sl } = testConfig;
     this.longPosition.markPrice = candle.low;
     this.shortPosition.markPrice = candle.high;
     //LONG
@@ -1506,7 +1517,8 @@ export class Simulator {
       //autoTp Tp
       if (name === "tp" && this.longPosition.size > 0 && resistance && autoTp) {
         const { entryPrice } = this.longPosition;
-        if (resistance > entryPrice) this.longPosition[name].price = resistance;
+        const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
+        if (sPercent > Math.abs(sl)) this.longPosition[name].price = resistance;
       }
       //breakeven
       const price = line.price;
@@ -1642,7 +1654,8 @@ export class Simulator {
       //autoTp
       if (name === "tp" && this.shortPosition.size > 0 && support && autoTp) {
         const { entryPrice } = this.shortPosition;
-        if (support < entryPrice) this.shortPosition[name].price = support;
+        const sPercent = ((support - entryPrice) / entryPrice) * 100;
+        if (sPercent < -Math.abs(sl)) this.shortPosition[name].price = support;
       }
       const price = line.price;
       const color = line.color;
@@ -1783,10 +1796,44 @@ export class Simulator {
     ) {
       const candle = this.app.get("chart").candles[candleIndex];
       const candles = this.app.get("chart").candles.slice(0, candleIndex + 1);
-      const candlesSlice = candles.slice(-candlesCount);
-      const { support, resistance } = this.app
+      let { support, resistance } = this.app
         .get("indicators")
-        .findLevels(candlesSlice, touchesCount, candlePart);
+        .findLevels(candles.slice(-candlesCount), touchesCount, candlePart);
+      //TODO calc 4-6-12h confluence levels!
+      if (this.app.state.get("timeframe") === "1h") {
+        const resample = resample1hCandles(candles);
+        const level4h = this.app
+          .get("indicators")
+          .findLevels(
+            resample["candles4h"].slice(-candlesCount),
+            touchesCount,
+            candlePart,
+          );
+        const level6h = this.app
+          .get("indicators")
+          .findLevels(
+            resample["candles6h"].slice(-candlesCount),
+            touchesCount,
+            candlePart,
+          );
+        const level12h = this.app
+          .get("indicators")
+          .findLevels(
+            resample["candles12h"].slice(-candlesCount),
+            touchesCount,
+            candlePart,
+          );
+        support = pickBestLevel(
+          [level4h["support"]],
+          1.5,
+        );
+        resistance = pickBestLevel(
+          [
+            level4h["resistance"],
+          ],
+          1.5,
+        );
+      }
       //control balance
       if (this.getDefaultConfig().balance < 0) {
         alert(
@@ -1811,6 +1858,7 @@ export class Simulator {
       }
       this._checkPositionsSilent(candle, support, resistance, testConfig);
       this.updateDrawdown();
+      this.updateSimilatorPanel();
     }
     return {
       stats: this.stats,
@@ -2040,4 +2088,67 @@ export class Simulator {
   stopOptimization() {
     this._stopOptimization = true;
   }
+}
+export const resample1hCandles = (candles) => {
+  // ВНИМАНИЕ: Если у вас таймстампы в секундах, замените 1000 на 1
+  const TO_MS = 1;
+  const HOUR_MS = 60 * 60 * TO_MS;
+  function resampleTo(baseCandles, hours) {
+    const intervalMs = hours * HOUR_MS;
+    const groups = {};
+    baseCandles.forEach((candle) => {
+      // Находим начало временного интервала (00:00, 04:00, 06:00 и т.д.)
+      const bucketTime = Math.floor(candle.time / intervalMs) * intervalMs;
+
+      if (!groups[bucketTime]) {
+        groups[bucketTime] = [];
+      }
+      groups[bucketTime].push(candle);
+    });
+
+    // Собираем новые свечи
+    return Object.keys(groups)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((bucketTime) => {
+        const group = groups[bucketTime];
+        const numericBucketTime = Number(bucketTime);
+        // Сортируем внутри группы по таймстампу
+        group.sort((a, b) => a.time - b.time);
+
+        return {
+          time: numericBucketTime, // Возвращает таймстамп в том же формате
+          open: group[0].open,
+          high: Math.max(...group.map((c) => c.high)),
+          low: Math.min(...group.map((c) => c.low)),
+          close: group[group.length - 1].close,
+          volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
+        };
+      });
+  }
+
+  return {
+    candles4h: resampleTo(candles, 4),
+    candles6h: resampleTo(candles, 6),
+    candles12h: resampleTo(candles, 12),
+  };
+};
+
+function pickBestLevel(levels, confluencePercent = 0.5) {
+  // levels = [level4h, level6h, level12h]
+  const valid = levels.filter((l) => l > 0);
+  if (valid.length === 0) return 0;
+  if (valid.length === 1) return valid[0];
+
+  // Проверяем конфлюэнс: все валидные уровни в одной зоне?
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  const spread = ((max - min) / min) * 100;
+
+  if (spread <= confluencePercent) {
+    // Конфлюэнс есть — берём среднее
+    return valid.reduce((a, b) => a + b, 0) / valid.length;
+  }
+
+  // Конфлюэнса нет — берём по приоритету ТФ (4h > 6h > 12h)
+  return levels[0] || levels[1] || levels[2];
 }

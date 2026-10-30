@@ -8,7 +8,7 @@ async function checkTriggersOnce() {
   if (isProcessing) return;
   isProcessing = true;
   try {
-    console.log(`[1min] Scan run`);
+    console.log(`[1s] Scan run`);
     await checkTriggers();
   } finally {
     isProcessing = false;
@@ -19,7 +19,7 @@ async function checkTriggersOnce() {
 function startScanner() {
   if (intervalId) return;
   isRunning = true;
-  intervalId = setInterval(checkTriggersOnce, 50);
+  intervalId = setInterval(checkTriggersOnce, 1000);
   console.log('[Scanner] Started');
 }
 

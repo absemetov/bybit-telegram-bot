@@ -48,23 +48,12 @@ class Ticker {
       : size / triggersCount;
     if (price) {
       const triggers = {
-        [`${user}Triggers${side}`]: {
-          1: {
-            price: price * (1 - toleranceSide / 100),
-            active: true,
-            size: triggerSize > 0 ? triggerSize : 0,
-          },
-          2: {
-            price: price,
-            active: true,
-            size: triggerSize > 0 ? triggerSize : 0,
-          },
-        },
+        [`${user}Triggers${side}`]: {},
       };
-      let index = 1;
-      for (let i = 3; i <= triggersCount; i++) {
+      // let index = 1;
+      for (let i = 0; i < triggersCount; i++) {
         triggers[`${user}Triggers${side}`][i] = {
-          price: price * (1 + (toleranceSide * index++) / 100),
+          price: price * (1 + (toleranceSide * i) / 100),
           active: true,
           size: triggerSize > 0 ? triggerSize : 0,
         };

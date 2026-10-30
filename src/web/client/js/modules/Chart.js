@@ -418,7 +418,8 @@ export class Chart {
       longSl = -1.5,
       longPart = 5,
       longTp = 6,
-      autoTp = true,
+      autoTp = false,
+      autoPart = true,
       longBreakeven = 0,
       longTrailing = 0,
       shortSl = -1.5,
@@ -442,6 +443,7 @@ export class Chart {
       longPart,
       longTp,
       autoTp,
+      autoPart,
       longBreakeven,
       longTrailing,
       shortSl,
@@ -1104,13 +1106,12 @@ export class Chart {
     const modal = this.app.get("modal");
     const attemptsList = [
       { value: -1, name: "🔴 Off" },
-      { value: 0, name: "🟢 0 attempts" },
-      { value: 1, name: "🟢 1 attempts" },
-      { value: 2, name: "🟢 2 attempts" },
-      { value: 3, name: "🟢 3 attempts" },
-      { value: 4, name: "🟢 4 attempts" },
+      { value: 0, name: "🟢🔔 0 attempts" },
       { value: 5, name: "🟢 5 attempts" },
-      { value: 6, name: "🔔 Only alerts" },
+      { value: 10, name: "🟢 10 attempts" },
+      { value: 25, name: "🟢 25 attempts" },
+      { value: 50, name: "🟢 50 attempts" },
+      { value: 100, name: "🟢 100 attempts" },
     ].map((el) => {
       if (el.value === algoSettings.attemptsCount) {
         el.selected = true;
@@ -1120,7 +1121,7 @@ export class Chart {
       return el;
     });
     const timeframeList = [
-      { value: "1h", name: "1h" },
+      { value: "1h", name: "1h(4-6-12h)" },
       { value: "2h", name: "2h" },
       { value: "4h", name: "4h" },
       { value: "6h", name: "6h" },
@@ -1148,9 +1149,9 @@ export class Chart {
       return el;
     });
     modal.show({
-      title: `AlgoTrading – ${symbol} (${this.app.state.get("bybitUser")}: ${balance.toFixed(1)}$)`,
+      title: `@100Attempts – ${symbol} (${this.app.state.get("bybitUser")}: ${balance.toFixed(1)}$)`,
       body: this.templates.algotradingSettingsTemplate({
-        attemptsList,
+        //attemptsList,
         timeframeList,
         trendList,
         ...algoSettings,
@@ -1182,6 +1183,7 @@ export class Chart {
                 touchesCount: parseFloat(data.get("touchesCount")),
                 candlePart: parseFloat(data.get("candlePart")),
                 autoTp: !!data.get("autoTp"),
+                autoPart: !!data.get("autoPart"),
                 longTp: parseFloat(data.get("longTp")),
                 longPart: parseFloat(data.get("longPart")),
                 longSl: parseFloat(data.get("longSl")),
@@ -1240,7 +1242,7 @@ export class Chart {
         attemptsDisplay.textContent = `Attempts: ${attempts},
           Loss1: $${risk.toFixed(2)},
           Loss${attemptsCount}: $${used.toFixed(2)}`;
-        modal.updateButton("submit", attempts < 25 && balance > 100);
+        modal.updateButton("submit", attempts < 100 && balance > 100);
       } else {
         attemptsDisplay.textContent = "—";
       }
@@ -1252,8 +1254,9 @@ export class Chart {
     updateCalculations();
   }
   async getTickerInfo(symbol) {
+    const endPoint = await this.findAvailableEndpoint();
     const responseInfo = await fetch(
-      `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${symbol}`,
+      `${endPoint}/v5/market/tickers?category=linear&symbol=${symbol}`,
     );
     const dataInfo = await responseInfo.json();
     if (dataInfo.retCode !== 0) {

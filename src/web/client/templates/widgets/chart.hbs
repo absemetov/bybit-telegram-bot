@@ -1,6 +1,7 @@
 <div class="card-header d-flex flex-wrap align-items-center">
   <div class="d-flex align-items-center flex-wrap">
-    <div class="d-flex flex-wrap align-items-center gap-2 border mx-1">
+    <div class="d-flex flex-wrap align-items-center gap-1 border mx-1">
+      <button class="btn btn-sm {{#if (eq timeframe "1h")}}bg-success{{/if}}" data-tf="1h">1h</button>
       <button class="btn btn-sm {{#if (eq timeframe "2h")}}bg-success{{/if}}" data-tf="2h">2h</button>
       <button class="btn btn-sm {{#if (eq timeframe "4h")}}bg-success{{/if}}" data-tf="4h">4h</button>
       <button class="btn btn-sm {{#if (eq timeframe "6h")}}bg-success{{/if}}" data-tf="6h">6h</button>

@@ -1,6 +1,6 @@
 {
   "name": "bybit-telegram-bot",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "main": "index.js",
   "type": "module",
   "scripts": {

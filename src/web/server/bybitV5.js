@@ -208,7 +208,7 @@ class UserAPI {
       for (const order of partOrders) {
         await this.cancelOrder(symbol, order.orderId);
       }
-      if (shortPart > 0 && shortPosition.positionValue > size * 0.7) {
+      if (shortPart > 0 && shortPosition.positionValue > size * 0.6) {
         const newPart50 = avgPrice * (1 - shortPart / 100);
         await this.setPartialTakeProfit(
           shortPosition,
@@ -224,7 +224,7 @@ class UserAPI {
       for (const order of partOrders) {
         await this.cancelOrder(symbol, order.orderId);
       }
-      if (longPart > 0 && longPosition.positionValue > size * 0.7) {
+      if (longPart > 0 && longPosition.positionValue > size * 0.6) {
         const newPart50 = avgPrice * (1 + longPart / 100);
         await this.setPartialTakeProfit(
           longPosition,
@@ -673,56 +673,49 @@ export const getActiveSymbols = async (cursor, limit = 30) => {
     return { symbols: [], nextCursor: null };
   }
 };
-//convert 15min candles to 1h
-const timeframeConfig = {
-  "30min": {
-    intervalMs: 1800000,
-    startOffsetUtcMs: 21 * 3600000,
-    timezone: "Europe/Moscow",
-  },
-  "1h": {
-    intervalMs: 3600000,
-    startOffsetUtcMs: 21 * 3600000,
-    timezone: "Europe/Moscow",
-  },
-  "2h": {
-    intervalMs: 7200000,
-    startOffsetUtcMs: 22 * 3600000,
-    timezone: "Europe/Moscow",
-  },
-  "4h": {
-    intervalMs: 14400000,
-    startOffsetUtcMs: 0,
-    description: "4-часовые свечи (03:00, 07:00... МСК)",
-    timezone: "Europe/Moscow",
-  },
-};
 
-export const convert15minCandles = (candles, timeframe) => {
-  const { intervalMs, startOffsetUtcMs } = timeframeConfig[timeframe];
-  const groups = new Map();
-  for (const candle of candles) {
-    const time = candle.time;
-    const diff = time - startOffsetUtcMs;
-    const groupTime =
-      startOffsetUtcMs + Math.floor(diff / intervalMs) * intervalMs;
-    if (groupTime < startOffsetUtcMs) continue;
-    if (!groups.has(groupTime)) groups.set(groupTime, []);
-    groups.get(groupTime).push(candle);
-  }
-  return Array.from(groups.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([time, group]) => {
-      group.sort((a, b) => a.time - b.time);
-      return {
-        time,
-        open: group[0].open,
-        high: Math.max(...group.map((c) => c.high)),
-        low: Math.min(...group.map((c) => c.low)),
-        close: group[group.length - 1].close,
-        volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
-      };
+export const resample1hCandles = (candles) => {
+  // ВНИМАНИЕ: Если у вас таймстампы в секундах, замените 1000 на 1
+  const TO_MS = 1000;
+  const HOUR_MS = 60 * 60 * TO_MS;
+  function resampleTo(baseCandles, hours) {
+    const intervalMs = hours * HOUR_MS;
+    const groups = {};
+    baseCandles.forEach((candle) => {
+      // Находим начало временного интервала (00:00, 04:00, 06:00 и т.д.)
+      const bucketTime = Math.floor(candle.time / intervalMs) * intervalMs;
+
+      if (!groups[bucketTime]) {
+        groups[bucketTime] = [];
+      }
+      groups[bucketTime].push(candle);
     });
+
+    // Собираем новые свечи
+    return Object.keys(groups)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((bucketTime) => {
+        const group = groups[bucketTime];
+        const numericBucketTime = Number(bucketTime);
+        // Сортируем внутри группы по таймстампу
+        group.sort((a, b) => a.time - b.time);
+
+        return {
+          time: numericBucketTime, // Возвращает таймстамп в том же формате
+          open: group[0].open,
+          high: Math.max(...group.map((c) => c.high)),
+          low: Math.min(...group.map((c) => c.low)),
+          close: group[group.length - 1].close,
+          volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
+        };
+      });
+  }
+
+  return {
+    candles4h: resampleTo(candles, 4),
+    candles6h: resampleTo(candles, 6),
+    candles12h: resampleTo(candles, 12),
+  };
 };
 
 export const intervalKline = {

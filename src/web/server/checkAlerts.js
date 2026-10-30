@@ -1,5 +1,5 @@
 import Ticker from "./Ticker.js";
-import { bybitUsers } from "./bybitV5.js";
+import { bybitUsers, resample1hCandles } from "./bybitV5.js";
 import { algoTrading } from "./levels.js";
 import Indicators from "./indicators.js";
 import bot from "./telegram.js";
@@ -44,11 +44,7 @@ export const checkTriggers = async () => {
             } = algoSettings;
             const bybit = bybitUsers[user];
             //get timeframe candles
-            const candles = await bybit.getCandles(
-              symbol,
-              timeframe,
-              candlesCount,
-            );
+            const candles = await bybit.getCandles(symbol, timeframe, 100);
             if (candles.length === 0) {
               continue;
             }
@@ -72,7 +68,7 @@ export const checkTriggers = async () => {
               );
             });
             //Anti-degen detector
-            if (attemptsCount > 0 && attemptsCount <= 5) {
+            if (attemptsCount > 0) {
               const winRate = await bybitUsers[user].getDailyWinRate(1);
               const DAILY_LOSS_LIMIT =
                 parseFloat(process.env.DAILY_LOSS_LIMIT) || 50;
@@ -88,19 +84,50 @@ export const checkTriggers = async () => {
                 });
               }
             }
-            //get s/r levels
+            // get s/r levels
             let { support, resistance } = Indicators.calculateLevels(
-              candles,
+              candles.slice(-candlesCount),
               touchesCount,
               candlePart,
             );
+            // new 4h 6h 12h levels
+            if (timeframe === "1h") {
+              const resample = resample1hCandles(candles);
+              const level4h = Indicators.calculateLevels(
+                resample["candles4h"].slice(-candlesCount),
+                touchesCount,
+                candlePart,
+              );
+              const level6h = Indicators.calculateLevels(
+                resample["candles6h"].slice(-candlesCount),
+                touchesCount,
+                candlePart,
+              );
+              const level12h = Indicators.calculateLevels(
+                resample["candles12h"].slice(-candlesCount),
+                touchesCount,
+                candlePart,
+              );
+              support = pickBestLevel(
+                [level4h["support"], level6h["support"], level12h["support"]],
+                1.5,
+              );
+              resistance = pickBestLevel(
+                [
+                  level4h["resistance"],
+                  level6h["resistance"],
+                  level12h["resistance"],
+                ],
+                1.5,
+              );
+            }
             // fixed levels 1d
             if (timeframe === "1w") {
               support = supportPrice;
               resistance = resistancePrice;
             }
             //Algotrading attempts from [0-5]
-            if (attemptsCount <= 5) {
+            if (attemptsCount >= 0) {
               await algoTrading(
                 ticker,
                 close,
@@ -118,7 +145,7 @@ export const checkTriggers = async () => {
               triggersArrayBuy.length === 0 ||
               triggersArrayBuy.find((trigger) => {
                 return (
-                  trigger[0] === "2" &&
+                  trigger[0] === "0" &&
                   Math.abs(trigger[1].price - support) / support >
                     toleranceTrigger / 100
                 );
@@ -127,30 +154,30 @@ export const checkTriggers = async () => {
               triggersArraySell.length === 0 ||
               triggersArraySell.find((trigger) => {
                 return (
-                  trigger[0] === "2" &&
+                  trigger[0] === "0" &&
                   Math.abs(trigger[1].price - resistance) / resistance >
                     toleranceTrigger / 100
                 );
               });
             //delete triggers, if no levels
-            if (triggersArrayBuy.length > 0 && support === 0) {
-              await bybitUsers[user].cancelAllOrders(symbol, "Buy");
-              arrayNotify.push({
-                symbol,
-                data: {
-                  [`${user}TriggersBuy`]: {},
-                },
-              });
-            }
-            if (triggersArraySell.length > 0 && resistance === 0) {
-              await bybitUsers[user].cancelAllOrders(symbol, "Sell");
-              arrayNotify.push({
-                symbol,
-                data: {
-                  [`${user}TriggersSell`]: {},
-                },
-              });
-            }
+            // if (triggersArrayBuy.length > 0 && support === 0) {
+            //   await bybitUsers[user].cancelAllOrders(symbol, "Buy");
+            //   arrayNotify.push({
+            //     symbol,
+            //     data: {
+            //       [`${user}TriggersBuy`]: {},
+            //     },
+            //   });
+            // }
+            // if (triggersArraySell.length > 0 && resistance === 0) {
+            //   await bybitUsers[user].cancelAllOrders(symbol, "Sell");
+            //   arrayNotify.push({
+            //     symbol,
+            //     data: {
+            //       [`${user}TriggersSell`]: {},
+            //     },
+            //   });
+            // }
             //support zone
             if (support && triggerSupport && ["up", "flat"].includes(trend)) {
               await Ticker.setTriggers(
@@ -179,8 +206,8 @@ export const checkTriggers = async () => {
                 "Sell",
               );
             }
-            //only alert [6]
-            if (attemptsCount === 6) {
+            //only alert [0]
+            if (attemptsCount === 0) {
               const triggersAlertBuy = triggersArrayBuy.find((trigger) => {
                 return (
                   trigger[1].size > 10 &&
@@ -269,3 +296,23 @@ export const checkTriggers = async () => {
     });
   }
 };
+
+function pickBestLevel(levels, confluencePercent = 0.5) {
+  // levels = [level4h, level6h, level12h]
+  const valid = levels.filter((l) => l > 0);
+  if (valid.length === 0) return 0;
+  if (valid.length === 1) return valid[0];
+
+  // Проверяем конфлюэнс: все валидные уровни в одной зоне?
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  const spread = ((max - min) / min) * 100;
+
+  if (spread <= confluencePercent) {
+    // Конфлюэнс есть — берём среднее
+    return valid.reduce((a, b) => a + b, 0) / valid.length;
+  }
+
+  // Конфлюэнса нет — берём по приоритету ТФ (4h > 6h > 12h)
+  return levels[0] || levels[1] || levels[2];
+}

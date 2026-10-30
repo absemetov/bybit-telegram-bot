@@ -15,12 +15,18 @@ async function checkPositions(
   const { symbol, priceScale, algoSettings = {} } = ticker;
   const {
     autoTp,
+    autoPart,
     longTp,
+    longPart,
+    longSl,
     shortTp,
+    shortPart,
+    shortSl,
     longBreakeven,
     longTrailing,
     shortBreakeven,
     shortTrailing,
+    size,
   } = algoSettings || {};
   //edit TP, SL set breakeven
   for (const position of positions) {
@@ -54,7 +60,7 @@ async function checkPositions(
         let newTakeProfit = avgPrice * (1 - shortTp / 100);
         if (support > 0 && support < markPrice) {
           const sPercent = ((support - avgPrice) / avgPrice) * 100;
-          if (sPercent < -0.4) {
+          if (sPercent < -Math.abs(shortSl)) {
             newTakeProfit = support;
           }
         }
@@ -69,6 +75,35 @@ async function checkPositions(
           );
         }
       }
+      //autoPart
+      if (autoPart) {
+        let newPart = avgPrice * (1 - shortPart / 100);
+        let newPartPercent = shortPart;
+        if (support > 0 && support < markPrice) {
+          const sPercent = ((support - avgPrice) / avgPrice) * 100;
+          if (sPercent < -Math.abs(shortSl)) {
+            newPart = support;
+            newPartPercent = Math.abs(sPercent);
+          }
+        }
+        const partOrders = orders.part.filter((o) => o.side === "Buy");
+        if (
+          !partOrders[0] ||
+          (Math.abs(newPart - partOrders[0].price) / partOrders[0].price) *
+            100 >=
+            0.06
+        ) {
+          await bybit.setPart50(
+            symbol,
+            size,
+            0,
+            newPartPercent,
+            priceScale,
+            orders,
+            positions,
+          );
+        }
+      }
       //breakeven trailing stop SL
       if (shortBreakeven === 0 && shortTrailing > 0) {
         const newStopLoss = avgPrice * (1 - shortTrailing / 100);
@@ -76,39 +111,39 @@ async function checkPositions(
           ((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2 &&
           newStopLoss * 0.97 > markPrice
         ) {
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
             newStopLoss.toFixed(priceScale),
           );
-          await bot.sendMessage({
-            text:
-              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Set Breakeven SL ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
-              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL: ${slPersent.toFixed(2)}%\n` +
-              `#${symbol.slice(0, -4)}_${user}`,
-          });
+          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          // await bot.sendMessage({
+          //   text:
+          //     `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          //     `Set Breakeven SL ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
+          //     `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          //     `SL: ${slPersent.toFixed(2)}%\n` +
+          //     `#${symbol.slice(0, -4)}_${user}`,
+          // });
         }
       }
       if (shortBreakeven > 0 && pnlPersent < -shortBreakeven) {
         const newStopLoss = markPrice * (1 + shortTrailing / 100);
         if (((newStopLoss - stopLoss) / stopLoss) * 100 < -0.2) {
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
           await bybit.editStopLoss(
             symbol,
             side,
             newStopLoss.toFixed(priceScale),
           );
-          await bot.sendMessage({
-            text:
-              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Breakeven ${shortBreakeven}%, TrailingStop ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
-              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL: ${slPersent.toFixed(2)}%\n` +
-              `#${symbol.slice(0, -4)}_${user}`,
-          });
+          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          // await bot.sendMessage({
+          //   text:
+          //     `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          //     `Breakeven ${shortBreakeven}%, TrailingStop ${shortTrailing}% 🔴 Short Size: ${positionValue.toFixed(1)}$` +
+          //     `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          //     `SL: ${slPersent.toFixed(2)}%\n` +
+          //     `#${symbol.slice(0, -4)}_${user}`,
+          // });
         }
       }
     }
@@ -119,7 +154,7 @@ async function checkPositions(
         let newTakeProfit = avgPrice * (1 + longTp / 100);
         if (resistance > 0 && resistance > markPrice) {
           const sPercent = ((resistance - avgPrice) / avgPrice) * 100;
-          if (sPercent > 0.4) {
+          if (sPercent > Math.abs(longSl)) {
             newTakeProfit = resistance;
           }
         }
@@ -131,6 +166,35 @@ async function checkPositions(
             symbol,
             "Buy",
             newTakeProfit.toFixed(priceScale),
+          );
+        }
+      }
+      //autoPart
+      if (autoPart) {
+        let newPart = avgPrice * (1 + longPart / 100);
+        let newPartPercent = longPart;
+        if (resistance > 0 && resistance > markPrice) {
+          const sPercent = ((resistance - avgPrice) / avgPrice) * 100;
+          if (sPercent > Math.abs(longSl)) {
+            newPart = resistance;
+            newPartPercent = sPercent;
+          }
+        }
+        const partOrders = orders.part.filter((o) => o.side === "Sell");
+        if (
+          !partOrders[0] ||
+          (Math.abs(newPart - partOrders[0].price) / partOrders[0].price) *
+            100 >
+            0.06
+        ) {
+          await bybit.setPart50(
+            symbol,
+            size,
+            newPartPercent,
+            0,
+            priceScale,
+            orders,
+            positions,
           );
         }
       }
@@ -146,15 +210,15 @@ async function checkPositions(
             side,
             newStopLoss.toFixed(priceScale),
           );
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
-          await bot.sendMessage({
-            text:
-              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Set Breakeven SL ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
-              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL: ${slPersent.toFixed(2)}%\n` +
-              `#${symbol.slice(0, -4)}_${user}`,
-          });
+          // const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          // await bot.sendMessage({
+          //   text:
+          //     `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          //     `Set Breakeven SL ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
+          //     `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          //     `SL: ${slPersent.toFixed(2)}%\n` +
+          //     `#${symbol.slice(0, -4)}_${user}`,
+          // });
         }
       }
       if (longBreakeven > 0 && pnlPersent > longBreakeven) {
@@ -165,15 +229,15 @@ async function checkPositions(
             side,
             newStopLoss.toFixed(priceScale),
           );
-          const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
-          await bot.sendMessage({
-            text:
-              `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-              `Breakeven ${longBreakeven}%, TrailingStop ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
-              `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
-              `SL: ${slPersent.toFixed(2)}%\n` +
-              `#${symbol.slice(0, -4)}_${user}`,
-          });
+          //const slPersent = ((newStopLoss - avgPrice) / avgPrice) * 100;
+          // await bot.sendMessage({
+          //   text:
+          //     `📝[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+          //     `Breakeven ${longBreakeven}%, TrailingStop ${longTrailing}% 🟢 Long Size: ${positionValue.toFixed(1)}$\n` +
+          //     `pnlPersent ${pnlPersent.toFixed(2)}%\n` +
+          //     `SL: ${slPersent.toFixed(2)}%\n` +
+          //     `#${symbol.slice(0, -4)}_${user}`,
+          // });
         }
       }
     }
@@ -272,12 +336,6 @@ export const algoTrading = async (
     const {
       size,
       attemptsCount,
-      timeframe,
-      candlesCount,
-      touchesCount,
-      candlePart,
-      triggersCount,
-      triggersStep,
       longTp,
       longPart,
       longSl,
@@ -305,15 +363,15 @@ export const algoTrading = async (
       await Ticker.update(symbol, {
         [`${user}TriggersBuy.${triggerId}.active`]: false,
       });
-      await bot.sendMessage({
-        text:
-          `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-          `triggersBuy.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
-          `Position size: ${size}$, Levels html<b>${timeframe}</b>html [${candlesCount}/${touchesCount}/${candlePart}]\n` +
-          `Triggers [${triggersCount}/${triggersStep}]\n` +
-          `TP/PART/SL [${longTp}/${longPart}/${longSl}]\n` +
-          `#${symbol.slice(0, -4)}_${user}`,
-      });
+      // await bot.sendMessage({
+      //   text:
+      //     `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+      //     `triggersBuy.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
+      //     `Position size: ${size}$, Levels html<b>${timeframe}</b>html [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+      //     `Triggers [${triggersCount}/${triggersStep}]\n` +
+      //     `TP/PART/SL [${longTp}/${longPart}/${longSl}]\n` +
+      //     `#${symbol.slice(0, -4)}_${user}`,
+      // });
     }
     //create SHORT order
     if (triggerSell && ["down", "flat"].includes(trend) && attemptsCount > 0) {
@@ -333,15 +391,15 @@ export const algoTrading = async (
       await Ticker.update(symbol, {
         [`${user}TriggersSell.${triggerId}.active`]: false,
       });
-      await bot.sendMessage({
-        text:
-          `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
-          `triggersSell.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
-          `Position size: ${size}$, Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
-          `Triggers [${triggersCount}/${triggersStep}]\n` +
-          `TP/PART/SL [${shortTp}/${shortPart}/${shortSl}]\n` +
-          `#${symbol.slice(0, -4)}_${user}`,
-      });
+      // await bot.sendMessage({
+      //   text:
+      //     `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
+      //     `triggersSell.${triggerId}.active Price: ${triggerPrice.toFixed(priceScale)}$ Size: ${triggerSize.toFixed(1)}$\n` +
+      //     `Position size: ${size}$, Levels ${timeframe} [${candlesCount}/${touchesCount}/${candlePart}]\n` +
+      //     `Triggers [${triggersCount}/${triggersStep}]\n` +
+      //     `TP/PART/SL [${shortTp}/${shortPart}/${shortSl}]\n` +
+      //     `#${symbol.slice(0, -4)}_${user}`,
+      // });
     }
     //set TP/SL break trailing control FOMO
     await checkPositions(
@@ -383,6 +441,7 @@ export const algoTrading = async (
           shortSl,
           priceScale,
         );
+        //nafs silent!
         await bot.sendMessage({
           text:
             `🆕[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +
@@ -414,6 +473,7 @@ export const algoTrading = async (
               priceScale,
             );
           }
+          //nafs silent!
           await bot.sendMessage({
             text:
               `💰[${user}] html<code>${symbol.slice(0, -4)}</code>html\n` +

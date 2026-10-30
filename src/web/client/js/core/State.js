@@ -9,7 +9,7 @@ export class State {
       chartMode: "live",
       settings: { sound: true, locale: "en" },
       algoSettings: {
-        balance: 10000,
+        balance: 2000,
         candlesCount: 12,
         touchesCount: 3,
         candlePart: 30,
