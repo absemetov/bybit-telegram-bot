@@ -351,5 +351,5 @@ app.post("/api/delete/:symbol", auth, async (req, res) => {
 });
 //run app
 app.listen(process.env.PORT, () => {
-  console.log(`Anti-Degen bot v3.1.6 listening on port ${process.env.PORT}`);
+  console.log(`Anti-Degen bot v3.1.7 listening on port ${process.env.PORT}`);
 });

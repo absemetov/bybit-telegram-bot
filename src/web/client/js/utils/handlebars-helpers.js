@@ -18,10 +18,10 @@ export function registerHelpers(Handlebars) {
       flat: "↕️",
     };
     const btn = options.hash?.btn;
-    if (attemptsCount === 6) {
+    if (attemptsCount === 0) {
       return `🔔${timeframe}`;
     }
-    if (attemptsCount >= 0) {
+    if (attemptsCount > 0) {
       return `${size}<span class="badge text-bg-success rounded-pill">${attemptsCount}</span>${timeframe}${trendIcon[trend]}`;
     }
     if (btn) {

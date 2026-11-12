@@ -1121,7 +1121,7 @@ export class Chart {
       return el;
     });
     const timeframeList = [
-      { value: "1h", name: "1h(4-6-12h)" },
+      { value: "1h", name: "1h(6h+12h+1d)" },
       { value: "2h", name: "2h" },
       { value: "4h", name: "4h" },
       { value: "6h", name: "6h" },
@@ -1250,7 +1250,7 @@ export class Chart {
 
     posInput.addEventListener("input", updateCalculations);
     slInput.addEventListener("input", updateCalculations);
-    attemptsSelect.addEventListener("change", updateCalculations);
+    attemptsSelect.addEventListener("input", updateCalculations);
     updateCalculations();
   }
   async getTickerInfo(symbol) {

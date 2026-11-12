@@ -965,22 +965,28 @@ export class Simulator {
       this.app.get("chart").longLines,
     )) {
       //autoTp Part
-      if (name === "part" && this.longPosition.size > 0 && colorR && autoPart) {
+      if (
+        ["tp", "part"].includes(name) &&
+        this.longPosition.size > 0 &&
+        colorR &&
+        (autoPart || autoTp)
+      ) {
         const { entryPrice } = this.longPosition;
-        if (resistance > entryPrice)
+        const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
+        if (sPercent > Math.abs(name === "tp" ? sl : sl * 2))
           line.applyOptions({
             price: resistance,
           });
       }
       //autoTp Tp
-      if (name === "tp" && this.longPosition.size > 0 && colorR && autoTp) {
-        const { entryPrice } = this.longPosition;
-        const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
-        if (sPercent > Math.abs(sl))
-          line.applyOptions({
-            price: resistance,
-          });
-      }
+      // if (name === "tp" && this.longPosition.size > 0 && colorR && autoTp) {
+      //   const { entryPrice } = this.longPosition;
+      //   const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
+      //   if (sPercent > Math.abs(sl * 2))
+      //     line.applyOptions({
+      //       price: resistance,
+      //     });
+      // }
       const price = line.options().price;
       const color = line.options().color;
       const visible = line.options().lineVisible;
@@ -1129,26 +1135,27 @@ export class Simulator {
     )) {
       //autoPart Short
       if (
-        name === "part" &&
+        ["tp", "part"].includes(name) &&
         this.shortPosition.size > 0 &&
         colorS &&
-        autoPart
+        (autoPart || autoTp)
       ) {
         const { entryPrice } = this.shortPosition;
-        if (support < entryPrice)
+        const sPercent = ((support - entryPrice) / entryPrice) * 100;
+        if (sPercent < -Math.abs(name === "tp" ? sl : sl * 2))
           line.applyOptions({
             price: support,
           });
       }
       //autoTp
-      if (name === "tp" && this.shortPosition.size > 0 && colorS && autoTp) {
-        const { entryPrice } = this.shortPosition;
-        const sPercent = ((support - entryPrice) / entryPrice) * 100;
-        if (sPercent < -Math.abs(sl))
-          line.applyOptions({
-            price: support,
-          });
-      }
+      // if (name === "tp" && this.shortPosition.size > 0 && colorS && autoTp) {
+      //   const { entryPrice } = this.shortPosition;
+      //   const sPercent = ((support - entryPrice) / entryPrice) * 100;
+      //   if (sPercent < -Math.abs(sl * 2))
+      //     line.applyOptions({
+      //       price: support,
+      //     });
+      // }
       const price = line.options().price;
       const color = line.options().color;
       const visible = line.options().lineVisible;
@@ -1512,7 +1519,8 @@ export class Simulator {
         this.longPosition[name]
       ) {
         const { entryPrice } = this.longPosition;
-        if (resistance > entryPrice) this.longPosition[name].price = resistance;
+        const sPercent = ((resistance - entryPrice) / entryPrice) * 100;
+        if (sPercent > Math.abs(sl * 2)) this.longPosition[name].price = resistance;
       }
       //autoTp Tp
       if (name === "tp" && this.longPosition.size > 0 && resistance && autoTp) {
@@ -1649,7 +1657,8 @@ export class Simulator {
         this.shortPosition[name]
       ) {
         const { entryPrice } = this.shortPosition;
-        if (support < entryPrice) this.shortPosition[name].price = support;
+        const sPercent = ((support - entryPrice) / entryPrice) * 100;
+        if (sPercent < -Math.abs(sl * 2)) this.shortPosition[name].price = support;
       }
       //autoTp
       if (name === "tp" && this.shortPosition.size > 0 && support && autoTp) {
@@ -1799,41 +1808,6 @@ export class Simulator {
       let { support, resistance } = this.app
         .get("indicators")
         .findLevels(candles.slice(-candlesCount), touchesCount, candlePart);
-      //TODO calc 4-6-12h confluence levels!
-      if (this.app.state.get("timeframe") === "1h") {
-        const resample = resample1hCandles(candles);
-        const level4h = this.app
-          .get("indicators")
-          .findLevels(
-            resample["candles4h"].slice(-candlesCount),
-            touchesCount,
-            candlePart,
-          );
-        const level6h = this.app
-          .get("indicators")
-          .findLevels(
-            resample["candles6h"].slice(-candlesCount),
-            touchesCount,
-            candlePart,
-          );
-        const level12h = this.app
-          .get("indicators")
-          .findLevels(
-            resample["candles12h"].slice(-candlesCount),
-            touchesCount,
-            candlePart,
-          );
-        support = pickBestLevel(
-          [level4h["support"]],
-          1.5,
-        );
-        resistance = pickBestLevel(
-          [
-            level4h["resistance"],
-          ],
-          1.5,
-        );
-      }
       //control balance
       if (this.getDefaultConfig().balance < 0) {
         alert(
@@ -2088,67 +2062,4 @@ export class Simulator {
   stopOptimization() {
     this._stopOptimization = true;
   }
-}
-export const resample1hCandles = (candles) => {
-  // ВНИМАНИЕ: Если у вас таймстампы в секундах, замените 1000 на 1
-  const TO_MS = 1;
-  const HOUR_MS = 60 * 60 * TO_MS;
-  function resampleTo(baseCandles, hours) {
-    const intervalMs = hours * HOUR_MS;
-    const groups = {};
-    baseCandles.forEach((candle) => {
-      // Находим начало временного интервала (00:00, 04:00, 06:00 и т.д.)
-      const bucketTime = Math.floor(candle.time / intervalMs) * intervalMs;
-
-      if (!groups[bucketTime]) {
-        groups[bucketTime] = [];
-      }
-      groups[bucketTime].push(candle);
-    });
-
-    // Собираем новые свечи
-    return Object.keys(groups)
-      .sort((a, b) => Number(a) - Number(b))
-      .map((bucketTime) => {
-        const group = groups[bucketTime];
-        const numericBucketTime = Number(bucketTime);
-        // Сортируем внутри группы по таймстампу
-        group.sort((a, b) => a.time - b.time);
-
-        return {
-          time: numericBucketTime, // Возвращает таймстамп в том же формате
-          open: group[0].open,
-          high: Math.max(...group.map((c) => c.high)),
-          low: Math.min(...group.map((c) => c.low)),
-          close: group[group.length - 1].close,
-          volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
-        };
-      });
-  }
-
-  return {
-    candles4h: resampleTo(candles, 4),
-    candles6h: resampleTo(candles, 6),
-    candles12h: resampleTo(candles, 12),
-  };
-};
-
-function pickBestLevel(levels, confluencePercent = 0.5) {
-  // levels = [level4h, level6h, level12h]
-  const valid = levels.filter((l) => l > 0);
-  if (valid.length === 0) return 0;
-  if (valid.length === 1) return valid[0];
-
-  // Проверяем конфлюэнс: все валидные уровни в одной зоне?
-  const min = Math.min(...valid);
-  const max = Math.max(...valid);
-  const spread = ((max - min) / min) * 100;
-
-  if (spread <= confluencePercent) {
-    // Конфлюэнс есть — берём среднее
-    return valid.reduce((a, b) => a + b, 0) / valid.length;
-  }
-
-  // Конфлюэнса нет — берём по приоритету ТФ (4h > 6h > 12h)
-  return levels[0] || levels[1] || levels[2];
 }

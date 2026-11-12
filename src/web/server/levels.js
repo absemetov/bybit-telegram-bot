@@ -81,7 +81,7 @@ async function checkPositions(
         let newPartPercent = shortPart;
         if (support > 0 && support < markPrice) {
           const sPercent = ((support - avgPrice) / avgPrice) * 100;
-          if (sPercent < -Math.abs(shortSl)) {
+          if (sPercent < -Math.abs(shortSl * 2)) {
             newPart = support;
             newPartPercent = Math.abs(sPercent);
           }
@@ -175,7 +175,7 @@ async function checkPositions(
         let newPartPercent = longPart;
         if (resistance > 0 && resistance > markPrice) {
           const sPercent = ((resistance - avgPrice) / avgPrice) * 100;
-          if (sPercent > Math.abs(longSl)) {
+          if (sPercent > Math.abs(longSl * 2)) {
             newPart = resistance;
             newPartPercent = sPercent;
           }

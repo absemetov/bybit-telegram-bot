@@ -5,7 +5,7 @@ export class State {
       user: null,
       token: null,
       symbol: "BTCUSDT",
-      timeframe: "6h",
+      timeframe: "4h",
       chartMode: "live",
       settings: { sound: true, locale: "en" },
       algoSettings: {

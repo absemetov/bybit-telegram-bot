@@ -676,45 +676,43 @@ export const getActiveSymbols = async (cursor, limit = 30) => {
 
 export const resample1hCandles = (candles) => {
   // ВНИМАНИЕ: Если у вас таймстампы в секундах, замените 1000 на 1
-  const TO_MS = 1000;
-  const HOUR_MS = 60 * 60 * TO_MS;
+  if (!candles || candles.length === 0) {
+    return { candles4h: [], candles6h: [], candles12h: [], candles1d: [] };
+  }
+  const HOUR_MS = 60 * 60 * 1000;
   function resampleTo(baseCandles, hours) {
     const intervalMs = hours * HOUR_MS;
-    const groups = {};
-    baseCandles.forEach((candle) => {
-      // Находим начало временного интервала (00:00, 04:00, 06:00 и т.д.)
+    const buckets = new Map();
+
+    for (const candle of baseCandles) {
+      // Округляем вниз до начала интервала (UTC)
       const bucketTime = Math.floor(candle.time / intervalMs) * intervalMs;
 
-      if (!groups[bucketTime]) {
-        groups[bucketTime] = [];
+      const existing = buckets.get(bucketTime);
+      if (!existing) {
+        buckets.set(bucketTime, {
+          time: bucketTime,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          volume: candle.volume || 0,
+        });
+      } else {
+        existing.high = Math.max(existing.high, candle.high);
+        existing.low = Math.min(existing.low, candle.low);
+        existing.close = candle.close;
+        existing.volume += candle.volume || 0;
       }
-      groups[bucketTime].push(candle);
-    });
+    }
 
-    // Собираем новые свечи
-    return Object.keys(groups)
-      .sort((a, b) => Number(a) - Number(b))
-      .map((bucketTime) => {
-        const group = groups[bucketTime];
-        const numericBucketTime = Number(bucketTime);
-        // Сортируем внутри группы по таймстампу
-        group.sort((a, b) => a.time - b.time);
-
-        return {
-          time: numericBucketTime, // Возвращает таймстамп в том же формате
-          open: group[0].open,
-          high: Math.max(...group.map((c) => c.high)),
-          low: Math.min(...group.map((c) => c.low)),
-          close: group[group.length - 1].close,
-          volume: group.reduce((sum, c) => sum + (c.volume || 0), 0),
-        };
-      });
+    return Array.from(buckets.values()).sort((a, b) => a.time - b.time);
   }
 
   return {
-    candles4h: resampleTo(candles, 4),
     candles6h: resampleTo(candles, 6),
     candles12h: resampleTo(candles, 12),
+    candles1d: resampleTo(candles, 24),
   };
 };
 
