@@ -90,8 +90,8 @@ export const checkTriggers = async () => {
               touchesCount,
               candlePart,
             );
-            // new 6h-12h-1d levels
-            if (timeframe === "1h") {
+            // new 6h-12h-1d levels deprecated Degen
+            if (timeframe === "degen") {
               const resample = resample1hCandles(candles);
               const level6h = Indicators.calculateLevels(
                 resample["candles6h"].slice(-candlesCount),
@@ -109,16 +109,14 @@ export const checkTriggers = async () => {
                 candlePart,
               );
               support =
-                level6h["support"] ||
-                level12h["support"] ||
-                level1d["support"];
+                level6h["support"] || level12h["support"] || level1d["support"];
               resistance =
                 level6h["resistance"] ||
                 level12h["resistance"] ||
                 level1d["resistance"];
             }
-            // fixed levels 1d
-            if (timeframe === "1w") {
+            // 1w fixed levels deprecated Degen!
+            if (timeframe === "degen") {
               support = supportPrice;
               resistance = resistancePrice;
             }

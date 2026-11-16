@@ -9,7 +9,13 @@ export class Indicators {
   attachToChart() {
     this.chartModule = this.app.get("chart");
   }
-  findLevels(candles, touchCount = 4, tolerance = 25) {
+  findLevels(
+    candles,
+    touchCount,
+    tolerance,
+    type = "live",
+    allowFallback = true,
+  ) {
     const max = Math.max(...candles.map((c) => c.high));
     const min = Math.min(...candles.map((c) => c.low));
     const levelsLow = [];
@@ -40,8 +46,44 @@ export class Indicators {
         levelsHigh.push(lowBound * (1 - step / 100));
       }
     } while (level <= max);
-    const support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
-    const resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
+    let support = levelsLow.length > 0 ? Math.min(...levelsLow) : 0;
+    let resistance = levelsHigh.length > 0 ? Math.max(...levelsHigh) : 0;
+    if (
+      type === "sim" &&
+      allowFallback &&
+      (support === 0 || resistance === 0) &&
+      candles.length >= touchCount &&
+      touchCount > 2
+    ) {
+      const lastCandle = candles[candles.length - 1];
+      const withoutLast = candles.slice(0, -1);
+
+      const prev = this.findLevels(
+        withoutLast,
+        touchCount - 1,
+        tolerance,
+        "sim",
+        false,
+      );
+
+      if (
+        support === 0 &&
+        prev.support > 0 &&
+        lastCandle.low <= prev.support &&
+        lastCandle.open > prev.support
+      ) {
+        support = prev.support;
+      }
+
+      if (
+        resistance === 0 &&
+        prev.resistance > 0 &&
+        lastCandle.high >= prev.resistance &&
+        prev.resistance > lastCandle.open
+      ) {
+        resistance = prev.resistance;
+      }
+    }
 
     return { support, resistance, min, max };
   }

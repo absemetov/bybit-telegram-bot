@@ -1121,13 +1121,13 @@ export class Chart {
       return el;
     });
     const timeframeList = [
-      { value: "1h", name: "1h(6h+12h+1d)" },
+      { value: "1h", name: "1h" },
       { value: "2h", name: "2h" },
       { value: "4h", name: "4h" },
       { value: "6h", name: "6h" },
       { value: "12h", name: "12h" },
       { value: "1d", name: "1d" },
-      { value: "1w", name: "1w Fixed" },
+      { value: "1w", name: "1w" },
     ].map((el) => {
       if (el.value === algoSettings.timeframe) {
         el.selected = true;

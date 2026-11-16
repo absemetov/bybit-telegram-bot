@@ -1807,7 +1807,7 @@ export class Simulator {
       const candles = this.app.get("chart").candles.slice(0, candleIndex + 1);
       let { support, resistance } = this.app
         .get("indicators")
-        .findLevels(candles.slice(-candlesCount), touchesCount, candlePart);
+        .findLevels(candles.slice(-candlesCount), touchesCount, candlePart, "sim");
       //control balance
       if (this.getDefaultConfig().balance < 0) {
         alert(
